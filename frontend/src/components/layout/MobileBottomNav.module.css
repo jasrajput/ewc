@@ -1,0 +1,118 @@
+.mobileNav {
+  display: none;
+}
+
+@media (max-width: 700px) {
+   .mobileNav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+
+    height: 70px;
+    padding: 0 10px env(safe-area-inset-bottom);
+
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+
+    background: rgba(12, 15, 19, 0.98);
+
+    border-top: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 0;
+
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.32);
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+
+   .navItem {
+    position: relative;
+    height: 100%;
+
+    padding: 0;
+    border: 0;
+    background: transparent;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+
+    color: #686f79;
+    cursor: pointer;
+  }
+
+  .icon {
+    height: 21px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .label {
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 600;
+  }
+
+  .navItem.active {
+    color: #dcb453;
+  }
+
+  .navItem.active:not(.centerItem)::before {
+    content: "";
+    position: absolute;
+    top: 0;
+
+    width: 24px;
+    height: 2px;
+
+    border-radius: 0 0 5px 5px;
+    background: #d6ad55;
+
+    box-shadow: 0 2px 8px rgba(214, 173, 85, 0.25);
+  }
+
+  .centerItem {
+    position: relative;
+    justify-content: flex-end;
+    padding-bottom: 9px;
+  }
+
+  .centerButton {
+    position: absolute;
+    top: -13px;
+
+    width: 48px;
+    height: 48px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: linear-gradient(145deg, #e4bb58, #b8882e);
+    color: #101216;
+
+    border: 3px solid #0c0f13;
+
+    box-shadow:
+      0 5px 15px rgba(0, 0, 0, 0.4),
+      0 3px 13px rgba(214, 173, 85, 0.18);
+  }
+
+  .centerItem .label {
+    color: #d6ad55;
+    font-weight: 650;
+  }
+
+  .centerItem:active .centerButton {
+    transform: scale(0.94);
+  }
+}

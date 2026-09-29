@@ -1,0 +1,616 @@
+.header {
+  --gold: #d6ad55;
+  --gold-light: #f2d487;
+  --border: rgba(255, 255, 255, 0.075);
+  --muted: #8c929c;
+
+  height: 78px;
+
+  position: sticky;
+  top: 0;
+
+  z-index: 50;
+
+  padding: 0 28px;
+
+  background: rgba(8, 10, 13, 0.88);
+
+  backdrop-filter: blur(18px);
+
+  border-bottom: 1px solid var(--border);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.headerLeft h1 {
+  margin: 0;
+
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.headerLeft p {
+  margin: 3px 0 0;
+
+  font-size: 11px;
+
+  color: var(--muted);
+}
+
+.menuButton {
+  display: none;
+
+  background: none;
+  color: white;
+
+  border: 0;
+
+  cursor: pointer;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.notificationButton {
+  position: relative;
+
+  width: 41px;
+  height: 41px;
+
+  display: grid;
+  place-items: center;
+
+  background: #101318;
+
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  color: #b4b9c0;
+
+  cursor: pointer;
+}
+
+/* .notificationButton span {
+  position: absolute;
+
+  top: 8px;
+  right: 9px;
+
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: var(--gold);
+} */
+
+.walletButton {
+  height: 41px;
+
+  padding: 0 15px;
+
+  border-radius: 10px;
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.25);
+
+  color: var(--gold-light);
+
+  background: rgba(214, 173, 85, 0.07);
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  cursor: pointer;
+
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.profileWrapper {
+  position: relative;
+}
+
+.profileButton {
+  border: 0;
+
+  background: transparent;
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  cursor: pointer;
+}
+
+.headerAvatar {
+  width: 37px;
+  height: 37px;
+
+  border-radius: 50%;
+
+  background: linear-gradient(
+    135deg,
+    #d6ad55,
+    #7d5d23
+  );
+
+  color: #111;
+
+  display: grid;
+  place-items: center;
+
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profileName {
+  text-align: left;
+}
+
+.profileName strong,
+.profileName span {
+  display: block;
+}
+
+.profileName strong {
+  font-size: 12px;
+}
+
+.profileName span {
+  color: var(--muted);
+
+  margin-top: 2px;
+
+  font-size: 10px;
+}
+
+.profileDropdown {
+  position: absolute;
+
+  right: 0;
+  top: 52px;
+
+  width: 175px;
+
+  padding: 6px;
+
+  background: #12151a;
+
+  border: 1px solid var(--border);
+  border-radius: 11px;
+
+  box-shadow: 0 15px 50px
+    rgba(0, 0, 0, 0.4);
+}
+
+.profileDropdown button {
+  width: 100%;
+
+  padding: 10px;
+
+  border: 0;
+
+  background: transparent;
+
+  color: #aeb3bb;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  border-radius: 7px;
+
+  cursor: pointer;
+}
+
+.profileDropdown button:hover {
+  background: rgba(255, 255, 255, 0.04);
+
+  color: white;
+}
+
+@media (max-width: 900px) {
+  .menuButton {
+    display: grid;
+    place-items: center;
+  }
+
+  .header {
+    padding: 0 18px;
+  }
+}
+
+@media (max-width: 650px) {
+  .header {
+    height: 68px;
+
+    padding: 0 14px;
+  }
+
+  .headerLeft h1 {
+    font-size: 16px;
+  }
+
+  .headerLeft p,
+  .profileName,
+  .notificationButton {
+    display: none;
+  }
+
+  .walletButton {
+    padding: 0 10px;
+  }
+
+  .walletButton span {
+    max-width: 100px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 420px) {
+  .headerLeft > div:last-child {
+    display: none;
+  }
+
+  .headerActions {
+    margin-left: auto;
+  }
+
+  .walletButton span {
+    max-width: 90px;
+  }
+}
+
+.walletButton {
+  height: 44px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #e7c76f;
+  background: rgba(214, 173, 85, 0.06);
+  border: 1px solid rgba(214, 173, 85, 0.2);
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.walletButton:hover {
+  background: rgba(214, 173, 85, 0.1);
+  border-color: rgba(214, 173, 85, 0.35);
+}
+
+.walletButton > svg {
+  flex: 0 0 auto;
+}
+
+.walletInfo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.walletAddress {
+  color: #e7c76f;
+  white-space: nowrap;
+}
+
+.walletDivider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.walletBalance {
+  color: #a6abb3;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+@media (max-width: 650px) {
+  .walletBalance,
+  .walletDivider {
+    display: none;
+  }
+
+  .walletButton {
+    padding: 0 10px;
+  }
+
+  .walletAddress {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .walletInfo .walletAddress {
+    max-width: 72px;
+    overflow: hidden;
+  }
+}
+
+/* ==========================================
+   NOTIFICATIONS
+========================================== */
+
+.notificationWrapper {
+  position: relative;
+}
+
+.notificationButton {
+  position: relative;
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #d6ad55;
+  color: #090b0e;
+
+  border: 2px solid #101318;
+  border-radius: 999px;
+
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+
+  white-space: nowrap;
+
+  z-index: 5;
+  box-sizing: border-box;
+}
+
+.notificationDropdown {
+  position: absolute;
+
+  top: calc(100% + 12px);
+  right: 0;
+
+  z-index: 1000;
+
+  width: 360px;
+  max-height: 480px;
+
+  overflow: hidden;
+
+  background: #101318;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.notificationHeader {
+  min-height: 58px;
+
+  padding: 11px 13px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.055);
+}
+
+.notificationHeader > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.notificationHeader strong {
+  color: #f4f5f7;
+  font-size: 12px;
+}
+
+.notificationHeader span {
+  color: #747b86;
+  font-size: 9px;
+}
+
+.notificationHeader button {
+  color: #d6ad55;
+  background: transparent;
+
+  border: 0;
+
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.notificationList {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.notificationItem {
+  width: 100%;
+
+  padding: 11px 12px;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+
+  color: inherit;
+  background: transparent;
+
+  border: 0;
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.045);
+
+  text-align: left;
+  font-family: inherit;
+
+  cursor: pointer;
+}
+
+.notificationItem:hover {
+  background:
+    rgba(255, 255, 255, 0.018);
+}
+
+.notificationUnread {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(214, 173, 85, 0.055),
+      transparent
+    );
+}
+
+.notificationTypeIcon {
+  width: 31px;
+  height: 31px;
+
+  flex: 0 0 31px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #d6ad55;
+  background:
+    rgba(214, 173, 85, 0.065);
+
+  border:
+    1px solid rgba(214, 173, 85, 0.1);
+  border-radius: 8px;
+}
+
+.notificationContent {
+  min-width: 0;
+  flex: 1;
+}
+
+.notificationContent > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notificationContent strong {
+  min-width: 0;
+
+  color: #d7dbe0;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.notificationContent i {
+  width: 5px;
+  height: 5px;
+
+  flex: 0 0 5px;
+
+  background: #f1d27c;
+
+  border-radius: 50%;
+}
+
+.notificationContent p {
+  margin: 4px 0;
+
+  color: #898f99;
+
+  font-size: 9px;
+  line-height: 1.45;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+
+  overflow: hidden;
+}
+
+.notificationContent > span {
+  color: #626974;
+  font-size: 8px;
+}
+
+.notificationFooter {
+  width: 100%;
+  min-height: 38px;
+
+  color: #d6ad55;
+  background: #0e1115;
+
+  border: 0;
+  border-top:
+    1px solid rgba(255, 255, 255, 0.05);
+
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.notificationFooter:hover {
+  background: #12161b;
+}
+
+.notificationState {
+  min-height: 100px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #747b86;
+  font-size: 9px;
+}
+
+
+@media (max-width: 600px) {
+  .notificationDropdown {
+    position: fixed;
+
+    top: 65px;
+    left: 10px;
+    right: 10px;
+
+    width: auto;
+  }
+}

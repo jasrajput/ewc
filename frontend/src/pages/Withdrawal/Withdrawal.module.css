@@ -1,0 +1,257 @@
+.withdrawCard {
+  max-width: 820px;
+  padding: 24px;
+  background: #101318;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.eyebrow {
+  color: #d6ad55;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.cardHeader h2 {
+  margin: 5px 0 6px;
+  color: #e4e6e9;
+  font-size: 22px;
+}
+
+.cardHeader p {
+  margin: 0;
+  color: #737b86;
+  font-size: 12px;
+}
+
+.priceBox {
+  min-width: 110px;
+  padding: 10px 13px;
+  text-align: right;
+  background: rgba(214, 173, 85, 0.05);
+  border: 1px solid rgba(214, 173, 85, 0.13);
+  border-radius: 8px;
+}
+
+.priceBox span,
+.priceBox strong {
+  display: block;
+}
+
+.priceBox span {
+  margin-bottom: 3px;
+  color: #737a84;
+  font-size: 9px;
+}
+
+.priceBox strong {
+  color: #d6ad55;
+  font-size: 14px;
+}
+
+.claimHero {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(214, 173, 85, 0.035);
+  border: 1px solid rgba(214, 173, 85, 0.1);
+  border-radius: 10px;
+}
+
+.claimIcon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d6ad55;
+  background: rgba(214, 173, 85, 0.08);
+  border-radius: 9px;
+}
+
+.claimHero span,
+.claimHero strong,
+.claimHero small {
+  display: block;
+}
+
+.claimHero span {
+  color: #7c838d;
+  font-size: 10px;
+}
+
+.claimHero strong {
+  margin: 2px 0;
+  color: #e7e8ea;
+  font-size: 29px;
+}
+
+.claimHero small {
+  color: #656c75;
+  font-size: 10px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 16px;
+  color: #d6ad55;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stat:last-child {
+  border-right: 0;
+}
+
+.stat span,
+.stat strong {
+  display: block;
+}
+
+.stat span {
+  margin-bottom: 3px;
+  color: #747b85;
+  font-size: 9px;
+}
+
+.stat strong {
+  color: #d7d9dc;
+  font-size: 13px;
+}
+
+.walletSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.walletSection > div {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 8px;
+}
+
+.walletSection span,
+.walletSection strong {
+  display: block;
+}
+
+.walletSection span {
+  margin-bottom: 4px;
+  color: #686f79;
+  font-size: 9px;
+}
+
+.walletSection strong {
+  color: #c9cdd2;
+  font-size: 11px;
+}
+
+.claimButton {
+  width: 100%;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 18px;
+  color: #0b0d10;
+  background: #d6ad55;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.claimButton:hover {
+  filter: brightness(1.06);
+}
+
+.claimNote {
+  margin: 9px 0 0;
+  color: #656c75;
+  font-size: 9px;
+  text-align: center;
+}
+
+.warningBox,
+.errorBox {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 10px;
+}
+
+.warningBox {
+  color: #dfb967;
+  background: rgba(214, 173, 85, 0.05);
+  border: 1px solid rgba(214, 173, 85, 0.13);
+}
+
+.errorBox {
+  margin-bottom: 15px;
+  color: #df8080;
+  background: rgba(220, 70, 70, 0.05);
+  border: 1px solid rgba(220, 70, 70, 0.13);
+}
+
+.loadingState {
+  min-height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777f89;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .cardHeader {
+    flex-direction: column;
+  }
+
+  .priceBox {
+    width: 100%;
+    text-align: left;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .stat:last-child {
+    border-bottom: 0;
+  }
+
+  .walletSection {
+    grid-template-columns: 1fr;
+  }
+}

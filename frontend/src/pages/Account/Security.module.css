@@ -1,0 +1,134 @@
+.container {
+  max-width: 700px;
+}
+
+.settingsCard {
+  background: #111318;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.iconBox {
+  width: 43px;
+  height: 43px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(214, 173, 85, 0.1);
+  color: #d6ad55;
+}
+
+.cardHeader h2 {
+  margin: 0 0 4px;
+  color: #fff;
+  font-size: 17px;
+}
+
+.cardHeader p {
+  margin: 0;
+  color: #777d89;
+  font-size: 12px;
+}
+
+.securityNote {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 20px 0;
+  padding: 12px 13px;
+  border-radius: 9px;
+  color: #d6ad55;
+  background: rgba(214, 173, 85, 0.06);
+  font-size: 11px;
+}
+
+.formGroup {
+  margin-bottom: 17px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 7px;
+  color: #aaaeb7;
+  font-size: 12px;
+}
+
+.passwordInput {
+  position: relative;
+}
+
+.passwordInput input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0b0d11;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  padding: 12px 43px 12px 13px;
+  color: #fff;
+  outline: none;
+}
+
+.passwordInput input:focus {
+  border-color: rgba(214, 173, 85, 0.55);
+}
+
+.passwordInput button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #70757e;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.saveButton {
+  border: 0;
+  border-radius: 9px;
+  padding: 12px 17px;
+  background: #d6ad55;
+  color: #101114;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorMessage,
+.successMessage {
+  padding: 11px 13px;
+  border-radius: 8px;
+  margin-bottom: 17px;
+  font-size: 12px;
+}
+
+.errorMessage {
+  color: #ff8585;
+  background: rgba(255, 70, 70, 0.08);
+  border: 1px solid rgba(255, 70, 70, 0.16);
+}
+
+.successMessage {
+  color: #76d99b;
+  background: rgba(50, 190, 100, 0.08);
+  border: 1px solid rgba(50, 190, 100, 0.16);
+}

@@ -1,0 +1,281 @@
+.container {
+  max-width: 760px;
+}
+
+.walletCard {
+  background: #111318;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding-bottom: 21px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.iconBox {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(214, 173, 85, 0.11);
+  color: #d6ad55;
+}
+
+.cardHeader h2 {
+  color: #fff;
+  font-size: 17px;
+  margin: 0 0 4px;
+}
+
+.cardHeader p {
+  color: #777d89;
+  font-size: 12px;
+  margin: 0;
+}
+
+.warning {
+  margin: 21px 0;
+  display: flex;
+  gap: 11px;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(224, 166, 51, 0.07);
+  border: 1px solid rgba(224, 166, 51, 0.17);
+  color: #d6ad55;
+}
+
+.warning strong {
+  font-size: 12px;
+}
+
+.warning p {
+  color: #a7a08d;
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 4px 0 0;
+}
+
+.formGroup {
+  margin: 20px 0;
+}
+
+.formGroup label {
+  display: block;
+  color: #aeb1b8;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.formGroup input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px;
+  background: #0b0d11;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  outline: none;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.formGroup input:focus {
+  border-color: rgba(214, 173, 85, 0.55);
+}
+
+.formGroup small {
+  display: block;
+  margin-top: 7px;
+  color: #686d76;
+  font-size: 10px;
+}
+
+.registerButton,
+.confirmButton {
+  background: #d6ad55;
+  color: #101114;
+  border: 0;
+  border-radius: 9px;
+  padding: 12px 17px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.registeredStatus {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 22px 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(50, 190, 100, 0.07);
+  border: 1px solid rgba(50, 190, 100, 0.16);
+  color: #73d797;
+}
+
+.registeredStatus div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.registeredStatus strong {
+  font-size: 12px;
+}
+
+.registeredStatus span {
+  font-size: 10px;
+  color: #8d9a92;
+}
+
+.walletDisplay {
+  background: #0b0d11;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 15px;
+}
+
+.walletDisplay span {
+  display: block;
+  color: #717681;
+  font-size: 10px;
+  margin-bottom: 7px;
+}
+
+.walletDisplay strong {
+  display: block;
+  color: #eee;
+  font-size: 12px;
+  font-family: monospace;
+  overflow-wrap: anywhere;
+}
+
+.lockedInfo {
+  display: flex;
+  gap: 10px;
+  margin-top: 17px;
+  color: #d6ad55;
+}
+
+.lockedInfo p {
+  margin: 0;
+  color: #777d89;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.errorMessage,
+.successMessage {
+  padding: 11px 13px;
+  border-radius: 8px;
+  margin: 17px 0;
+  font-size: 12px;
+}
+
+.errorMessage {
+  color: #ff8585;
+  background: rgba(255, 70, 70, 0.08);
+  border: 1px solid rgba(255, 70, 70, 0.16);
+}
+
+.successMessage {
+  color: #76d99b;
+  background: rgba(50, 190, 100, 0.08);
+  border: 1px solid rgba(50, 190, 100, 0.16);
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.confirmModal {
+  width: 100%;
+  max-width: 470px;
+  background: #13151a;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  padding: 25px;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45);
+}
+
+.modalWarning {
+  width: 47px;
+  height: 47px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: #d6ad55;
+  background: rgba(214, 173, 85, 0.1);
+}
+
+.confirmModal h3 {
+  color: #fff;
+  font-size: 17px;
+  margin: 17px 0 8px;
+}
+
+.confirmModal p {
+  color: #858a94;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.confirmAddress {
+  padding: 13px;
+  background: #090b0e;
+  border-radius: 9px;
+  color: #ddd;
+  font-family: monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  margin: 18px 0;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.cancelButton {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #aaaeb7;
+  border-radius: 9px;
+  padding: 11px 15px;
+  cursor: pointer;
+}
+
+.loading {
+  color: #8d929c;
+}
+
+@media (max-width: 600px) {
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions button {
+    width: 100%;
+    justify-content: center;
+  }
+}

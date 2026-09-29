@@ -1,0 +1,695 @@
+.panel {
+  overflow: hidden;
+
+  background: #101318;
+
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+}
+
+
+/* =========================================
+   HEADER
+========================================= */
+
+.panelHeader {
+  min-height: 72px;
+  padding: 15px 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.headerTitle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.headerIcon {
+  width: 38px;
+  height: 38px;
+
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #d6ad55;
+
+  background: rgba(214, 173, 85, 0.075);
+
+  border: 1px solid rgba(214, 173, 85, 0.13);
+  border-radius: 10px;
+}
+
+.headerTitle h3 {
+  margin: 0;
+
+  color: #f4f5f7;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.headerTitle p {
+  margin: 4px 0 0;
+
+  color: #898f99;
+  font-size: 11px;
+}
+
+.refreshButton {
+  padding: 8px 10px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  color: #b8bec7;
+
+  background: rgba(255, 255, 255, 0.025);
+
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 8px;
+
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.refreshButton:hover:not(:disabled) {
+  color: #f1d27c;
+
+  background: rgba(214, 173, 85, 0.065);
+
+  border-color: rgba(214, 173, 85, 0.16);
+}
+
+.refreshButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+
+/* =========================================
+   TREE VIEWPORT
+========================================= */
+
+.treeViewport {
+  width: 100%;
+  min-height: 440px;
+  max-height: 720px;
+
+  overflow: auto;
+
+  padding: 30px;
+
+  background:
+    radial-gradient(
+      circle at top center,
+      rgba(214, 173, 85, 0.045),
+      transparent 34%
+    ),
+    #0d1014;
+}
+
+.treeCanvas {
+  min-width: max-content;
+  width: max-content;
+  margin: 0 auto;
+}
+
+
+/* =========================================
+   TREE STRUCTURE
+========================================= */
+
+.branch {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nodeRow {
+  position: relative;
+  z-index: 2;
+
+  display: flex;
+  justify-content: center;
+}
+
+.childrenArea {
+  position: relative;
+
+  padding-top: 31px;
+}
+
+.verticalLine {
+  position: absolute;
+
+  top: 0;
+  left: 50%;
+
+  width: 1px;
+  height: 31px;
+
+  background: rgba(214, 173, 85, 0.25);
+
+  transform: translateX(-50%);
+}
+
+.children {
+  position: relative;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+
+  gap: 28px;
+
+  padding-top: 30px;
+}
+
+.children::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 50%;
+
+  width: calc(100% - 270px);
+  height: 1px;
+
+  background: rgba(214, 173, 85, 0.25);
+
+  transform: translateX(-50%);
+}
+
+.childBranch {
+  position: relative;
+
+  display: flex;
+  justify-content: center;
+}
+
+.childConnector {
+  position: absolute;
+
+  top: -30px;
+  left: 50%;
+
+  width: 1px;
+  height: 30px;
+
+  background: rgba(214, 173, 85, 0.25);
+
+  transform: translateX(-50%);
+}
+
+
+/* =========================================
+   NODE
+========================================= */
+
+.node {
+  position: relative;
+
+  width: 250px;
+  min-height: 170px;
+
+  padding: 13px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.018),
+      transparent 60%
+    ),
+    #12161b;
+
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 12px;
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+.node:hover {
+  border-color: rgba(214, 173, 85, 0.2);
+}
+
+.rootNode {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(214, 173, 85, 0.12),
+      rgba(214, 173, 85, 0.025) 60%
+    ),
+    #12161b;
+
+  border-color: rgba(214, 173, 85, 0.3);
+
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.2),
+    0 0 25px rgba(214, 173, 85, 0.025);
+}
+
+.blockedNode {
+  border-color: rgba(239, 68, 68, 0.16);
+}
+
+
+/* =========================================
+   NODE TOP
+========================================= */
+
+.nodeTop {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #f1d27c;
+
+  background: rgba(214, 173, 85, 0.085);
+
+  border: 1px solid rgba(214, 173, 85, 0.15);
+  border-radius: 9px;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.identity {
+  min-width: 0;
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nameRow {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.nameRow strong {
+  overflow: hidden;
+
+  color: #f4f5f7;
+  font-size: 12px;
+  font-weight: 700;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userId {
+  color: #d6ad55;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.rootBadge {
+  padding: 2px 5px;
+
+  flex: 0 0 auto;
+
+  color: #f1d27c;
+  background: rgba(214, 173, 85, 0.08);
+
+  border: 1px solid rgba(214, 173, 85, 0.14);
+  border-radius: 999px;
+
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.expandButton {
+  width: 29px;
+  height: 29px;
+
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #d6ad55;
+
+  background: rgba(214, 173, 85, 0.055);
+
+  border: 1px solid rgba(214, 173, 85, 0.12);
+  border-radius: 7px;
+
+  cursor: pointer;
+}
+
+.expandButton:hover:not(:disabled) {
+  background: rgba(214, 173, 85, 0.1);
+}
+
+.expandButton:disabled {
+  opacity: 0.6;
+}
+
+
+/* =========================================
+   BADGES
+========================================= */
+
+.badges {
+  margin-top: 11px;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.activatedBadge,
+.inactiveBadge,
+.blockedBadge,
+.rankBadge {
+  padding: 3px 6px;
+
+  border-radius: 999px;
+
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.activatedBadge {
+  color: #68d391;
+  background: rgba(104, 211, 145, 0.08);
+
+  border: 1px solid rgba(104, 211, 145, 0.14);
+}
+
+.inactiveBadge {
+  color: #a3a9b2;
+  background: rgba(255, 255, 255, 0.035);
+
+  border: 1px solid rgba(255, 255, 255, 0.065);
+}
+
+.blockedBadge {
+  color: #ff9b9b;
+  background: rgba(239, 68, 68, 0.075);
+
+  border: 1px solid rgba(239, 68, 68, 0.14);
+}
+
+.rankBadge {
+  color: #f1d27c;
+  background: rgba(214, 173, 85, 0.065);
+
+  border: 1px solid rgba(214, 173, 85, 0.12);
+}
+
+
+/* =========================================
+   NODE STATS
+========================================= */
+
+.nodeStats {
+  margin-top: 11px;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.nodeStats > div {
+  padding: 7px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  background: rgba(255, 255, 255, 0.022);
+
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 7px;
+}
+
+.nodeStats span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  color: #747b86;
+  font-size: 8px;
+}
+
+.nodeStats span svg {
+  color: #8d6926;
+}
+
+.nodeStats strong {
+  overflow: hidden;
+
+  color: #d7dbe0;
+  font-size: 10px;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* =========================================
+   ACTIONS
+========================================= */
+
+.nodeActions {
+  margin-top: 10px;
+  padding-top: 9px;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.nodeActions button {
+  padding: 5px 6px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+
+  color: #969da7;
+  background: transparent;
+
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 6px;
+
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.nodeActions button:hover {
+  color: #f1d27c;
+
+  background: rgba(214, 173, 85, 0.055);
+
+  border-color: rgba(214, 173, 85, 0.13);
+}
+
+.nodeActions
+  .rootAction {
+  color: #d6ad55;
+}
+
+
+/* =========================================
+   DEPTH
+========================================= */
+
+.depthLabel {
+  position: absolute;
+
+  right: 9px;
+  bottom: -7px;
+
+  padding: 2px 5px;
+
+  color: #626974;
+  background: #101318;
+
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 4px;
+
+  font-size: 7px;
+}
+
+
+/* =========================================
+   LOADING / ERROR / EMPTY
+========================================= */
+
+.loading,
+.empty {
+  min-height: 340px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading {
+  gap: 9px;
+
+  color: #898f99;
+  font-size: 11px;
+}
+
+.empty {
+  flex-direction: column;
+  gap: 7px;
+
+  color: #626974;
+}
+
+.empty svg {
+  color: #8d6926;
+}
+
+.empty strong {
+  color: #b8bec7;
+  font-size: 13px;
+}
+
+.empty span {
+  color: #747b86;
+  font-size: 10px;
+}
+
+.error {
+  margin: 12px 15px 0;
+  padding: 9px 11px;
+
+  color: #ffaaaa;
+  background: rgba(239, 68, 68, 0.07);
+
+  border: 1px solid rgba(239, 68, 68, 0.14);
+  border-radius: 8px;
+
+  font-size: 10px;
+}
+
+.loader,
+.miniLoader {
+  border-radius: 50%;
+
+  border-style: solid;
+  border-color:
+    rgba(214, 173, 85, 0.15);
+
+  border-top-color: #d6ad55;
+
+  animation:
+    networkSpin 0.7s linear infinite;
+}
+
+.loader {
+  width: 19px;
+  height: 19px;
+
+  border-width: 2px;
+}
+
+.miniLoader {
+  width: 12px;
+  height: 12px;
+
+  border-width: 1.5px;
+}
+
+.spinning {
+  animation:
+    networkSpin 0.8s linear infinite;
+}
+
+@keyframes networkSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* =========================================
+   SCROLLBAR
+========================================= */
+
+.treeViewport::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.treeViewport::-webkit-scrollbar-track {
+  background: #0b0e12;
+}
+
+.treeViewport::-webkit-scrollbar-thumb {
+  background: #292e35;
+  border-radius: 999px;
+}
+
+.treeViewport::-webkit-scrollbar-thumb:hover {
+  background: #373d46;
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 700px) {
+  .panelHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .treeViewport {
+    padding: 22px 14px;
+  }
+
+  .node {
+    width: 225px;
+  }
+
+  .children {
+    gap: 18px;
+  }
+}

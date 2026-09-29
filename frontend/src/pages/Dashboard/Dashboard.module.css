@@ -1,0 +1,1671 @@
+/* =========================================================
+   DASHBOARD — EWC PREMIUM
+========================================================= */
+
+.hero,
+.moneyGrid,
+.section,
+.panel,
+.quickLinks {
+  --gold: #d6ad55;
+  --gold-light: #f1d27c;
+  --gold-dark: #8d6926;
+  --bg: #090b0e;
+  --panel: #101318;
+  --panel-light: #15191f;
+  --panel-soft: #12161b;
+  --border: rgba(255, 255, 255, 0.075);
+  --border-soft: rgba(255, 255, 255, 0.045);
+  --text: #f4f5f7;
+  --muted: #898f99;
+  --muted-dark: #626974;
+  --green: #68d391;
+}
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.65fr);
+  gap: 30px;
+  min-height: 225px;
+  margin-bottom: 18px;
+  padding: 30px 32px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(214, 173, 85, 0.09), transparent 31%),
+    linear-gradient(125deg, #13161b 0%, #0f1216 52%, #0c0f13 100%);
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  right: -90px;
+  top: -130px;
+  border: 1px solid rgba(214, 173, 85, 0.08);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.heroGlow {
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  left: 18%;
+  bottom: -210px;
+  border-radius: 50%;
+  background: rgba(214, 173, 85, 0.08);
+  filter: blur(45px);
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+}
+
+.heroLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 13px;
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 1.7px;
+}
+
+.heroContent h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(26px, 2.4vw, 38px);
+  font-weight: 700;
+  letter-spacing: -0.8px;
+}
+
+.heroContent h1 span {
+  color: var(--gold-light);
+}
+
+.heroContent > p {
+  max-width: 540px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 23px;
+}
+
+.primaryButton,
+.secondaryButton {
+  height: 38px;
+  padding: 0 15px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.primaryButton {
+  border: 1px solid #d6ad55;
+  background: linear-gradient(135deg, #d6ad55, #a77d2d);
+  color: #101010;
+}
+
+.primaryButton:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.secondaryButton {
+  border: 1px solid rgba(214, 173, 85, 0.22);
+  background: rgba(214, 173, 85, 0.055);
+  color: var(--gold-light);
+}
+
+.secondaryButton:hover {
+  background: rgba(214, 173, 85, 0.11);
+  border-color: rgba(214, 173, 85, 0.35);
+}
+
+.heroAccount {
+  position: relative;
+  z-index: 1;
+  align-self: stretch;
+  padding: 18px;
+  border: 1px solid rgba(214, 173, 85, 0.13);
+  border-radius: 14px;
+  background: rgba(5, 7, 10, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.heroAccountTop {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.heroAccountIcon {
+  width: 39px;
+  height: 39px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--gold-light);
+  background: rgba(214, 173, 85, 0.09);
+  border: 1px solid rgba(214, 173, 85, 0.12);
+}
+
+.heroAccountTop span,
+.heroAccountTop strong {
+  display: block;
+}
+
+.heroAccountTop span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.heroAccountTop strong {
+  margin-top: 3px;
+  color: #77d99f;
+  font-size: 12px;
+}
+
+.heroAccountDivider {
+  height: 1px;
+  margin: 15px 0 11px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.heroAccountRow {
+  min-width: 0;
+  padding: 6px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.heroAccountRow span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.heroAccountRow strong {
+  min-width: 0;
+  color: #d6d9de;
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   MONEY CARDS
+========================================================= */
+
+.moneyGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.moneyCard {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.025), transparent 48%),
+    var(--panel);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.moneyCard:hover {
+  border-color: rgba(214, 173, 85, 0.16);
+  transform: translateY(-1px);
+}
+
+.moneyPrimary {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(214, 173, 85, 0.08), transparent 43%),
+    linear-gradient(145deg, rgba(214, 173, 85, 0.035), transparent 50%),
+    var(--panel);
+}
+
+.moneyCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.moneyIcon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  color: var(--gold-light);
+  background: rgba(214, 173, 85, 0.08);
+}
+
+.moneyValue {
+  display: block;
+  min-width: 0;
+  margin-top: 17px;
+  color: var(--text);
+  font-size: clamp(20px, 1.65vw, 27px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moneyValue small {
+  color: var(--gold-light);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.moneyBottom {
+  min-height: 24px;
+  margin-top: 9px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.moneyBottom > span {
+  min-width: 0;
+  color: var(--muted-dark);
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moneyBottom button {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gold-light);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.moneyBottom button:hover {
+  color: #ffe09a;
+}
+
+/* =========================================================
+   SECTION HEADINGS
+========================================================= */
+
+.section {
+  margin-bottom: 18px;
+  padding: 21px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.sectionHeading {
+  margin-bottom: 17px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.eyebrow {
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 1.7px;
+}
+
+.sectionHeading h2,
+.panelHeader h2 {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.sectionHeading p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.sectionAction,
+.panelLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8c929b;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.sectionAction:hover,
+.panelLink:hover {
+  color: var(--gold-light);
+}
+
+/* =========================================================
+   INCOME
+========================================================= */
+
+.incomeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.incomeCard {
+  min-width: 0;
+  padding: 15px;
+  text-align: left;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.018), transparent),
+    #0c0f13;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.incomeCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(214, 173, 85, 0.2);
+  background: #101419;
+}
+
+.incomeTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.incomeIcon {
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--gold-light);
+  background: rgba(214, 173, 85, 0.075);
+}
+
+.incomeArrow {
+  color: #535a64;
+  transition: 0.2s ease;
+}
+
+.incomeCard:hover .incomeArrow {
+  color: var(--gold);
+}
+
+.incomeCard > span {
+  display: block;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.incomeCard > strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.incomeFooter {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+  color: #666d77;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 8px;
+}
+
+.incomeCard:hover .incomeFooter {
+  color: var(--gold);
+}
+
+/* =========================================================
+   GENERIC PANEL
+========================================================= */
+
+.panel {
+  min-width: 0;
+  padding: 21px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.02), transparent 48%),
+    var(--panel);
+}
+
+.panelHeader {
+  margin-bottom: 19px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.panelHeader > svg {
+  color: var(--gold);
+}
+
+.headerIcon {
+  width: 35px;
+  height: 35px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--gold);
+  background: rgba(214, 173, 85, 0.065);
+}
+
+/* =========================================================
+   FEATURE GRID
+========================================================= */
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.8fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* =========================================================
+   INVESTMENT
+========================================================= */
+
+.investmentPanel {
+  min-height: 290px;
+}
+
+.activeInvestment {
+  min-height: 200px;
+}
+
+.investmentMain > span {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.investmentMain > strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 29px;
+  letter-spacing: -0.6px;
+}
+
+.packageBadge {
+  width: fit-content;
+  margin-top: 10px;
+  padding: 6px 9px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 7px;
+  background: rgba(214, 173, 85, 0.075);
+  color: var(--gold-light);
+  font-size: 9px;
+}
+
+.investmentStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-top: 21px;
+}
+
+.investmentStats > div {
+  padding: 11px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.investmentStats span,
+.investmentStats strong {
+  display: block;
+}
+
+.investmentStats span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.investmentStats strong {
+  margin-top: 5px;
+  color: #d9dce1;
+  font-size: 11px;
+}
+
+.progressArea {
+  margin-top: 20px;
+}
+
+.progressLabels {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.progressLabels strong {
+  color: #9ba1aa;
+  font-weight: 600;
+}
+
+.progressTrack {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #1c2026;
+}
+
+.progressTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8d6926, #e2bc62);
+}
+
+.emptyInvestment {
+  min-height: 205px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  color: var(--gold-light);
+  background: rgba(214, 173, 85, 0.07);
+  border: 1px solid rgba(214, 173, 85, 0.08);
+}
+
+.emptyInvestment > div:nth-child(2) {
+  max-width: 390px;
+}
+
+.emptyInvestment h3 {
+  margin: 13px 0 5px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.emptyInvestment p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.emptyInvestment > button {
+  margin-top: 15px;
+  padding: 9px 13px;
+  border: 1px solid rgba(214, 173, 85, 0.22);
+  border-radius: 8px;
+  background: rgba(214, 173, 85, 0.07);
+  color: var(--gold-light);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.emptyInvestment > button:hover {
+  background: rgba(214, 173, 85, 0.12);
+}
+
+/* =========================================================
+   RANK
+========================================================= */
+
+.rankPanel {
+  position: relative;
+  overflow: hidden;
+}
+
+.rankPanel::after {
+  content: "";
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  right: -100px;
+  top: -110px;
+  border-radius: 50%;
+  background: rgba(214, 173, 85, 0.045);
+  pointer-events: none;
+}
+
+.rankHero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rankMedal {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--gold-light);
+  border: 1px solid rgba(214, 173, 85, 0.16);
+  background: rgba(214, 173, 85, 0.08);
+}
+
+.rankHero span,
+.rankHero strong,
+.rankHero small {
+  display: block;
+}
+
+.rankHero span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.rankHero strong {
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 19px;
+}
+
+.rankHero small {
+  margin-top: 4px;
+  color: var(--gold);
+  font-size: 8px;
+}
+
+.rankMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 18px;
+}
+
+.rankMetrics > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+.rankMetrics span,
+.rankMetrics strong {
+  display: block;
+}
+
+.rankMetrics span {
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.rankMetrics strong {
+  margin-top: 5px;
+  color: #d8dbe0;
+  font-size: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rankProgress {
+  margin-top: 18px;
+}
+
+.rankProgress > button {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+/* =========================================================
+   COMMUNITY + REFERRAL
+========================================================= */
+
+.communityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.communityStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.communityStats > button {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.018);
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.communityStats > button:hover {
+  border-color: rgba(214, 173, 85, 0.17);
+  background: rgba(214, 173, 85, 0.035);
+}
+
+.communityStats > button > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.communityStats > button span,
+.communityStats > button strong {
+  display: block;
+}
+
+.communityStats > button span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.communityStats > button strong {
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.communityStats > button > svg:last-child {
+  color: #555c65;
+}
+
+.communityIcon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(214, 173, 85, 0.07);
+}
+
+.communityMetric {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.communityMetric span,
+.communityMetric strong {
+  display: block;
+}
+
+.communityMetric span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.communityMetric strong {
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   REFERRAL
+========================================================= */
+
+.referralPanel {
+  position: relative;
+  overflow: hidden;
+}
+
+.referralGlow {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  right: -120px;
+  bottom: -140px;
+  border-radius: 50%;
+  background: rgba(214, 173, 85, 0.065);
+  filter: blur(15px);
+  pointer-events: none;
+}
+
+.referralReward {
+  position: relative;
+  z-index: 1;
+  padding: 13px 14px;
+  border: 1px solid rgba(214, 173, 85, 0.11);
+  border-radius: 10px;
+  background: rgba(214, 173, 85, 0.045);
+}
+
+.referralReward span,
+.referralReward strong,
+.referralReward small {
+  display: block;
+}
+
+.referralReward span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.referralReward strong {
+  margin-top: 3px;
+  color: var(--gold-light);
+  font-size: 23px;
+}
+
+.referralReward small {
+  margin-top: 2px;
+  color: #656c76;
+  font-size: 8px;
+}
+
+.referralDescription {
+  position: relative;
+  z-index: 1;
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.referralBox {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  margin-top: 13px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #0a0d11;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.referralBox > span {
+  min-width: 0;
+  flex: 1;
+  color: #9fa5ae;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.referralBox button {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: rgba(214, 173, 85, 0.08);
+  color: var(--gold-light);
+  cursor: pointer;
+}
+
+.referralBox button:hover {
+  background: rgba(214, 173, 85, 0.15);
+}
+
+/* =========================================================
+   ACTIVITY + TOKEN
+========================================================= */
+
+.activityGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+}
+
+.activityItem {
+  min-width: 0;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.activityItem:first-child {
+  padding-top: 0;
+}
+
+.activityItem:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.activityIcon {
+  width: 33px;
+  height: 33px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--gold-light);
+  background: rgba(214, 173, 85, 0.07);
+}
+
+.activityInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.activityInfo strong,
+.activityInfo span {
+  display: block;
+}
+
+.activityInfo strong {
+  color: #d9dce0;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.activityInfo span {
+  margin-top: 3px;
+  color: #646b75;
+  font-size: 8px;
+}
+
+.activityAmount {
+  text-align: right;
+}
+
+.activityAmount strong,
+.activityAmount span {
+  display: block;
+}
+
+.activityAmount strong {
+  color: #76d99f;
+  font-size: 10px;
+}
+
+.activityAmount span {
+  margin-top: 3px;
+  color: #636a73;
+  font-size: 7px;
+}
+
+.emptyActivity {
+  min-height: 175px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #626973;
+  text-align: center;
+}
+
+.emptyActivity svg {
+  margin-bottom: 9px;
+  color: var(--gold);
+}
+
+.emptyActivity strong {
+  color: #a8adb5;
+  font-size: 11px;
+}
+
+.emptyActivity span {
+  margin-top: 4px;
+  font-size: 8px;
+}
+
+/* =========================================================
+   TOKEN
+========================================================= */
+
+.tokenCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.tokenIdentity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.tokenLogo {
+  width: 45px;
+  height: 45px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(214, 173, 85, 0.24);
+  background:
+    linear-gradient(145deg, rgba(214, 173, 85, 0.12), rgba(214, 173, 85, 0.035));
+  color: var(--gold-light);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.tokenIdentity strong,
+.tokenIdentity span {
+  display: block;
+}
+
+.tokenIdentity strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.tokenIdentity span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.tokenDetails {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tokenDetails > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tokenDetails span,
+.tokenDetails strong {
+  display: block;
+}
+
+.tokenDetails span {
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.tokenDetails strong {
+  margin-top: 4px;
+  color: #d4d7dc;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contractBox {
+  min-width: 0;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: #0b0e12;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 9px;
+}
+
+.contractBox > div:first-child {
+  min-width: 0;
+}
+
+.contractBox span,
+.contractBox strong {
+  display: block;
+}
+
+.contractBox span {
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.contractBox strong {
+  margin-top: 4px;
+  color: #aeb4bc;
+  font-size: 8px;
+}
+
+.contractActions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 5px;
+}
+
+.contractActions button,
+.contractActions a {
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: rgba(214, 173, 85, 0.075);
+  color: var(--gold-light);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.contractActions button:hover,
+.contractActions a:hover {
+  background: rgba(214, 173, 85, 0.14);
+}
+
+/* =========================================================
+   QUICK LINKS
+========================================================= */
+
+.quickLinks {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.quickLinks > button {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #0f1216;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.quickLinks > button:hover {
+  border-color: rgba(214, 173, 85, 0.18);
+  background: #12161b;
+  transform: translateY(-1px);
+}
+
+.quickLinks > button > svg:first-child {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.quickLinks > button > svg:last-child {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #555c65;
+}
+
+.quickLinks > button > span {
+  min-width: 0;
+}
+
+.quickLinks strong,
+.quickLinks small {
+  display: block;
+}
+
+.quickLinks strong {
+  color: #d8dbe0;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.quickLinks small {
+  margin-top: 3px;
+  color: #666d76;
+  font-size: 7px;
+}
+
+/* =========================================================
+   LOADING / ERROR
+========================================================= */
+
+.loadingPage {
+  min-height: 100vh;
+  padding: 20px;
+  background: #080a0d;
+  color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.loadingBrand {
+  width: 49px;
+  height: 49px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(214, 173, 85, 0.38);
+  background: rgba(214, 173, 85, 0.04);
+  color: #e3bf68;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.loader {
+  width: 23px;
+  height: 23px;
+  border: 2px solid #24282e;
+  border-top-color: #d6ad55;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.loadingPage h3 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.loadingPage p {
+  margin: 0;
+  color: #858c96;
+  font-size: 10px;
+}
+
+.retryButton {
+  margin-top: 3px;
+  padding: 9px 14px;
+  border: 1px solid rgba(214, 173, 85, 0.25);
+  border-radius: 8px;
+  background: rgba(214, 173, 85, 0.07);
+  color: #e4c36f;
+  cursor: pointer;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   LARGE TABLET
+========================================================= */
+
+@media (max-width: 1200px) {
+  .moneyGrid,
+  .incomeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .featureGrid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+  }
+
+  .quickLinks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 1000px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .heroAccount {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 25px;
+  }
+
+  .heroAccountTop {
+    grid-row: span 3;
+  }
+
+  .heroAccountDivider {
+    display: none;
+  }
+
+  .featureGrid,
+  .communityGrid,
+  .activityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .investmentPanel {
+    min-height: auto;
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+  .hero {
+    padding: 23px 20px;
+    min-height: auto;
+    border-radius: 15px;
+  }
+
+  .heroContent h1 {
+    font-size: 25px;
+  }
+
+  .heroContent > p {
+    font-size: 10px;
+  }
+
+  .heroActions {
+    align-items: stretch;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    flex: 1;
+  }
+
+  .heroAccount {
+    display: block;
+  }
+
+  .heroAccountDivider {
+    display: block;
+  }
+
+  .moneyGrid,
+  .incomeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .moneyCard {
+    padding: 15px;
+  }
+
+  .moneyValue {
+    font-size: 19px;
+  }
+
+  .section,
+  .panel {
+    padding: 17px;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+  }
+
+  .sectionHeading p {
+    display: none;
+  }
+
+  .investmentStats,
+  .rankMetrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .communityStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quickLinks {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 500px) {
+  .hero {
+    padding: 20px 17px;
+  }
+
+  .heroActions {
+    flex-direction: column;
+  }
+
+  .moneyGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .incomeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .incomeCard {
+    padding: 13px;
+  }
+
+  .incomeCard > strong {
+    font-size: 16px;
+  }
+
+  .investmentStats {
+    grid-template-columns: 1fr;
+  }
+
+  .rankMetrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rankMetrics > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .communityStats {
+    grid-template-columns: 1fr;
+  }
+
+  .tokenDetails {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .quickLinks {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 360px) {
+  .incomeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .rankMetrics,
+  .tokenDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .rankMetrics > div:last-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 500px) {
+  .moneyGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .moneyCard {
+    min-height: 118px;
+    padding: 13px;
+  }
+
+  .moneyValue {
+    margin-top: 12px;
+    font-size: 18px;
+  }
+
+  .moneyBottom {
+    margin-top: 6px;
+  }
+}
+
+@media (max-width: 700px) {
+  .hero {
+    display: block;
+    min-height: 0;
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+
+  .heroContent h1 {
+    font-size: 23px;
+  }
+
+  .heroContent > p {
+    margin-top: 5px;
+    font-size: 10px;
+  }
+
+  .heroActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 15px;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    height: 36px;
+  }
+
+  .heroAccount {
+    margin-top: 14px;
+    padding: 10px 12px;
+  }
+
+  .heroAccountTop {
+    display: flex;
+  }
+
+  .heroAccountIcon,
+  .heroAccountDivider,
+  .heroAccountRow {
+    display: none;
+  }
+
+  .heroAccountTop span {
+    display: none;
+  }
+
+  .heroAccountTop strong {
+    margin: 0;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 700px) {
+  .heroAccount {
+    display: none;
+  }
+
+    .hero {
+    padding: 20px 22px 22px;
+  }
+
+  .heroActions {
+    margin-top: 18px;
+  }
+}

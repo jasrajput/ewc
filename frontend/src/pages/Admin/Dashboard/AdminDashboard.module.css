@@ -1,0 +1,982 @@
+.eyebrow {
+  color: #d6ad55;
+
+  font-size: 9px;
+  font-weight: 750;
+
+  letter-spacing: 1.6px;
+}
+
+.hero {
+  position: relative;
+
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 130px;
+
+  box-sizing: border-box;
+
+  margin-bottom: 20px;
+
+  padding: 27px 29px;
+
+  background:
+    radial-gradient(
+      circle at 85% 10%,
+      rgba(214, 173, 85, 0.09),
+      transparent 32%
+    ),
+    linear-gradient(
+      130deg,
+      #12161b,
+      #0f1216
+    );
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.11);
+
+  border-radius: 15px;
+}
+
+.hero::after {
+  content: "";
+
+  position: absolute;
+
+  width: 180px;
+  height: 180px;
+
+  right: -80px;
+  bottom: -120px;
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.08);
+
+  border-radius: 50%;
+}
+
+.heroContent h2 {
+  margin: 7px 0 6px;
+
+  color: #f4f5f7;
+
+  font-size: 24px;
+  font-weight: 720;
+
+  letter-spacing: -0.55px;
+}
+
+.heroContent p {
+  margin: 0;
+
+  color: #747b85;
+
+  font-size: 12px;
+}
+
+.heroStatus {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  min-width: 145px;
+
+  padding: 11px 13px;
+
+  background: rgba(0, 0, 0, 0.18);
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.065);
+
+  border-radius: 10px;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+
+  flex-shrink: 0;
+
+  background: #68d391;
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 9px rgba(104, 211, 145, 0.4);
+}
+
+.heroStatus div {
+  display: flex;
+  flex-direction: column;
+}
+
+.heroStatus span {
+  color: #626974;
+
+  font-size: 8.5px;
+}
+
+.heroStatus strong {
+  margin-top: 2px;
+
+  color: #d9dcdf;
+
+  font-size: 11px;
+}
+
+/* =============================
+   STATS
+============================= */
+
+.statsGrid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 13px;
+
+  margin-bottom: 13px;
+}
+
+.statCard {
+  min-width: 0;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 13px;
+
+  padding: 18px;
+
+  background: #101318;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.075);
+
+  border-radius: 13px;
+}
+
+.statIcon {
+  width: 39px;
+  height: 39px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  color: #d6ad55;
+
+  background:
+    rgba(214, 173, 85, 0.07);
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.11);
+
+  border-radius: 10px;
+}
+
+.warningIcon {
+  color: #f1c96d;
+
+  background:
+    rgba(241, 201, 109, 0.07);
+}
+
+.statContent {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.statContent > span {
+  color: #777e88;
+
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.statContent > strong {
+  overflow: hidden;
+
+  margin-top: 6px;
+
+  color: #f0f1f2;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  letter-spacing: -0.4px;
+
+  text-overflow: ellipsis;
+}
+
+.statContent small {
+  margin-top: 5px;
+
+  color: #555c65;
+
+  font-size: 8.5px;
+}
+
+.secondaryStats {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 13px;
+
+  margin-bottom: 20px;
+}
+
+.smallStat {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 12px 15px;
+
+  color: #747b84;
+
+  background: #0e1115;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.055);
+
+  border-radius: 10px;
+}
+
+.smallStat svg {
+  color: #8d6926;
+}
+
+.smallStat div {
+  display: flex;
+  flex-direction: column;
+}
+
+.smallStat span {
+  color: #606771;
+
+  font-size: 8.5px;
+}
+
+.smallStat strong {
+  margin-top: 2px;
+
+  color: #cfd2d5;
+
+  font-size: 13px;
+}
+
+/* =============================
+   PANELS
+============================= */
+
+.contentGrid {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.2fr)
+    minmax(300px, 0.8fr);
+
+  gap: 15px;
+
+  margin-bottom: 15px;
+}
+
+.panel {
+  margin-bottom: 15px;
+
+  padding: 20px;
+
+  background: #101318;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.075);
+
+  border-radius: 13px;
+}
+
+.contentGrid .panel {
+  margin-bottom: 0;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-bottom: 18px;
+}
+
+.panelHeader h3 {
+  margin: 5px 0 0;
+
+  color: #e9eaec;
+
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.panelAction {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  padding: 7px 9px;
+
+  color: #9c8147;
+
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 600;
+
+  background: transparent;
+
+  border: 0;
+
+  cursor: pointer;
+}
+
+.panelAction:hover {
+  color: #d6ad55;
+}
+
+/* INCOME */
+
+.incomeGrid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 10px;
+}
+
+.incomeItem {
+  display: flex;
+  flex-direction: column;
+
+  padding: 13px;
+
+  background: #0d1014;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.055);
+
+  border-radius: 9px;
+}
+
+.incomeItem span {
+  color: #666d76;
+
+  font-size: 9px;
+}
+
+.incomeItem strong {
+  margin-top: 5px;
+
+  color: #d8dadc;
+
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.incomeTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-top: 11px;
+
+  padding: 13px;
+
+  background:
+    rgba(214, 173, 85, 0.045);
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.09);
+
+  border-radius: 9px;
+}
+
+.incomeTotal div {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: #9c824b;
+}
+
+.incomeTotal span {
+  font-size: 10px;
+}
+
+.incomeTotal strong {
+  color: #d6ad55;
+
+  font-size: 14px;
+}
+
+/* RANK */
+
+.rankList {
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+}
+
+.rankInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 5px;
+}
+
+.rankInfo span {
+  color: #8d949d;
+
+  font-size: 9px;
+}
+
+.rankInfo strong {
+  color: #c8ccd0;
+
+  font-size: 9.5px;
+}
+
+.rankTrack {
+  height: 4px;
+
+  overflow: hidden;
+
+  background: #1a1e23;
+
+  border-radius: 20px;
+}
+
+.rankTrack span {
+  display: block;
+
+  height: 100%;
+
+  background:
+    linear-gradient(
+      90deg,
+      #8d6926,
+      #d6ad55
+    );
+
+  border-radius: inherit;
+}
+
+/* =============================
+   TABLE
+============================= */
+
+.tableWrapper {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+.tableWrapper table {
+  width: 100%;
+
+  border-collapse: collapse;
+}
+
+.tableWrapper th {
+  padding: 9px 11px;
+
+  color: #565d66;
+
+  text-align: left;
+
+  font-size: 8px;
+  font-weight: 750;
+
+  letter-spacing: 0.8px;
+
+  border-bottom: 1px solid
+    rgba(255, 255, 255, 0.06);
+}
+
+.tableWrapper td {
+  padding: 12px 11px;
+
+  color: #858c95;
+
+  font-size: 9.5px;
+
+  border-bottom: 1px solid
+    rgba(255, 255, 255, 0.04);
+}
+
+.tableWrapper tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tableWrapper tbody tr:hover {
+  background:
+    rgba(255, 255, 255, 0.012);
+}
+
+.memberCell {
+  min-width: 180px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+}
+
+.memberAvatar {
+  width: 31px;
+  height: 31px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  color: #d6ad55;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  background:
+    rgba(214, 173, 85, 0.07);
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.1);
+
+  border-radius: 8px;
+}
+
+.memberCell > div:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.memberCell strong {
+  color: #cdd0d4;
+
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.memberCell span {
+  margin-top: 3px;
+
+  color: #555c65;
+
+  font-size: 8px;
+}
+
+.rankBadge,
+.activeBadge,
+.blockedBadge {
+  display: inline-flex;
+
+  padding: 4px 7px;
+
+  font-size: 8px;
+  font-weight: 650;
+
+  border-radius: 20px;
+}
+
+.rankBadge {
+  color: #d6ad55;
+
+  background:
+    rgba(214, 173, 85, 0.06);
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.1);
+}
+
+.activeBadge {
+  color: #68d391;
+
+  background:
+    rgba(104, 211, 145, 0.06);
+
+  border: 1px solid
+    rgba(104, 211, 145, 0.1);
+}
+
+.blockedBadge {
+  color: #f08080;
+
+  background:
+    rgba(240, 128, 128, 0.06);
+
+  border: 1px solid
+    rgba(240, 128, 128, 0.1);
+}
+
+.yes {
+  color: #68d391;
+}
+
+.no {
+  color: #6a717a;
+}
+
+/* =============================
+   TRANSACTIONS
+============================= */
+
+.transactionList {
+  display: flex;
+  flex-direction: column;
+}
+
+.transaction {
+  display: flex;
+  align-items: center;
+
+  padding: 11px 3px;
+
+  border-bottom: 1px solid
+    rgba(255, 255, 255, 0.045);
+}
+
+.transaction:last-child {
+  border-bottom: 0;
+}
+
+.transactionIcon {
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  color: #d6ad55;
+
+  background:
+    rgba(214, 173, 85, 0.06);
+
+  border: 1px solid
+    rgba(214, 173, 85, 0.09);
+
+  border-radius: 8px;
+}
+
+.transactionInfo {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  margin-left: 10px;
+}
+
+.transactionInfo strong {
+  color: #c9cdd1;
+
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.transactionInfo span {
+  margin-top: 3px;
+
+  color: #555c65;
+
+  font-size: 8.5px;
+}
+
+.transactionRight {
+  display: flex;
+  flex-direction: column;
+
+  margin-left: auto;
+
+  text-align: right;
+}
+
+.transactionRight strong {
+  color: #68d391;
+
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.transactionRight span {
+  margin-top: 3px;
+
+  color: #505761;
+
+  font-size: 8px;
+}
+
+.empty {
+  padding: 25px;
+
+  color: #606771;
+
+  text-align: center;
+
+  font-size: 10px;
+}
+
+/* =============================
+   STATES
+============================= */
+
+.loadingState {
+  min-height: 400px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  color: #737a83;
+
+  font-size: 11px;
+}
+
+.spinner {
+  width: 17px;
+  height: 17px;
+
+  border: 2px solid
+    rgba(255, 255, 255, 0.08);
+
+  border-top-color: #d6ad55;
+
+  border-radius: 50%;
+
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.errorBox {
+  margin-bottom: 15px;
+
+  padding: 11px 13px;
+
+  color: #ff9292;
+
+  font-size: 10px;
+
+  background:
+    rgba(255, 80, 80, 0.055);
+
+  border: 1px solid
+    rgba(255, 80, 80, 0.11);
+
+  border-radius: 9px;
+}
+
+/* =============================
+   RESPONSIVE
+============================= */
+
+@media (max-width: 1200px) {
+  .statsGrid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .secondaryStats {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .hero {
+    align-items: flex-start;
+
+    flex-direction: column;
+
+    gap: 20px;
+
+    padding: 22px;
+  }
+
+  .heroStatus {
+    box-sizing: border-box;
+
+    width: 100%;
+  }
+
+  .statsGrid,
+  .secondaryStats {
+    grid-template-columns: 1fr;
+  }
+
+  .incomeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .panelHeader {
+    align-items: flex-start;
+  }
+}
+
+
+.eyebrow {
+  font-size: 11px;
+}
+
+.heroContent h2 {
+  font-size: 27px;
+}
+
+.heroContent p {
+  font-size: 14px;
+}
+
+.heroStatus span {
+  font-size: 11px;
+}
+
+.heroStatus strong {
+  font-size: 13px;
+}
+
+.statContent > span {
+  font-size: 12px;
+}
+
+.statContent > strong {
+  font-size: 22px;
+}
+
+.statContent small {
+  font-size: 11px;
+}
+
+.smallStat span {
+  font-size: 11px;
+}
+
+.smallStat strong {
+  font-size: 16px;
+}
+
+.panelHeader h3 {
+  font-size: 17px;
+}
+
+.panelAction {
+  font-size: 12px;
+}
+
+.incomeItem span {
+  font-size: 12px;
+}
+
+.incomeItem strong {
+  font-size: 16px;
+}
+
+.incomeTotal span {
+  font-size: 12px;
+}
+
+.incomeTotal strong {
+  font-size: 17px;
+}
+
+.rankInfo span {
+  font-size: 11px;
+}
+
+.rankInfo strong {
+  font-size: 12px;
+}
+
+.tableWrapper th {
+  font-size: 11px;
+}
+
+.tableWrapper td {
+  font-size: 13px;
+}
+
+.memberCell strong {
+  font-size: 13px;
+}
+
+.memberCell span {
+  font-size: 11px;
+}
+
+.rankBadge,
+.activeBadge,
+.blockedBadge {
+  font-size: 10px;
+}
+
+.transactionInfo strong {
+  font-size: 13px;
+}
+
+.transactionInfo span {
+  font-size: 11px;
+}
+
+.transactionRight strong {
+  font-size: 13px;
+}
+
+.transactionRight span {
+  font-size: 10px;
+}
+
+.empty {
+  font-size: 13px;
+}
+
+.loadingState {
+  font-size: 13px;
+}
+
+.errorBox {
+  font-size: 12px;
+}

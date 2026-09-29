@@ -1,0 +1,537 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+/* =================================
+   MEMBER FILTER BANNER
+================================= */
+
+.memberFilterBanner {
+  padding: 13px 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(214, 173, 85, 0.09),
+      rgba(214, 173, 85, 0.025)
+    ),
+    #101318;
+
+  border: 1px solid rgba(214, 173, 85, 0.18);
+  border-radius: 12px;
+}
+
+.memberFilterBanner > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  color: #a9afb8;
+  font-size: 12px;
+}
+
+.memberFilterBanner svg {
+  color: #d6ad55;
+}
+
+.memberFilterBanner strong {
+  color: #f1d27c;
+  font-size: 13px;
+}
+
+.memberFilterBanner button {
+  padding: 7px 10px;
+
+  color: #f1d27c;
+  background: rgba(214, 173, 85, 0.06);
+
+  border: 1px solid rgba(214, 173, 85, 0.16);
+  border-radius: 8px;
+
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.memberFilterBanner button:hover {
+  background: rgba(214, 173, 85, 0.11);
+}
+
+
+/* =================================
+   SUMMARY
+================================= */
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.summaryCard {
+  min-width: 0;
+  min-height: 128px;
+  padding: 17px;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.018),
+      transparent 65%
+    ),
+    #101318;
+
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+}
+
+.featuredCard {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(214, 173, 85, 0.095),
+      rgba(214, 173, 85, 0.015) 65%
+    ),
+    #101318;
+
+  border-color: rgba(214, 173, 85, 0.18);
+}
+
+.summaryIcon {
+  width: 38px;
+  height: 38px;
+
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #d6ad55;
+
+  background: rgba(214, 173, 85, 0.075);
+
+  border: 1px solid rgba(214, 173, 85, 0.12);
+  border-radius: 10px;
+}
+
+.summaryContent {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.summaryContent > span {
+  color: #898f99;
+  font-size: 11px;
+}
+
+.summaryContent > strong {
+  margin-top: 7px;
+
+  overflow: hidden;
+
+  color: #f4f5f7;
+  font-size: 19px;
+  font-weight: 700;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.featuredCard .summaryContent > strong {
+  color: #f1d27c;
+}
+
+.summaryContent > small {
+  margin-top: 6px;
+
+  color: #626974;
+  font-size: 10px;
+}
+
+
+/* =================================
+   OVERVIEW STRIP
+================================= */
+
+.overviewStrip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  background: #101318;
+
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 12px;
+}
+
+.overviewStrip > div {
+  padding: 14px 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.overviewStrip > div + div {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.overviewStrip span {
+  color: #898f99;
+  font-size: 11px;
+}
+
+.overviewStrip strong {
+  color: #f4f5f7;
+  font-size: 14px;
+}
+
+
+/* =================================
+   FILTERS
+================================= */
+
+.filterPanel {
+  padding: 14px;
+
+  display: flex;
+  align-items: flex-end;
+  gap: 11px;
+
+  background: #101318;
+
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+}
+
+.searchArea {
+  flex: 1;
+  min-width: 220px;
+}
+
+.typeFilter {
+  width: 175px;
+}
+
+.sortFilter {
+  width: 175px;
+}
+
+.dateFilter {
+  min-width: 270px;
+}
+
+
+/* =================================
+   TABLE PANEL
+================================= */
+
+.tablePanel {
+  overflow: hidden;
+
+  background: #101318;
+
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+}
+
+.panelHeader {
+  min-height: 76px;
+  padding: 16px 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.panelHeader h3 {
+  margin: 0;
+
+  color: #f4f5f7;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.panelHeader p {
+  margin: 5px 0 0;
+
+  color: #898f99;
+  font-size: 12px;
+}
+
+.recordCount {
+  color: #d6ad55;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+
+/* =================================
+   MEMBER
+================================= */
+
+.memberCell {
+  min-width: 210px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: inherit;
+  background: none;
+
+  border: none;
+
+  font-family: inherit;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #f1d27c;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(214, 173, 85, 0.15),
+      rgba(214, 173, 85, 0.035)
+    );
+
+  border: 1px solid rgba(214, 173, 85, 0.15);
+  border-radius: 9px;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.memberInfo {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.memberInfo strong {
+  overflow: hidden;
+
+  color: #f4f5f7;
+  font-size: 13px;
+  font-weight: 600;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberInfo small {
+  max-width: 155px;
+  overflow: hidden;
+
+  color: #747b86;
+  font-size: 11px;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberCell:hover
+  .memberInfo strong {
+  color: #f1d27c;
+}
+
+
+/* =================================
+   OTHER CELLS
+================================= */
+
+.userId {
+  color: #f1d27c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rank {
+  color: #b7bdc6;
+  font-size: 12px;
+}
+
+.amount {
+  color: #68d391;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.description {
+  display: block;
+
+  min-width: 180px;
+  max-width: 280px;
+
+  overflow: hidden;
+
+  color: #aeb4bd;
+  font-size: 12px;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date {
+  display: block;
+
+  min-width: 145px;
+
+  color: #898f99;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+
+/* =================================
+   STATES
+================================= */
+
+.stateContainer {
+  min-height: 250px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.errorBox {
+  padding: 12px 14px;
+
+  color: #ffb4b4;
+
+  background: rgba(239, 68, 68, 0.08);
+
+  border: 1px solid rgba(239, 68, 68, 0.16);
+  border-radius: 10px;
+
+  font-size: 12px;
+}
+
+
+/* =================================
+   PAGINATION
+================================= */
+
+.pagination {
+  padding: 14px 18px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+
+/* =================================
+   RESPONSIVE
+================================= */
+
+@media (max-width: 1350px) {
+  .summaryGrid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+  .filterPanel {
+    flex-wrap: wrap;
+  }
+
+  .searchArea {
+    flex: 1 1 100%;
+  }
+
+  .typeFilter,
+  .sortFilter {
+    flex: 1;
+    width: auto;
+  }
+
+  .dateFilter {
+    flex: 2;
+  }
+}
+
+
+@media (max-width: 850px) {
+  .summaryGrid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .overviewStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .overviewStrip > div + div {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .dateFilter {
+    flex: 1 1 100%;
+  }
+}
+
+
+@media (max-width: 600px) {
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .memberFilterBanner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .filterPanel {
+    align-items: stretch;
+  }
+
+  .searchArea,
+  .typeFilter,
+  .sortFilter,
+  .dateFilter {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .panelHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

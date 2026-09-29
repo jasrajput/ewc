@@ -1,0 +1,577 @@
+.loginPage {
+  --gold: #d6ad55;
+  --gold-light: #f1d27c;
+  --gold-dark: #8d6926;
+
+  --bg: #090b0e;
+  --panel: #101318;
+  --panel-light: #15191f;
+
+  --border: rgba(255, 255, 255, 0.075);
+
+  --text: #f4f5f7;
+  --muted: #898f99;
+
+  position: relative;
+
+  width: 100%;
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  color: var(--text);
+  background: var(--bg);
+
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.gridBackground {
+  position: absolute;
+  inset: 0;
+
+  pointer-events: none;
+
+  background-image:
+    linear-gradient(
+      rgba(214, 173, 85, 0.025) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(214, 173, 85, 0.025) 1px,
+      transparent 1px
+    );
+
+  background-size: 72px 72px;
+
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 15%,
+    black 82%,
+    transparent
+  );
+}
+
+.glowOne {
+  position: absolute;
+
+  width: 520px;
+  height: 520px;
+
+  top: -330px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  border-radius: 50%;
+
+  background: rgba(214, 173, 85, 0.1);
+
+  filter: blur(125px);
+
+  pointer-events: none;
+}
+
+.glowTwo {
+  position: absolute;
+
+  width: 400px;
+  height: 400px;
+
+  right: -180px;
+  bottom: -270px;
+
+  border-radius: 50%;
+
+  background: rgba(214, 173, 85, 0.045);
+
+  filter: blur(110px);
+
+  pointer-events: none;
+}
+
+.pageContent {
+  position: relative;
+  z-index: 2;
+
+  width: 100%;
+  max-width: 470px;
+
+  padding: 38px 20px 25px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: fit-content;
+
+  margin: 0 auto 27px;
+}
+
+.logoMark {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-right: 12px;
+
+  color: var(--gold);
+
+  font-size: 24px;
+  font-weight: 800;
+
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 0 3px rgba(214, 173, 85, 0.07),
+    0 0 24px rgba(214, 173, 85, 0.08);
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandText strong {
+  color: var(--text);
+
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 800;
+
+  letter-spacing: -0.5px;
+}
+
+.brandText span {
+  margin-top: 5px;
+
+  color: var(--gold);
+
+  font-size: 9px;
+  font-weight: 700;
+
+  letter-spacing: 2.2px;
+}
+
+.loginCard {
+  position: relative;
+
+  overflow: hidden;
+
+  padding: 34px 38px 29px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.025),
+      transparent 45%
+    ),
+    var(--panel);
+
+  border: 1px solid var(--border);
+  border-radius: 22px;
+
+  box-shadow:
+    0 28px 85px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.012);
+}
+
+.cardAccent {
+  position: absolute;
+
+  top: 0;
+  left: 50%;
+
+  width: 130px;
+  height: 2px;
+
+  transform: translateX(-50%);
+
+  background: var(--gold);
+
+  box-shadow: 0 0 18px rgba(214, 173, 85, 0.7);
+}
+
+.adminBadge {
+  width: fit-content;
+
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  margin: 0 auto 20px;
+
+  padding: 6px 10px;
+
+  color: var(--gold);
+
+  font-size: 9px;
+  font-weight: 750;
+
+  letter-spacing: 1.5px;
+
+  background: rgba(214, 173, 85, 0.065);
+
+  border: 1px solid rgba(214, 173, 85, 0.16);
+  border-radius: 30px;
+}
+
+.cardHeader {
+  margin-bottom: 29px;
+
+  text-align: center;
+}
+
+.headerIcon {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 auto 16px;
+
+  color: var(--gold);
+
+  background: rgba(214, 173, 85, 0.07);
+
+  border: 1px solid rgba(214, 173, 85, 0.2);
+  border-radius: 13px;
+}
+
+.cardHeader h1 {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 29px;
+  line-height: 1.2;
+
+  font-weight: 750;
+
+  letter-spacing: -0.7px;
+}
+
+.cardHeader p {
+  margin: 9px 0 0;
+
+  color: var(--muted);
+
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.form {
+  width: 100%;
+}
+
+.formGroup {
+  margin-bottom: 20px;
+}
+
+.formGroup label {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #c9cdd2;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inputWrapper {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+}
+
+.inputWrapper input {
+  box-sizing: border-box;
+
+  width: 100%;
+  height: 52px;
+
+  padding: 0 46px;
+
+  color: var(--text);
+
+  font-family: inherit;
+  font-size: 14px;
+
+  background: #0d1014;
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.inputWrapper input::placeholder {
+  color: #626974;
+}
+
+.inputWrapper input:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.inputWrapper input:focus {
+  background: #0f1317;
+
+  border-color: rgba(214, 173, 85, 0.65);
+
+  box-shadow:
+    0 0 0 3px rgba(214, 173, 85, 0.07),
+    0 0 20px rgba(214, 173, 85, 0.025);
+}
+
+.inputIcon {
+  position: absolute;
+
+  left: 16px;
+  z-index: 2;
+
+  color: #69717b;
+
+  pointer-events: none;
+
+  transition: color 0.2s ease;
+}
+
+.inputWrapper:focus-within .inputIcon {
+  color: var(--gold);
+}
+
+.passwordToggle {
+  position: absolute;
+
+  right: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 5px;
+
+  color: #707983;
+  background: transparent;
+
+  border: 0;
+
+  cursor: pointer;
+}
+
+.passwordToggle:hover {
+  color: var(--gold);
+}
+
+.formOptions {
+  margin: -2px 0 24px;
+}
+
+.remember {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: #969ca5;
+
+  font-size: 12.5px;
+
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember input {
+  position: absolute;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+.customCheckbox {
+  position: relative;
+
+  box-sizing: border-box;
+
+  width: 16px;
+  height: 16px;
+
+  background: #0d1014;
+
+  border: 1px solid #444b52;
+  border-radius: 4px;
+
+  transition: 0.2s ease;
+}
+
+.remember input:checked + .customCheckbox {
+  background: var(--gold);
+
+  border-color: var(--gold);
+}
+
+.remember input:checked + .customCheckbox::after {
+  content: "";
+
+  position: absolute;
+
+  left: 5px;
+  top: 2px;
+
+  width: 3px;
+  height: 7px;
+
+  border: solid #111;
+  border-width: 0 2px 2px 0;
+
+  transform: rotate(45deg);
+}
+
+.errorMessage {
+  margin-bottom: 18px;
+
+  padding: 11px 13px;
+
+  color: #ff9292;
+
+  font-size: 12.5px;
+  line-height: 1.5;
+
+  background: rgba(255, 74, 74, 0.07);
+
+  border: 1px solid rgba(255, 74, 74, 0.18);
+  border-radius: 9px;
+}
+
+.loginButton {
+  width: 100%;
+  height: 53px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  color: #111;
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 750;
+
+  background: linear-gradient(
+    135deg,
+    var(--gold),
+    var(--gold-light)
+  );
+
+  border: 0;
+  border-radius: 12px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 25px rgba(214, 173, 85, 0.15);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.loginButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 10px 30px rgba(214, 173, 85, 0.22);
+
+  filter: brightness(1.04);
+}
+
+.loginButton:disabled {
+  opacity: 0.65;
+
+  cursor: not-allowed;
+}
+
+.securityNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  margin-top: 27px;
+  padding-top: 21px;
+
+  color: #686f78;
+
+  font-size: 10.5px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.065);
+}
+
+.securityNote svg {
+  color: #68d391;
+}
+
+.footer {
+  margin: 22px 0 0;
+
+  color: #515861;
+
+  text-align: center;
+
+  font-size: 10.5px;
+}
+
+@media (max-width: 600px) {
+  .loginPage {
+    align-items: flex-start;
+  }
+
+  .pageContent {
+    max-width: 100%;
+
+    padding: 28px 16px 22px;
+  }
+
+  .loginCard {
+    padding: 29px 22px 25px;
+
+    border-radius: 20px;
+  }
+
+  .cardHeader h1 {
+    font-size: 26px;
+  }
+}

@@ -1,0 +1,678 @@
+.loginPage {
+  --gold: #f5b900;
+  --gold-light: #ffc928;
+  --gold-dark: #b88900;
+  --background: #0b0f10;
+  --card: #171c20;
+  --card-light: #1c2227;
+  --border: rgba(245, 185, 0, 0.18);
+  --text: #f2f3f4;
+  --muted: #929aa5;
+
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    radial-gradient(
+      circle at 50% 45%,
+      rgba(245, 185, 0, 0.035),
+      transparent 35%
+    ),
+    var(--background);
+
+  color: var(--text);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* =========================
+   BACKGROUND
+========================= */
+
+.gridBackground {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background-image:
+    linear-gradient(
+      rgba(245, 185, 0, 0.025) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(245, 185, 0, 0.025) 1px,
+      transparent 1px
+    );
+
+  background-size: 72px 72px;
+
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 15%,
+    black 80%,
+    transparent
+  );
+}
+
+.glowOne {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  top: -300px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  border-radius: 50%;
+  background: rgba(245, 185, 0, 0.09);
+  filter: blur(120px);
+  pointer-events: none;
+}
+
+.glowTwo {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  bottom: -250px;
+  right: -100px;
+
+  border-radius: 50%;
+  background: rgba(245, 185, 0, 0.035);
+  filter: blur(100px);
+  pointer-events: none;
+}
+
+/* =========================
+   PAGE CONTENT
+========================= */
+
+.pageContent {
+  position: relative;
+  z-index: 2;
+
+  width: 100%;
+  max-width: 470px;
+
+  padding: 40px 20px 25px;
+}
+
+/* =========================
+   BRAND
+========================= */
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: fit-content;
+  margin: 0 auto 27px;
+
+  color: inherit;
+  text-decoration: none;
+}
+
+.logoMark {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-right: 12px;
+
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 0 3px rgba(245, 185, 0, 0.08),
+    0 0 24px rgba(245, 185, 0, 0.08);
+
+  color: var(--gold);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandText strong {
+  color: #f4f4f4;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.brandText span {
+  margin-top: 5px;
+
+  color: var(--gold);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 2.3px;
+}
+
+/* =========================
+   CARD
+========================= */
+
+.loginCard {
+  position: relative;
+  overflow: hidden;
+
+  padding: 38px 38px 30px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.025),
+      transparent 45%
+    ),
+    var(--card);
+
+  border: 1px solid var(--border);
+  border-radius: 24px;
+
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.015);
+}
+
+.cardAccent {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 120px;
+  height: 2px;
+
+  background: var(--gold);
+
+  box-shadow: 0 0 18px rgba(245, 185, 0, 0.8);
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.cardHeader {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.headerIcon {
+  width: 45px;
+  height: 45px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 auto 17px;
+
+  border: 1px solid rgba(245, 185, 0, 0.25);
+  border-radius: 13px;
+
+  color: var(--gold);
+  background: rgba(245, 185, 0, 0.07);
+}
+
+.cardHeader h1 {
+  margin: 0;
+
+  color: #f5f5f5;
+  font-size: 29px;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.7px;
+}
+
+.cardHeader p {
+  margin: 9px 0 0;
+
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* =========================
+   FORM
+========================= */
+
+.form {
+  width: 100%;
+}
+
+.formGroup {
+  margin-bottom: 20px;
+}
+
+.formGroup label {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #cbd0d5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputWrapper input {
+  width: 100%;
+  height: 52px;
+
+  box-sizing: border-box;
+
+  padding: 0 46px;
+
+  color: #f4f4f4;
+  font-family: inherit;
+  font-size: 14px;
+
+  background: #101519;
+
+  border: 1px solid #2c3338;
+  border-radius: 12px;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.inputWrapper input::placeholder {
+  color: #656d75;
+}
+
+.inputWrapper input:hover {
+  border-color: #3a4147;
+}
+
+.inputWrapper input:focus {
+  background: #11171a;
+
+  border-color: rgba(245, 185, 0, 0.7);
+
+  box-shadow:
+    0 0 0 3px rgba(245, 185, 0, 0.08),
+    0 0 20px rgba(245, 185, 0, 0.025);
+}
+
+.inputIcon {
+  position: absolute;
+  left: 16px;
+  z-index: 2;
+
+  color: #69727b;
+
+  pointer-events: none;
+
+  transition: color 0.2s ease;
+}
+
+.inputWrapper:focus-within .inputIcon {
+  color: var(--gold);
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 5px;
+
+  color: #707983;
+  background: transparent;
+
+  border: 0;
+
+  cursor: pointer;
+
+  transition: color 0.2s ease;
+}
+
+.passwordToggle:hover {
+  color: var(--gold);
+}
+
+/* =========================
+   OPTIONS
+========================= */
+
+.formOptions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin: -2px 0 24px;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  position: relative;
+
+  color: #969ea7;
+  font-size: 12.5px;
+
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.customCheckbox {
+  position: relative;
+
+  width: 16px;
+  height: 16px;
+
+  box-sizing: border-box;
+
+  border: 1px solid #444c53;
+  border-radius: 4px;
+
+  background: #101519;
+
+  transition: 0.2s ease;
+}
+
+.remember input:checked + .customCheckbox {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+.remember input:checked + .customCheckbox::after {
+  content: "";
+
+  position: absolute;
+
+  left: 5px;
+  top: 2px;
+
+  width: 3px;
+  height: 7px;
+
+  border: solid #111;
+  border-width: 0 2px 2px 0;
+
+  transform: rotate(45deg);
+}
+
+.forgotPassword {
+  color: var(--gold);
+  font-size: 12.5px;
+  font-weight: 600;
+
+  text-decoration: none;
+
+  transition: color 0.2s ease;
+}
+
+.forgotPassword:hover {
+  color: var(--gold-light);
+}
+
+/* =========================
+   ERROR
+========================= */
+
+.errorMessage {
+  margin-bottom: 18px;
+  padding: 11px 13px;
+
+  color: #ff8e8e;
+  font-size: 12.5px;
+  line-height: 1.5;
+
+  background: rgba(255, 74, 74, 0.07);
+
+  border: 1px solid rgba(255, 74, 74, 0.18);
+  border-radius: 9px;
+}
+
+/* =========================
+   LOGIN BUTTON
+========================= */
+
+.loginButton {
+  width: 100%;
+  height: 53px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  color: #111;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 750;
+
+  background: linear-gradient(
+    135deg,
+    #f5b900,
+    #ffc400
+  );
+
+  border: 0;
+  border-radius: 12px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 24px rgba(245, 185, 0, 0.17);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.loginButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 10px 30px rgba(245, 185, 0, 0.25);
+
+  filter: brightness(1.04);
+}
+
+.loginButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.loginButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* =========================
+   DIVIDER
+========================= */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  margin: 28px 0 19px;
+}
+
+.divider span {
+  flex: 1;
+  height: 1px;
+
+  background: #2b3136;
+}
+
+.divider p {
+  margin: 0;
+
+  color: #626b74;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+/* =========================
+   REGISTER
+========================= */
+
+.registerText {
+  margin: 0;
+
+  text-align: center;
+
+  color: #8e969f;
+  font-size: 13px;
+}
+
+.registerText a {
+  margin-left: 3px;
+
+  color: var(--gold);
+  font-weight: 650;
+
+  text-decoration: none;
+}
+
+.registerText a:hover {
+  color: var(--gold-light);
+}
+
+/* =========================
+   SECURITY NOTE
+========================= */
+
+.securityNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  margin-top: 27px;
+  padding-top: 21px;
+
+  color: #646d76;
+  font-size: 10.5px;
+
+  border-top: 1px solid #292f34;
+}
+
+.securityDot {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #17b768;
+
+  box-shadow: 0 0 8px rgba(23, 183, 104, 0.45);
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.footer {
+  margin: 22px 0 0;
+
+  text-align: center;
+
+  color: #515961;
+  font-size: 10.5px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 600px) {
+  .loginPage {
+    align-items: flex-start;
+  }
+
+  .pageContent {
+    max-width: 100%;
+    padding: 28px 16px 22px;
+  }
+
+  .brand {
+    margin-bottom: 23px;
+  }
+
+  .logoMark {
+    width: 43px;
+    height: 43px;
+
+    font-size: 21px;
+  }
+
+  .brandText strong {
+    font-size: 21px;
+  }
+
+  .brandText span {
+    font-size: 8px;
+    letter-spacing: 1.8px;
+  }
+
+  .loginCard {
+    padding: 30px 22px 25px;
+    border-radius: 20px;
+  }
+
+  .cardHeader {
+    margin-bottom: 27px;
+  }
+
+  .cardHeader h1 {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 380px) {
+  .formOptions {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+
+  .forgotPassword {
+    margin-left: 24px;
+  }
+}

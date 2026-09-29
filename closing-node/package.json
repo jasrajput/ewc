@@ -1,0 +1,16 @@
+{
+  "name": "closing-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "claim-history.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/merkle-tree": "^1.0.8",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.17.0",
+    "express": "^5.2.1",
+    "mysql2": "^3.24.2"
+  }
+}
