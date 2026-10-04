@@ -11,7 +11,6 @@ import {
   Network,
   RefreshCw,
   Search,
-  ShieldCheck,
   UserRound,
   Users,
   WalletCards,

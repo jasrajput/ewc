@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Search,
   User,
-  Wallet,
   X,
 } from "lucide-react";
 

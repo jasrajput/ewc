@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
-  ExternalLink,
   Eye,
   ReceiptText,
   RefreshCw,
