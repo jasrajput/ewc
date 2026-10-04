@@ -93,7 +93,7 @@ const updateNodeById = (
 
 
 // ======================================================
-// NETWORK TREE
+// Genealogy TREE
 // ======================================================
 
 const AdminNetworkTree = ({
@@ -147,7 +147,7 @@ const AdminNetworkTree = ({
           setTree(null);
 
           setError(
-            "Network tree data was not found."
+            "Genealogy tree data was not found."
           );
 
           return;
@@ -190,7 +190,7 @@ const AdminNetworkTree = ({
         setTree(preparedRoot);
       } catch (err) {
         console.error(
-          "Admin network tree error:",
+          "Admin genealogy tree error:",
           err
         );
 
@@ -206,7 +206,7 @@ const AdminNetworkTree = ({
         setError(
           err.response?.data
             ?.message ||
-            "Unable to load network tree."
+            "Unable to load team genealogy."
         );
       } finally {
         setLoading(false);
@@ -319,7 +319,7 @@ const AdminNetworkTree = ({
         );
       } catch (err) {
         console.error(
-          "Network child load error:",
+          "Genealogy child load error:",
           err
         );
 
@@ -346,7 +346,7 @@ const AdminNetworkTree = ({
         setError(
           err.response?.data
             ?.message ||
-            "Unable to load network children."
+            "Unable to load team children."
         );
       }
     };
@@ -419,7 +419,7 @@ const AdminNetworkTree = ({
 
           <div>
             <h3>
-              Visual Network Tree
+              Visual Team Tree
             </h3>
 
             <p>
@@ -476,7 +476,7 @@ const AdminNetworkTree = ({
           />
 
           <span>
-            Loading network tree...
+            Loading team genealogy...
           </span>
         </div>
       ) : !tree ? (
@@ -488,7 +488,7 @@ const AdminNetworkTree = ({
           <GitBranch size={26} />
 
           <strong>
-            No network tree
+            No team genealogy
           </strong>
 
           <span>
@@ -880,7 +880,7 @@ const TreeNode = ({
             onClick={() =>
               onMakeRoot(node)
             }
-            title="Make this member the network root"
+            title="Make this member the team root"
           >
             <ExternalLink
               size={13}

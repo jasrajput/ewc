@@ -673,7 +673,7 @@ const Support = () => {
 
                   <option value="Earnings">Earnings</option>
 
-                  <option value="Network">Network</option>
+                  <option value="Team">Team</option>
 
                   <option value="Other">Other</option>
                 </select>

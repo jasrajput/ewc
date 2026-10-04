@@ -699,10 +699,79 @@ const checkAvailability = async (req, res) => {
   }
 };
 
+const checkInvestmentAccount = async (req, res) => {
+  try {
+    const { address } = req.body;
+
+    if (!address || !address.trim()) {
+      return res.status(400).json({
+        success: false,
+        exists: false,
+        message: "Wallet address is required.",
+      });
+    }
+
+    const cleanAddress = address.trim().toLowerCase();
+
+    if (!/^0x[a-fA-F0-9]{40}$/.test(cleanAddress)) {
+      return res.status(400).json({
+        success: false,
+        exists: false,
+        message: "Invalid wallet address.",
+      });
+    }
+
+    const [rows] = await db.execute(
+      `
+        SELECT
+          id,
+          user_id,
+          name,
+          trx,
+          package_choose
+        FROM member
+        WHERE LOWER(trx) = ?
+        LIMIT 1
+      `,
+      [cleanAddress]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        exists: false,
+        message: "No account is registered with this wallet address.",
+      });
+    }
+
+    const member = rows[0];
+
+    return res.status(200).json({
+      success: true,
+      exists: true,
+      message: "Account verified.",
+      member: {
+        user_id: member.user_id,
+        name: member.name,
+        wallet: member.trx,
+        activated: Number(member.package_choose) >= 2,
+      },
+    });
+  } catch (error) {
+    console.error("Investment account check error:", error);
+
+    return res.status(500).json({
+      success: false,
+      exists: false,
+      message: "Unable to verify investment account.",
+    });
+  }
+};
 
 module.exports = {
   register,
   login,
   checkReferral,
-  checkAvailability
+  checkAvailability,
+  checkInvestmentAccount
 };

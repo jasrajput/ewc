@@ -65,7 +65,7 @@ const DirectPartners = () => {
     <UserLayout title="Direct Partners" subtitle="Members directly referred by you">
       <section className={styles.pageHeader}>
         <div>
-          <span className={styles.eyebrow}>MY NETWORK</span>
+          <span className={styles.eyebrow}>MY TEAM</span>
           <h2>Direct Partners</h2>
           <p>View members who registered directly under your referral.</p>
         </div>

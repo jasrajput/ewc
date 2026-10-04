@@ -720,7 +720,7 @@ const viewMemberNetwork = (
             </button>
 
             <button type="button" onClick={() => viewMemberNetwork(row)}>
-              Network
+              Team
               <ChevronRight size={13} />
             </button>
           </div>
@@ -739,7 +739,7 @@ const viewMemberNetwork = (
       <div className={styles.page}>
         <AdminPageHeader
           eyebrow="MANAGEMENT"
-          title="Network"
+          title="Team"
           description="Inspect sponsorship relationships, direct partners, community business and level distribution."
           icon={Network}
           actions={
@@ -887,7 +887,7 @@ const viewMemberNetwork = (
                 icon={WalletCards}
                 label="Community Business"
                 value={formatAmount(overview.communityBusiness)}
-                meta="All network levels"
+                meta="All team levels"
                 featured
               />
             </div>
@@ -920,7 +920,7 @@ const viewMemberNetwork = (
 
               {levels.length === 0 ? (
                 <div className={styles.panelEmpty}>
-                  No level network records found.
+                  No level Team records found.
                 </div>
               ) : (
                 <div className={styles.levelGrid}>
@@ -1144,7 +1144,7 @@ const SelectedMember = ({ member, sponsor, navigate, viewMemberNetwork }) => {
             </div>
 
             <button type="button" onClick={() => viewMemberNetwork(sponsor)}>
-              View Network
+              View Team
             </button>
           </div>
         ) : (

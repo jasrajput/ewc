@@ -1,20 +1,25 @@
 const { ethers } = require("ethers");
 
-function createLeaf(wallet, cumulativeAmount) {
-
-    return ethers.solidityPackedKeccak256(
-        ["address", "uint256"],
-        [wallet, cumulativeAmount]
+function createLeaf(
+    wallet,
+    cumulativeUsdtIncome,
+    cumulativeRoiEwc
+) {
+    const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["address", "uint256", "uint256"],
+        [
+            wallet,
+            cumulativeUsdtIncome,
+            cumulativeRoiEwc
+        ]
     );
+
+    return ethers.keccak256(encoded);
 }
 
 function hashPair(a, b) {
-
-    const sorted = [a, b].sort(
-        (x, y) =>
-            x.toLowerCase().localeCompare(
-                y.toLowerCase()
-            )
+    const sorted = [a, b].sort((x, y) =>
+        x.toLowerCase().localeCompare(y.toLowerCase())
     );
 
     return ethers.keccak256(
@@ -26,43 +31,27 @@ function hashPair(a, b) {
 }
 
 function buildMerkleTree(leaves) {
-
     if (leaves.length === 0) {
-        throw new Error(
-            "Cannot build empty Merkle tree"
-        );
+        throw new Error("Cannot build empty Merkle tree");
     }
 
     let current = [...leaves];
-
-    const levels = [
-        current
-    ];
+    const levels = [current];
 
     while (current.length > 1) {
-
         const next = [];
 
-        for (
-            let i = 0;
-            i < current.length;
-            i += 2
-        ) {
-
+        for (let i = 0; i < current.length; i += 2) {
             const left = current[i];
-
             const right =
                 i + 1 < current.length
                     ? current[i + 1]
                     : left;
 
-            next.push(
-                hashPair(left, right)
-            );
+            next.push(hashPair(left, right));
         }
 
         current = next;
-
         levels.push(current);
     }
 
@@ -70,19 +59,11 @@ function buildMerkleTree(leaves) {
 }
 
 function getMerkleProof(levels, leafIndex) {
-
     const proof = [];
-
     let index = leafIndex;
 
-    for (
-        let level = 0;
-        level < levels.length - 1;
-        level++
-    ) {
-
-        const current =
-            levels[level];
+    for (let level = 0; level < levels.length - 1; level++) {
+        const current = levels[level];
 
         const pairIndex =
             index % 2 === 0
@@ -90,17 +71,12 @@ function getMerkleProof(levels, leafIndex) {
                 : index - 1;
 
         if (pairIndex < current.length) {
-            proof.push(
-                current[pairIndex]
-            );
+            proof.push(current[pairIndex]);
         } else {
-            proof.push(
-                current[index]
-            );
+            proof.push(current[index]);
         }
 
-        index =
-            Math.floor(index / 2);
+        index = Math.floor(index / 2);
     }
 
     return proof;

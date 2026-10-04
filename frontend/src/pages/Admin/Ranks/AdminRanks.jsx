@@ -584,7 +584,7 @@ const AdminRanks = () => {
             <p>
               Monitor member ranks,
               achievement history,
-              network business and
+              team business and
               rank income.
             </p>
           </div>
@@ -1541,7 +1541,7 @@ const AdminRanks = () => {
                     size={14}
                   />
 
-                  Network
+                  Team
                 </button>
 
                 <button
@@ -1857,12 +1857,12 @@ const LevelBreakdown = ({
     >
       <div>
         <h3>
-          Network Business
+          Team Business
         </h3>
 
         <p>
           Business recorded across
-          network levels.
+          team levels.
         </p>
       </div>
 

@@ -1260,7 +1260,7 @@ const AdminInvestments = () => {
                     size={14}
                   />
 
-                  Network
+                  Team
                 </button>
 
                 <button
@@ -1492,7 +1492,7 @@ const InvestmentRow = ({
 
           <button
             type="button"
-            title="Network"
+            title="Team"
             onClick={() =>
               navigate(
                 `/admin/network?member=${encodeURIComponent(

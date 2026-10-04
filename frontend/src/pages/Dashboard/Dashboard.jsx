@@ -453,10 +453,6 @@ const Dashboard = () => {
                   {formatUsd(stats.activeInvestment.amount)}
                 </strong>
 
-                <div className={styles.packageBadge}>
-                  <Package size={14} />
-                  {stats.activeInvestment.package || "Active Package"}
-                </div>
               </div>
 
               <div className={styles.investmentStats}>
@@ -605,7 +601,7 @@ const Dashboard = () => {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <div>
-              <span className={styles.eyebrow}>NETWORK</span>
+              <span className={styles.eyebrow}>TEAM</span>
               <h2>Community Overview</h2>
             </div>
 
@@ -676,7 +672,7 @@ const Dashboard = () => {
           </div>
 
           <p className={styles.referralDescription}>
-            Share your unique referral link with your network and
+            Share your unique referral link with your team and
             grow your EWC community.
           </p>
 
@@ -858,7 +854,7 @@ const Dashboard = () => {
         <button onClick={() => navigate("/network/tree")}>
           <Layers3 size={18} />
           <span>
-            <strong>Network Tree</strong>
+            <strong>Team Genealogy</strong>
             <small>Explore your community</small>
           </span>
           <ChevronRight size={17} />

@@ -8,22 +8,22 @@ import { defineChain } from 'viem'
 // =========================================================
 
 export const bscMainnet = defineChain({
-  id: 56,
-  name: 'Binance Smart Chain',
+  id: 97,
+  name: 'Binance Smart Chain Testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'BNB',
-    symbol: 'BNB',
+    name: 'tBNB',
+    symbol: 'tBNB',
   },
   rpcUrls: {
     default: {
-      http: ['https://bsc-dataseed.binance.org'],
+      http: ['https://bsc-testnet-dataseed.bnbchain.org'],
     },
   },
   blockExplorers: {
     default: {
       name: 'BscScan',
-      url: 'https://bscscan.com',
+      url: 'https://testnet.bscscan.com',
     },
   },
 })

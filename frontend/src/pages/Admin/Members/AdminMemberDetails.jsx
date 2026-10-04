@@ -590,8 +590,8 @@ const AdminMemberDetails = () => {
         >
           <PanelHeading
             icon={Network}
-            title="Network"
-            action="View Network"
+            title="Team"
+            action="View Team"
             onAction={() =>
               navigate(
                 `/admin/network?member=${encodeURIComponent(

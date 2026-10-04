@@ -17,14 +17,17 @@ import {
   BanknoteArrowDown,
   Lock,
   LifeBuoy,
-  Bell
+  Bell,
 } from "lucide-react";
+
+import {  useDisconnect } from "wagmi";
 
 import styles from "./Sidebar.module.css";
 
 const Sidebar = ({ user, open, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const disconnectWallet = useDisconnect();
 
   const [openMenus, setOpenMenus] = useState({
     earnings:
@@ -99,7 +102,13 @@ const Sidebar = ({ user, open, onClose }) => {
     return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await disconnectWallet.mutateAsync();
+    } catch (error) {
+      console.error("Wallet disconnect error:", error);
+    }
+
     localStorage.removeItem("ewc_token");
     localStorage.removeItem("ewc_user");
     sessionStorage.removeItem("ewc_token");
@@ -303,7 +312,7 @@ const Sidebar = ({ user, open, onClose }) => {
             onClick={() => toggleMenu("network")}
           >
             <UsersRound size={19} />
-            <span>My Network</span>
+            <span>My Team</span>
 
             {openMenus.network ? (
               <ChevronDown className={styles.navArrow} size={17} />
@@ -412,9 +421,8 @@ const Sidebar = ({ user, open, onClose }) => {
           <span>Support</span>
         </button>
 
-
-      {/* Notifications */}
-      <button
+        {/* Notifications */}
+        <button
           className={`${styles.navItem} ${
             isActive("/notifications") ? styles.activeNav : ""
           }`}

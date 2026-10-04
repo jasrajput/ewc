@@ -187,9 +187,9 @@ const NetworkTree = () => {
         setRoot(response.data.data?.root || null);
         setChildren(response.data.data?.children || []);
       } catch (err) {
-        console.error("Network tree error:", err);
+        console.error("genealogy tree error:", err);
 
-        setError(err.response?.data?.message || "Unable to load network tree.");
+        setError(err.response?.data?.message || "Unable to load team genealogy.");
       } finally {
         setLoading(false);
       }
@@ -200,16 +200,16 @@ const NetworkTree = () => {
 
   return (
     <UserLayout
-      title="Network Tree"
+      title="Team Genealogy"
       subtitle="Explore your community structure"
     >
       <section className={styles.pageHeader}>
         <div>
-          <span className={styles.eyebrow}>MY NETWORK</span>
+          <span className={styles.eyebrow}>MY TEAM</span>
 
-          <h2>Network Tree</h2>
+          <h2>Team Genealogy</h2>
 
-          <p>Expand members to explore your referral network level by level.</p>
+          <p>Expand members to explore your referral team level by level.</p>
         </div>
 
         <button
@@ -237,12 +237,12 @@ const NetworkTree = () => {
         {loading ? (
           <div className={styles.loadingState}>
             <span className={styles.spinner} />
-            <span>Loading network tree...</span>
+            <span>Loading tree...</span>
           </div>
         ) : !root ? (
           <div className={styles.loadingState}>
             <Users size={28} />
-            <strong>Network unavailable</strong>
+            <strong>Team unavailable</strong>
           </div>
         ) : (
           <div className={styles.treeViewport}>

@@ -174,9 +174,9 @@ const Login = () => {
                 <span>Remember me</span>
               </label>
 
-              <Link to="/forgot-password" className={styles.forgotPassword}>
+              {/* <Link to="/forgot-password" className={styles.forgotPassword}>
                 Forgot Password?
-              </Link>
+              </Link> */}
             </div>
 
             <button

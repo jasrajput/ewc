@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { ethers } = require("ethers");
 
 const pool = require("./db");
 const config = require("./config");
@@ -14,28 +15,60 @@ const {
     publishMerkleRootWithRetry
 } = require("./blockchain");
 
+/* =========================================================
+ * CONFIG
+ * ========================================================= */
+
+const RPC_URL = config.rpcUrl || process.env.RPC_URL;
+const PAIR_ADDRESS = config.pairAddress || process.env.PAIR_ADDRESS;
+const EWC_ADDRESS = config.ewcAddress || process.env.EWC_ADDRESS;
+const USDT_ADDRESS = config.usdtAddress || process.env.USDT_ADDRESS;
+
+const EWC_DECIMALS = 18;
+
+/*
+ * Your test USDT currently uses 18 decimals.
+ *
+ * If production USDT has different decimals this is read
+ * directly from the token contract before calculating price.
+ */
+
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+const PAIR_ABI = [
+    "function token0() view returns (address)",
+    "function token1() view returns (address)",
+    "function getReserves() view returns (uint112 reserve0,uint112 reserve1,uint32 blockTimestampLast)"
+];
+
+const ERC20_ABI = [
+    "function decimals() view returns (uint8)"
+];
+
+/*
+ * ROI rule:
+ *
+ * Starts on day 101 after package creation.
+ * Monthly reward = 2% of invested USDT.
+ * Daily reward   = 2% / 30.
+ */
+
+const ROI_MONTHLY_PERCENT = 2n;
+const ROI_DAYS_PER_MONTH = 30n;
+const ROI_START_DAY = 101;
 
 /* =========================================================
- * HELPERS
+ * BASIC HELPERS
  * ========================================================= */
 
 function normalizeAddress(address) {
-    return String(address).trim().toLowerCase();
+    return String(address || "").trim().toLowerCase();
 }
 
-
-/*
- * Convert a decimal string into a scaled BigInt.
- *
- * Example with 18 decimals:
- * "1.5" -> 1500000000000000000n
- */
 function decimalToScaledBigInt(value, decimals = 18) {
     const str = String(value ?? "0").trim();
 
-    if (!str) {
-        return 0n;
-    }
+    if (!str) return 0n;
 
     const negative = str.startsWith("-");
     const unsigned = negative ? str.slice(1) : str;
@@ -56,16 +89,12 @@ function decimalToScaledBigInt(value, decimals = 18) {
     return negative ? -result : result;
 }
 
-
-/*
- * Convert a scaled BigInt back into a decimal string.
- */
 function scaledBigIntToDecimal(value, decimals = 18) {
+    value = BigInt(value);
+
     const negative = value < 0n;
 
-    if (negative) {
-        value = -value;
-    }
+    if (negative) value = -value;
 
     const base = 10n ** BigInt(decimals);
     const whole = value / base;
@@ -83,221 +112,297 @@ function scaledBigIntToDecimal(value, decimals = 18) {
     return negative ? `-${result}` : result;
 }
 
+function compareAmounts(a, b) {
+    const aa = decimalToScaledBigInt(a, 18);
+    const bb = decimalToScaledBigInt(b, 18);
 
-/*
- * Convert percentage into an integer with 2 decimal precision.
- *
- * Examples:
- * 2    -> 200
- * 2.5  -> 250
- * 0.25 -> 25
- */
-function percentageToScaledInt(value) {
-    const str = String(value ?? "0").trim();
-
-    if (!str) {
-        return 0n;
-    }
-
-    const [wholePart, decimalPart = ""] = str.split(".");
-    const whole = BigInt(wholePart || "0");
-    const decimals = (decimalPart + "00").slice(0, 2);
-
-    return (whole * 100n) + BigInt(decimals);
-}
-
-
-/*
- * Calculate:
- *
- * amount * percentage / 100
- */
-function calculatePercentage(amount, percentage) {
-    const amount18 = decimalToScaledBigInt(amount, 18);
-    const percentageScaled = percentageToScaledInt(percentage);
-
-    const result = (amount18 * percentageScaled) / 10000n;
-
-    return scaledBigIntToDecimal(result, 18);
-}
-
-
-/*
- * Compare two decimal values without using JS floating point.
- *
- * Returns:
- *  1 -> amount1 > amount2
- *  0 -> equal
- * -1 -> amount1 < amount2
- */
-function compareAmounts(amount1, amount2) {
-    const a = decimalToScaledBigInt(amount1, 18);
-    const b = decimalToScaledBigInt(amount2, 18);
-
-    if (a > b) return 1;
-    if (a < b) return -1;
+    if (aa > bb) return 1;
+    if (aa < bb) return -1;
 
     return 0;
 }
 
+function getIndiaDate() {
+    return new Date().toLocaleDateString("en-CA", {
+        timeZone: "Asia/Kolkata"
+    });
+}
+
+/*
+ * Difference between package creation date and today's
+ * closing date using calendar days.
+ */
+
+function getPackageAgeDays(createdOn) {
+    if (!createdOn) return 0;
+
+    const created = new Date(createdOn);
+
+    const createdDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    }).format(created);
+
+    const todayDate = getIndiaDate();
+
+    const createdUtc = Date.parse(`${createdDate}T00:00:00Z`);
+    const todayUtc = Date.parse(`${todayDate}T00:00:00Z`);
+
+    if (!Number.isFinite(createdUtc) || !Number.isFinite(todayUtc)) {
+        return 0;
+    }
+
+    return Math.floor(
+        (todayUtc - createdUtc) / 86400000
+    );
+}
+
+/* =========================================================
+ * GET CURRENT EWC PRICE FROM PANCAKE PAIR
+ * ========================================================= */
+
+async function getClosingEwcPrice() {
+    if (!RPC_URL) {
+        throw new Error("RPC_URL is missing.");
+    }
+
+    if (!PAIR_ADDRESS) {
+        throw new Error("PAIR_ADDRESS is missing.");
+    }
+
+    if (!EWC_ADDRESS) {
+        throw new Error("EWC_ADDRESS is missing.");
+    }
+
+    if (!USDT_ADDRESS) {
+        throw new Error("USDT_ADDRESS is missing.");
+    }
+
+    const pair = new ethers.Contract(
+        PAIR_ADDRESS,
+        PAIR_ABI,
+        provider
+    );
+
+    const [
+        token0,
+        token1,
+        reserves
+    ] = await Promise.all([
+        pair.token0(),
+        pair.token1(),
+        pair.getReserves()
+    ]);
+
+    const token0Address = normalizeAddress(token0);
+    const token1Address = normalizeAddress(token1);
+    const ewcAddress = normalizeAddress(EWC_ADDRESS);
+    const usdtAddress = normalizeAddress(USDT_ADDRESS);
+
+    const validPair =
+        (token0Address === ewcAddress &&
+            token1Address === usdtAddress) ||
+        (token0Address === usdtAddress &&
+            token1Address === ewcAddress);
+
+    if (!validPair) {
+        throw new Error(
+            "Configured Pancake pair is not EWC/USDT."
+        );
+    }
+
+    const usdtContract = new ethers.Contract(
+        USDT_ADDRESS,
+        ERC20_ABI,
+        provider
+    );
+
+    const usdtDecimals = Number(
+        await usdtContract.decimals()
+    );
+
+    const reserve0 = BigInt(reserves[0].toString());
+    const reserve1 = BigInt(reserves[1].toString());
+
+    let ewcReserve;
+    let usdtReserve;
+
+    if (token0Address === ewcAddress) {
+        ewcReserve = reserve0;
+        usdtReserve = reserve1;
+    } else {
+        ewcReserve = reserve1;
+        usdtReserve = reserve0;
+    }
+
+    if (ewcReserve <= 0n || usdtReserve <= 0n) {
+        throw new Error(
+            "EWC/USDT pair has invalid reserves."
+        );
+    }
+
+    /*
+     * Return USDT price of 1 EWC using 18-decimal precision.
+     *
+     * price18 =
+     *
+     * normalized USDT reserve
+     * -----------------------
+     * normalized EWC reserve
+     */
+
+    const price18 =
+        (
+            usdtReserve *
+            (10n ** BigInt(EWC_DECIMALS)) *
+            (10n ** 18n)
+        ) /
+        (
+            ewcReserve *
+            (10n ** BigInt(usdtDecimals))
+        );
+
+    if (price18 <= 0n) {
+        throw new Error("Calculated EWC price is zero.");
+    }
+
+    return {
+        priceWei: price18,
+        price: scaledBigIntToDecimal(price18, 18),
+        usdtDecimals
+    };
+}
 
 /* =========================================================
  * PROCESS DAILY ROI
  * ========================================================= */
 
 async function processClosing() {
-    let processed = false;
-
     console.log("Starting daily ROI closing...");
 
     const connection = await pool.getConnection();
 
     try {
         /*
-         * Get packages which:
+         * Get the closing EWC price ONCE.
          *
-         * - are active according to the current package status
-         * - have not already received ROI today
-         *
-         * The final EWC 100-day / 2%-monthly reward rule
-         * is NOT implemented here yet.
+         * Every package in this closing uses the exact
+         * same price.
          */
+
+        const closingPrice = await getClosingEwcPrice();
+
+        console.log(
+            "Closing EWC Price:",
+            closingPrice.price,
+            "USDT"
+        );
+
+        /*
+         * We only fetch packages which have not already
+         * received today's ROI.
+         */
+
         const [packages] = await connection.execute(`
             SELECT
                 id,
                 u_id,
                 pack_amount,
-                roi_per
+                created_on,
+                last_roi_date
             FROM select_packages
             WHERE status = 0
               AND (
-                  last_roi_date IS NULL
-                  OR last_roi_date < CURDATE()
+                    last_roi_date IS NULL
+                    OR last_roi_date < CURDATE()
               )
         `);
 
         console.log("Packages found:", packages.length);
 
+        let processedCount = 0;
+
         for (const pkg of packages) {
             const packageId = Number(pkg.id);
             const memberId = Number(pkg.u_id);
-            const packageAmount = String(pkg.pack_amount ?? "0");
-            const roiPercentage = String(pkg.roi_per ?? "0");
-
-            /*
-             * Basic validation.
-             */
-            if (!Number.isInteger(packageId) || packageId <= 0) {
-                console.error("Invalid package ID:", pkg.id);
-                continue;
-            }
-
-            if (!Number.isInteger(memberId) || memberId <= 0) {
-                console.error(
-                    `Invalid member ID for package ${packageId}:`,
-                    pkg.u_id
-                );
-                continue;
-            }
-
-            if (compareAmounts(packageAmount, "0") <= 0) {
-                console.log(
-                    `Skipping package ${packageId}: package amount is zero.`
-                );
-                continue;
-            }
-
-            if (compareAmounts(roiPercentage, "0") <= 0) {
-                console.log(
-                    `Skipping package ${packageId}: ROI percentage is zero.`
-                );
-                continue;
-            }
-
-
-            /*
-             * Verify that the member exists.
-             *
-             * Old-project fields are intentionally not used:
-             *
-             * - limit_pending
-             * - re_top_up_status
-             * - task_status
-             * - real_sponsor_id
-             * - package_choose
-             */
-            const [members] = await connection.execute(
-                `
-                SELECT
-                    id,
-                    user_id
-                FROM member
-                WHERE id = ?
-                LIMIT 1
-                `,
-                [memberId]
+            const packageAmount = String(
+                pkg.pack_amount ?? "0"
             );
 
-            if (!members.length) {
+            if (
+                !Number.isInteger(packageId) ||
+                packageId <= 0
+            ) {
                 console.error(
-                    `Member not found for package ${packageId}: ${memberId}`
+                    "Invalid package ID:",
+                    pkg.id
                 );
                 continue;
             }
 
+            if (
+                !Number.isInteger(memberId) ||
+                memberId <= 0
+            ) {
+                console.error(
+                    `Invalid member ID for package ${packageId}`
+                );
+                continue;
+            }
+
+            if (
+                compareAmounts(packageAmount, "0") <= 0
+            ) {
+                continue;
+            }
 
             /*
-             * Preserve the existing ROI calculation for now.
+             * ROI starts from DAY 101.
              *
-             * We will replace this with the final EWC reward
-             * calculation once the investment rule is finalized.
+             * created_on date = day 1.
+             *
+             * age 0 = creation date
+             * age 99 = day 100
+             * age 100 = day 101
              */
-            const roi = calculatePercentage(
-                packageAmount,
-                roiPercentage
+
+            const ageDays = getPackageAgeDays(
+                pkg.created_on
             );
 
-            if (compareAmounts(roi, "0") <= 0) {
+            if (ageDays < ROI_START_DAY - 1) {
                 console.log(
-                    `Skipping package ${packageId}: calculated ROI is zero.`
+                    `Skipping package ${packageId}: ` +
+                    `ROI starts on day ${ROI_START_DAY}. ` +
+                    `Current day: ${ageDays + 1}`
                 );
+
                 continue;
             }
 
-
-            console.log("=================================");
-            console.log("PACKAGE ROI");
-            console.log("Package ID:", packageId);
-            console.log("Member ID:", memberId);
-            console.log("Package Amount:", packageAmount);
-            console.log("ROI Percentage:", roiPercentage);
-            console.log("Calculated ROI:", roi);
-
-
-            /*
-             * Keep package update, wallet update and transaction
-             * entry atomic.
-             */
             await connection.beginTransaction();
 
             try {
                 /*
-                 * Lock this package while processing.
-                 *
-                 * This provides additional protection against
-                 * overlapping closing processes.
+                 * Lock package so two closing processes cannot
+                 * reward the same package twice.
                  */
-                const [lockedPackages] = await connection.execute(
-                    `
-                    SELECT
-                        id,
-                        last_roi_date
-                    FROM select_packages
-                    WHERE id = ?
-                    FOR UPDATE
-                    `,
-                    [packageId]
-                );
+
+                const [lockedPackages] =
+                    await connection.execute(
+                        `
+                        SELECT
+                            id,
+                            created_on,
+                            last_roi_date
+                        FROM select_packages
+                        WHERE id = ?
+                        FOR UPDATE
+                        `,
+                        [packageId]
+                    );
 
                 if (!lockedPackages.length) {
                     throw new Error(
@@ -305,31 +410,39 @@ async function processClosing() {
                     );
                 }
 
+                const locked =
+                    lockedPackages[0];
 
                 /*
-                 * Check again inside the transaction that this
-                 * package was not already processed today.
+                 * Recheck eligibility inside transaction.
                  */
-                if (lockedPackages[0].last_roi_date) {
-                    const lastRoiDate = new Date(
-                        lockedPackages[0].last_roi_date
+
+                const lockedAgeDays =
+                    getPackageAgeDays(
+                        locked.created_on
                     );
 
-                    const lastRoiDateString = lastRoiDate.toLocaleDateString(
-                        "en-CA",
-                        {
-                            timeZone: "Asia/Kolkata"
-                        }
-                    );
+                if (
+                    lockedAgeDays <
+                    ROI_START_DAY - 1
+                ) {
+                    await connection.rollback();
+                    continue;
+                }
 
-                    const todayString = new Date().toLocaleDateString(
-                        "en-CA",
-                        {
-                            timeZone: "Asia/Kolkata"
-                        }
-                    );
+                if (locked.last_roi_date) {
+                    const lastDate =
+                        new Date(
+                            locked.last_roi_date
+                        ).toLocaleDateString(
+                            "en-CA",
+                            {
+                                timeZone:
+                                    "Asia/Kolkata"
+                            }
+                        );
 
-                    if (lastRoiDateString === todayString) {
+                    if (lastDate === getIndiaDate()) {
                         await connection.rollback();
 
                         console.log(
@@ -340,64 +453,182 @@ async function processClosing() {
                     }
                 }
 
+                /*
+                 * Investment amount uses 18-decimal internal
+                 * precision.
+                 */
+
+                const investmentWei =
+                    decimalToScaledBigInt(
+                        packageAmount,
+                        18
+                    );
 
                 /*
-                 * Update accumulated package ROI and processing date.
+                 * DAILY ROI IN USD
                  *
-                 * No limit_pending or re-top-up logic is used.
+                 * investment × 2% / 30
+                 *
+                 * = investment * 2 / 100 / 30
                  */
-                const [packageUpdate] = await connection.execute(
-                    `
-                    UPDATE select_packages
-                    SET
-                        roi_comp = COALESCE(roi_comp, 0) + ?,
-                        last_roi_date = CURDATE()
-                    WHERE id = ?
-                    `,
-                    [
-                        roi,
-                        packageId
-                    ]
+
+                const dailyRoiUsdWei =
+                    (
+                        investmentWei *
+                        ROI_MONTHLY_PERCENT
+                    ) /
+                    (
+                        100n *
+                        ROI_DAYS_PER_MONTH
+                    );
+
+                if (dailyRoiUsdWei <= 0n) {
+                    await connection.rollback();
+                    continue;
+                }
+
+                /*
+                 * Convert today's USD ROI into EWC using
+                 * today's closing price.
+                 *
+                 * Both values are 18 decimals:
+                 *
+                 * ewc = usd * 1e18 / price
+                 */
+
+                const dailyRoiEwcWei =
+                    (
+                        dailyRoiUsdWei *
+                        (10n ** 18n)
+                    ) /
+                    closingPrice.priceWei;
+
+                if (dailyRoiEwcWei <= 0n) {
+                    throw new Error(
+                        `ROI EWC calculated as zero for package ${packageId}`
+                    );
+                }
+
+                const dailyRoiUsd =
+                    scaledBigIntToDecimal(
+                        dailyRoiUsdWei,
+                        18
+                    );
+
+                const dailyRoiEwc =
+                    scaledBigIntToDecimal(
+                        dailyRoiEwcWei,
+                        18
+                    );
+
+                console.log(
+                    "================================="
+                );
+                console.log("PACKAGE ROI");
+                console.log(
+                    "Package ID:",
+                    packageId
+                );
+                console.log(
+                    "Member ID:",
+                    memberId
+                );
+                console.log(
+                    "Investment:",
+                    packageAmount,
+                    "USDT"
+                );
+                console.log(
+                    "Package Day:",
+                    lockedAgeDays + 1
+                );
+                console.log(
+                    "Closing EWC Price:",
+                    closingPrice.price
+                );
+                console.log(
+                    "Daily ROI USD:",
+                    dailyRoiUsd
+                );
+                console.log(
+                    "Daily ROI EWC:",
+                    dailyRoiEwc
                 );
 
-                if (packageUpdate.affectedRows <= 0) {
+                /*
+                 * roi_comp remains useful as USD ROI history.
+                 *
+                 * This is NOT what goes into the Merkle leaf.
+                 */
+
+                const [packageUpdate] =
+                    await connection.execute(
+                        `
+                        UPDATE select_packages
+                        SET
+                            roi_comp =
+                                COALESCE(roi_comp, 0) + ?,
+                            last_roi_date = CURDATE()
+                        WHERE id = ?
+                        `,
+                        [
+                            dailyRoiUsd,
+                            packageId
+                        ]
+                    );
+
+                if (
+                    packageUpdate.affectedRows <= 0
+                ) {
                     throw new Error(
                         `Failed to update package ${packageId}`
                     );
                 }
 
-
                 /*
-                 * roi_income is the cumulative ROI entitlement.
+                 * roi_income can remain the cumulative
+                 * human-readable EWC ROI value.
                  *
-                 * main_wallet is intentionally not credited here.
+                 * cumulative_roi_ewc is the value used for
+                 * Merkle entitlement.
                  */
-                const [walletResult] = await connection.execute(
-                    `
-                    UPDATE user_wallet
-                    SET roi_income = COALESCE(roi_income, 0) + ?
-                    WHERE user_id = ?
-                    `,
-                    [
-                        roi,
-                        memberId
-                    ]
-                );
 
-                if (walletResult.affectedRows <= 0) {
+                const [walletUpdate] =
+                    await connection.execute(
+                        `
+                        UPDATE user_wallet
+                        SET
+                            roi_income =
+                                COALESCE(roi_income, 0) + ?,
+                            cumulative_roi_ewc =
+                                COALESCE(cumulative_roi_ewc, 0) + ?
+                        WHERE user_id = ?
+                        `,
+                        [
+                            dailyRoiEwc,
+                            dailyRoiEwc,
+                            memberId
+                        ]
+                    );
+
+                if (
+                    walletUpdate.affectedRows <= 0
+                ) {
                     throw new Error(
                         `user_wallet not found for member ${memberId}`
                     );
                 }
 
-
                 /*
-                 * Record ROI/reward history.
+                 * Direction 7 = ROI.
                  *
-                 * Direction 7 is preserved from the current EWC
-                 * transaction mapping.
+                 * Since ROI is now paid in EWC, credit stores
+                 * the EWC quantity.
                  */
-                const description = `ROI Income is ${roi}`;
+
+                const description =
+                    `ROI Income ${dailyRoiEwc} EWC ` +
+                    `at $${closingPrice.price}`;
 
                 await connection.execute(
                     `
@@ -408,50 +639,98 @@ async function processClosing() {
                         user_id,
                         description
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, 7, ?, ?)
                     `,
                     [
-                        roi,
-                        7,
+                        dailyRoiEwc,
                         memberId,
                         description
                     ]
                 );
 
-
                 await connection.commit();
 
-                processed = true;
+                processedCount++;
 
                 console.log(
-                    `Processed package ${packageId} | Member ${memberId} | ROI ${roi}`
+                    `Processed package ${packageId} | ` +
+                    `${dailyRoiEwc} EWC`
                 );
-
             } catch (error) {
                 await connection.rollback();
 
                 console.error(
-                    `FAILED package ${packageId}, member ${memberId}:`,
+                    `FAILED package ${packageId}:`,
                     error.message
                 );
-
-                /*
-                 * One bad package should not prevent every other
-                 * package from being processed.
-                 */
-                continue;
             }
         }
 
-        console.log("ROI closing completed.");
+        console.log(
+            `ROI closing completed. Processed: ${processedCount}`
+        );
 
+        return {
+            processedCount,
+            closingPrice: closingPrice.price
+        };
     } finally {
         connection.release();
     }
-
-    return processed;
 }
 
+/* =========================================================
+ * CLOSE USDT INCOME
+ * ========================================================= */
+
+async function closeUsdtIncome() {
+    console.log(
+        "Closing Direct + Rank USDT income..."
+    );
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        /*
+         * balance currently contains income generated since
+         * the previous successful closing.
+         *
+         * Move that amount into lifetime cumulative entitlement
+         * and reset live balance.
+         *
+         * Salary will automatically work later if salary income
+         * is credited into this same balance column.
+         */
+
+        const [result] = await connection.execute(`
+            UPDATE user_wallet
+            SET
+                cumulative_usdt_income =
+                    COALESCE(cumulative_usdt_income, 0) +
+                    COALESCE(balance, 0),
+
+                balance = 0
+
+            WHERE COALESCE(balance, 0) > 0
+        `);
+
+        await connection.commit();
+
+        console.log(
+            "USDT income closed. Wallets:",
+            result.affectedRows
+        );
+
+        return result.affectedRows;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
 
 /* =========================================================
  * BUILD MERKLE SNAPSHOT
@@ -464,26 +743,45 @@ async function buildSnapshot() {
 
     try {
         /*
-         * EWC only uses ROI/reward income here.
+         * IMPORTANT:
          *
-         * level_com has been completely removed.
+         * We include users who have either USDT entitlement
+         * OR EWC ROI entitlement.
          */
+
         const [rows] = await connection.execute(`
             SELECT
                 uw.user_id,
                 m.trx,
-                uw.roi_income
+                COALESCE(
+                    uw.cumulative_usdt_income,
+                    0
+                ) AS cumulative_usdt_income,
+                COALESCE(
+                    uw.cumulative_roi_ewc,
+                    0
+                ) AS cumulative_roi_ewc
             FROM user_wallet uw
             INNER JOIN member m
                 ON m.id = uw.user_id
             WHERE m.trx IS NOT NULL
               AND m.trx != ''
-              AND uw.roi_income > 0
+              AND (
+                    COALESCE(
+                        uw.cumulative_usdt_income,
+                        0
+                    ) > 0
+                    OR
+                    COALESCE(
+                        uw.cumulative_roi_ewc,
+                        0
+                    ) > 0
+              )
         `);
 
         if (!rows.length) {
             throw new Error(
-                "No users with cumulative ROI income."
+                "No users with cumulative entitlement."
             );
         }
 
@@ -491,48 +789,59 @@ async function buildSnapshot() {
         const leaves = [];
 
         for (const row of rows) {
-            const wallet = normalizeAddress(row.trx);
+            const wallet =
+                normalizeAddress(row.trx);
 
-            /*
-             * Only valid EVM wallet addresses can be included
-             * in the Merkle tree.
-             */
-            if (!/^0x[a-f0-9]{40}$/.test(wallet)) {
+            if (
+                !/^0x[a-f0-9]{40}$/.test(wallet)
+            ) {
                 console.error(
                     `Invalid wallet for user ${row.user_id}: ${row.trx}`
                 );
+
                 continue;
             }
 
+            const cumulativeUsdt =
+                String(
+                    row.cumulative_usdt_income ??
+                    "0"
+                );
+
+            const cumulativeRoiEwc =
+                String(
+                    row.cumulative_roi_ewc ??
+                    "0"
+                );
+
+            const cumulativeUsdtWei =
+                decimalToScaledBigInt(
+                    cumulativeUsdt,
+                    18
+                );
+
+            const cumulativeRoiEwcWei =
+                decimalToScaledBigInt(
+                    cumulativeRoiEwc,
+                    18
+                );
 
             /*
-             * roi_income is already cumulative.
+             * Must match Solidity exactly:
              *
-             * Since this project has no level income:
-             *
-             * cumulative_amount = roi_income
+             * keccak256(
+             *     abi.encode(
+             *         user,
+             *         cumulativeUsdtIncome,
+             *         cumulativeRoiEwc
+             *     )
+             * )
              */
-            const cumulativeAmount = String(
-                row.roi_income ?? "0"
-            );
-
-            if (compareAmounts(cumulativeAmount, "0") <= 0) {
-                continue;
-            }
-
-
-            /*
-             * Convert cumulative token amount into 18-decimal
-             * integer form before creating the Merkle leaf.
-             */
-            const amountWei = decimalToScaledBigInt(
-                cumulativeAmount,
-                18
-            );
 
             const leaf = createLeaf(
                 wallet,
-                amountWei
+                cumulativeUsdtWei,
+                cumulativeRoiEwcWei
             );
 
             const index = leaves.length;
@@ -541,14 +850,21 @@ async function buildSnapshot() {
 
             users.push({
                 index,
-                user_id: Number(row.user_id),
+                user_id: Number(
+                    row.user_id
+                ),
                 wallet,
-                roi_income: cumulativeAmount,
-                cumulative_amount: cumulativeAmount,
+                cumulative_usdt_income:
+                    cumulativeUsdt,
+                cumulative_roi_ewc:
+                    cumulativeRoiEwc,
+                cumulative_usdt_income_wei:
+                    cumulativeUsdtWei.toString(),
+                cumulative_roi_ewc_wei:
+                    cumulativeRoiEwcWei.toString(),
                 leaf
             });
         }
-
 
         if (!leaves.length) {
             throw new Error(
@@ -561,13 +877,8 @@ async function buildSnapshot() {
             leaves.length
         );
 
-
-        /*
-         * Build Merkle tree.
-         */
-        const levels = buildMerkleTree(
-            leaves
-        );
+        const levels =
+            buildMerkleTree(leaves);
 
         if (!levels.length) {
             throw new Error(
@@ -575,9 +886,8 @@ async function buildSnapshot() {
             );
         }
 
-        const root = levels[
-            levels.length - 1
-        ][0];
+        const root =
+            levels[levels.length - 1][0];
 
         if (!root) {
             throw new Error(
@@ -590,21 +900,14 @@ async function buildSnapshot() {
             root
         );
 
-
-        /*
-         * Generate proof for every user.
-         */
         for (const user of users) {
-            user.proof = getMerkleProof(
-                levels,
-                user.index
-            );
+            user.proof =
+                getMerkleProof(
+                    levels,
+                    user.index
+                );
         }
 
-
-        /*
-         * Generate snapshot ID.
-         */
         const now = new Date();
 
         const snapshotId = now
@@ -613,13 +916,10 @@ async function buildSnapshot() {
             .replace(/\..+/, "")
             .replace("T", "_");
 
-
-        /*
-         * Ensure snapshot directory exists.
-         */
-        const directory = path.resolve(
-            config.merkleDirectory
-        );
+        const directory =
+            path.resolve(
+                config.merkleDirectory
+            );
 
         if (!fs.existsSync(directory)) {
             fs.mkdirSync(
@@ -630,14 +930,11 @@ async function buildSnapshot() {
             );
         }
 
-
-        /*
-         * Save snapshot JSON.
-         */
-        const snapshotFile = path.join(
-            directory,
-            `snapshot_${snapshotId}.json`
-        );
+        const snapshotFile =
+            path.join(
+                directory,
+                `snapshot_${snapshotId}.json`
+            );
 
         const snapshotData = {
             snapshot_id: snapshotId,
@@ -666,21 +963,20 @@ async function buildSnapshot() {
             users,
             snapshotFile
         };
-
     } finally {
         connection.release();
     }
 }
-
 
 /* =========================================================
  * WRITE LATEST SNAPSHOT
  * ========================================================= */
 
 function writeLatestFile(snapshot, published) {
-    const directory = path.resolve(
-        config.merkleDirectory
-    );
+    const directory =
+        path.resolve(
+            config.merkleDirectory
+        );
 
     if (!fs.existsSync(directory)) {
         fs.mkdirSync(
@@ -691,17 +987,28 @@ function writeLatestFile(snapshot, published) {
         );
     }
 
-    const latestFile = path.join(
-        directory,
-        "latest.json"
-    );
+    const latestFile =
+        path.join(
+            directory,
+            "latest.json"
+        );
+
+    /*
+     * Store enough information to locate the actual
+     * snapshot containing the proofs.
+     */
 
     const latestData = {
-        snapshot_id: snapshot.snapshotId,
-        root: published.root,
-        tx_hash: published.txHash,
-        block_number: published.blockNumber,
-        created_at: new Date().toISOString()
+        snapshot_id:
+            snapshot.snapshotId,
+        root:
+            published.root,
+        tx_hash:
+            published.txHash,
+        block_number:
+            published.blockNumber,
+        created_at:
+            new Date().toISOString()
     };
 
     fs.writeFileSync(
@@ -719,23 +1026,18 @@ function writeLatestFile(snapshot, published) {
     );
 }
 
-
 /* =========================================================
  * DAILY CLOSING
  * ========================================================= */
 
 async function dailyClosing() {
-    const today = new Date().toLocaleDateString(
-        "en-CA",
-        {
-            timeZone: "Asia/Kolkata"
-        }
-    );
+    const today = getIndiaDate();
 
     try {
         /*
-         * Get today's closing run.
+         * Get/create today's closing run.
          */
+
         let [rows] = await pool.execute(
             `
             SELECT *
@@ -745,14 +1047,11 @@ async function dailyClosing() {
             [today]
         );
 
-
-        /*
-         * Create today's closing run if it does not exist.
-         */
         if (!rows.length) {
             await pool.execute(
                 `
-                INSERT INTO closing_runs (run_date)
+                INSERT INTO closing_runs
+                    (run_date)
                 VALUES (?)
                 `,
                 [today]
@@ -770,20 +1069,13 @@ async function dailyClosing() {
 
         const run = rows[0];
 
-
         /* =================================================
-         * STAGE 1: ROI DISTRIBUTION
+         * STAGE 1: DAILY ROI
          * ================================================= */
 
         if (run.roi_status !== "done") {
-            const processed = await processClosing();
-
-            if (!processed) {
-                console.log(
-                    "No new ROI processed. Skipping Merkle snapshot."
-                );
-                return;
-            }
+            const roiResult =
+                await processClosing();
 
             await pool.execute(
                 `
@@ -796,21 +1088,51 @@ async function dailyClosing() {
 
             run.roi_status = "done";
 
+            console.log(
+                "ROI stage completed.",
+                "Packages:",
+                roiResult.processedCount,
+                "Price:",
+                roiResult.closingPrice
+            );
         } else {
             console.log(
-                "ROI already distributed today, skipping."
+                "ROI already processed today."
             );
         }
 
-
         /* =================================================
-         * STAGE 2: MERKLE SNAPSHOT
+         * STAGE 2: CLOSE USDT INCOME
+         * =================================================
+         *
+         * We use snapshot_status as the transaction boundary
+         * for this operation because your current closing_runs
+         * schema does not have a separate USDT closing status.
+         *
+         * IMPORTANT:
+         * closeUsdtIncome() must happen immediately before
+         * buildSnapshot().
          * ================================================= */
 
         let snapshot;
 
-        if (run.snapshot_status !== "done") {
-            snapshot = await buildSnapshot();
+        if (
+            run.snapshot_status !== "done"
+        ) {
+            /*
+             * Move current Direct + Rank (+ Salary later)
+             * balance into lifetime cumulative entitlement.
+             */
+
+            await closeUsdtIncome();
+
+            /*
+             * Build snapshot AFTER the balance has been rolled
+             * into cumulative_usdt_income.
+             */
+
+            snapshot =
+                await buildSnapshot();
 
             await pool.execute(
                 `
@@ -829,9 +1151,10 @@ async function dailyClosing() {
             );
 
             run.snapshot_status = "done";
-            run.snapshot_id = snapshot.snapshotId;
-            run.merkle_root = snapshot.root;
-
+            run.snapshot_id =
+                snapshot.snapshotId;
+            run.merkle_root =
+                snapshot.root;
         } else {
             console.log(
                 "Snapshot already built today, reusing:",
@@ -839,20 +1162,24 @@ async function dailyClosing() {
             );
 
             snapshot = {
-                snapshotId: run.snapshot_id,
-                root: run.merkle_root
+                snapshotId:
+                    run.snapshot_id,
+                root:
+                    run.merkle_root
             };
         }
 
-
         /* =================================================
-         * STAGE 3: PUBLISH MERKLE ROOT
+         * STAGE 3: PUBLISH ROOT
          * ================================================= */
 
-        if (run.publish_status !== "done") {
-            const published = await publishMerkleRootWithRetry(
-                snapshot.root
-            );
+        if (
+            run.publish_status !== "done"
+        ) {
+            const published =
+                await publishMerkleRootWithRetry(
+                    snapshot.root
+                );
 
             await pool.execute(
                 `
@@ -869,13 +1196,13 @@ async function dailyClosing() {
             );
 
             run.publish_status = "done";
-            run.tx_hash = published.txHash;
+            run.tx_hash =
+                published.txHash;
 
             writeLatestFile(
                 snapshot,
                 published
             );
-
         } else {
             console.log(
                 "Root already published today:",
@@ -883,32 +1210,21 @@ async function dailyClosing() {
             );
         }
 
-
         console.log(
             "DAILY CLOSING SUCCESS"
         );
-
     } catch (error) {
         console.error(
-            "DAILY CLOSING FAILED (safe to retry, will resume from last completed stage):",
+            "DAILY CLOSING FAILED " +
+            "(safe to retry from completed stage):",
             error
         );
 
         throw error;
-
     } finally {
-        /*
-         * Keep this only if dailyClosing.js runs as a standalone
-         * process/cron.
-         *
-         * If dailyClosing() is called from the long-running Express
-         * application, pool.end() must NOT run here because it closes
-         * the application's MySQL pool.
-         */
         await pool.end();
     }
 }
-
 
 module.exports = {
     dailyClosing

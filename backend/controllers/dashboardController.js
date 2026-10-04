@@ -1,4 +1,11 @@
+const fs = require("fs");
+const path = require("path");
 const db = require("../config/db");
+
+const MERKLE_DIRECTORY = path.join(
+  __dirname,
+  "../../closing-node/merkle_snapshots"
+);
 
 // =========================================================
 // TOKEN CONFIG
@@ -40,7 +47,7 @@ const TRANSACTION_TYPES = {
   1: "Direct Income",
   5: "Rank Income",
   6: "Salary Income",
-  7: "Reward Income",
+  7: "ROI Income",
 };
 
 // =========================================================
@@ -60,6 +67,59 @@ const formatTransactionDate = (date) => {
     month: "short",
     year: "numeric",
   });
+};
+
+const loadLatestSnapshotUser = (wallet) => {
+  try {
+    if (!wallet) return null;
+
+    const latestFile = path.join(MERKLE_DIRECTORY, "latest.json");
+
+    if (!fs.existsSync(latestFile)) {
+      return null;
+    }
+
+    const latest = JSON.parse(
+      fs.readFileSync(latestFile, "utf8")
+    );
+
+    if (!latest?.snapshot_id) {
+      return null;
+    }
+
+    const snapshotFile = path.join(
+      MERKLE_DIRECTORY,
+      `snapshot_${latest.snapshot_id}.json`
+    );
+
+    if (!fs.existsSync(snapshotFile)) {
+      return null;
+    }
+
+    const snapshot = JSON.parse(
+      fs.readFileSync(snapshotFile, "utf8")
+    );
+
+    if (!Array.isArray(snapshot?.users)) {
+      return null;
+    }
+
+    const normalizedWallet = String(wallet)
+      .trim()
+      .toLowerCase();
+
+    return (
+      snapshot.users.find(
+        (item) =>
+          String(item.wallet || "")
+            .trim()
+            .toLowerCase() === normalizedWallet
+      ) || null
+    );
+  } catch (error) {
+    console.error("Dashboard snapshot read error:", error);
+    return null;
+  }
 };
 
 // =========================================================
@@ -116,10 +176,6 @@ const getDashboard = async (req, res) => {
 
     const user = users[0];
 
-    // =====================================================
-    // BLOCKED USER
-    // =====================================================
-
     if (Number(user.status) === 1) {
       return res.status(403).json({
         success: false,
@@ -128,108 +184,177 @@ const getDashboard = async (req, res) => {
     }
 
     // =====================================================
-    // DIRECT PARTNERS + DIRECT BUSINESS
+    // INVESTMENT TOTALS
     // =====================================================
 
-    const [directRows] = await db.execute(
+    const [investmentRows] = await db.execute(
       `SELECT
-        COUNT(*) AS totalPartners,
-        COALESCE(
-          SUM(
-            CASE
-              WHEN package_choose >= 2 THEN package_amount
-              ELSE 0
-            END
-          ),
-          0
-        ) AS directBusiness
-      FROM member
-      WHERE real_sponsor_id = ?`,
+        COALESCE(SUM(pack_amount), 0) AS totalInvestment,
+        COALESCE(SUM(token_amount), 0) AS ewcAllocation,
+        COUNT(*) AS investmentCount,
+        MIN(created_on) AS firstInvestmentDate,
+        MAX(created_on) AS latestInvestmentDate
+      FROM select_packages
+      WHERE u_id = ?`,
+      [user.id]
+    );
+
+    const totalInvestment = Number(
+      investmentRows[0]?.totalInvestment || 0
+    );
+
+    const ewcAllocation = Number(
+      investmentRows[0]?.ewcAllocation || 0
+    );
+
+    const investmentCount = Number(
+      investmentRows[0]?.investmentCount || 0
+    );
+
+    // =====================================================
+    // DIRECT PARTNERS
+    // =====================================================
+
+    const [directCountRows] = await db.execute(
+      `SELECT COUNT(*) AS totalPartners
+       FROM member
+       WHERE real_sponsor_id = ?`,
       [user.user_id]
     );
 
     const directPartners = Number(
-      directRows[0]?.totalPartners || 0
+      directCountRows[0]?.totalPartners || 0
+    );
+
+    // =====================================================
+    // DIRECT BUSINESS
+    //
+    // Sum actual select_packages investments belonging
+    // to personally sponsored members.
+    // =====================================================
+
+    const [directBusinessRows] = await db.execute(
+      `SELECT COALESCE(SUM(sp.pack_amount), 0) AS directBusiness
+       FROM member m
+       INNER JOIN select_packages sp ON sp.u_id = m.id
+       WHERE m.real_sponsor_id = ?`,
+      [user.user_id]
     );
 
     const directSales = Number(
-      directRows[0]?.directBusiness || 0
+      directBusinessRows[0]?.directBusiness || 0
     );
 
     // =====================================================
-    // TOTAL COMMUNITY + COMMUNITY BUSINESS
-    //
-    // levels:
-    // from_id = downline numeric member ID
-    // to_id   = upline numeric member ID
+    // TOTAL COMMUNITY
     // =====================================================
 
-    const [communityRows] = await db.execute(
-      `SELECT
-        COUNT(DISTINCT from_id) AS totalCommunity,
-        COALESCE(SUM(package_amount), 0) AS communityBusiness
-      FROM levels
-      WHERE to_id = ?`,
+    const [communityCountRows] = await db.execute(
+      `SELECT COUNT(DISTINCT from_id) AS totalCommunity
+       FROM levels
+       WHERE to_id = ?`,
       [user.id]
     );
 
     const totalCommunity = Number(
-      communityRows[0]?.totalCommunity || 0
-    );
-
-    const communitySales = Number(
-      communityRows[0]?.communityBusiness || 0
+      communityCountRows[0]?.totalCommunity || 0
     );
 
     // =====================================================
-    // TOTAL EARNINGS
+    // COMMUNITY BUSINESS
     //
-    // trasections.user_id = numeric member.id
-    //
-    // Only income directions are counted.
+    // Use DISTINCT downline IDs first so a downline cannot
+    // accidentally be counted multiple times.
     // =====================================================
 
-    const [earningRows] = await db.execute(
-      `SELECT COALESCE(SUM(credit), 0) AS total
-      FROM trasections
-      WHERE user_id = ?
-      AND direction IN (1, 5, 6, 7)`,
+    const [communityBusinessRows] = await db.execute(
+      `SELECT COALESCE(SUM(sp.pack_amount), 0) AS communityBusiness
+       FROM select_packages sp
+       INNER JOIN (
+         SELECT DISTINCT from_id
+         FROM levels
+         WHERE to_id = ?
+       ) network ON network.from_id = sp.u_id`,
       [user.id]
     );
 
-    const totalEarnings = Number(
-      earningRows[0]?.total || 0
+    const communitySales = Number(
+      communityBusinessRows[0]?.communityBusiness || 0
     );
 
+    // =====================================================
+    // INCOME TOTALS
+    //
+    // 1 = Direct -> USDT
+    // 5 = Rank   -> USDT
+    // 6 = Salary -> USDT
+    // 7 = ROI    -> EWC
+    //
+    // Do NOT add ROI EWC to USDT earnings.
+    // =====================================================
 
     const [incomeRows] = await db.execute(
-  `SELECT
-    direction,
-    COALESCE(SUM(credit), 0) AS total
-  FROM trasections
-  WHERE user_id = ?
-  AND direction IN (1, 5, 6, 7)
-  GROUP BY direction`,
-  [user.id]
-);
+      `SELECT
+        direction,
+        COALESCE(SUM(credit), 0) AS total
+       FROM trasections
+       WHERE user_id = ?
+       AND direction IN (1, 5, 6, 7)
+       GROUP BY direction`,
+      [user.id]
+    );
 
-const income = {
-  reward: 0,
-  direct: 0,
-  rank: 0,
-  salary: 0,
-};
+    const income = {
+      direct: 0,
+      rank: 0,
+      salary: 0,
+      reward: 0,
+      roi: 0,
+    };
 
-incomeRows.forEach((row) => {
-  const direction = Number(row.direction);
-  const amount = Number(row.total || 0);
+    incomeRows.forEach((row) => {
+      const direction = Number(row.direction);
+      const amount = Number(row.total || 0);
 
-  if (direction === 1) income.direct = amount;
-  if (direction === 5) income.rank = amount;
-  if (direction === 6) income.salary = amount;
-  if (direction === 7) income.reward = amount;
-});
+      if (direction === 1) income.direct = amount;
+      if (direction === 5) income.rank = amount;
+      if (direction === 6) income.salary = amount;
 
+      if (direction === 7) {
+        income.reward = amount;
+        income.roi = amount;
+      }
+    });
+
+    const totalEarnings =
+      income.direct +
+      income.rank +
+      income.salary;
+
+    const totalUsdtEarnings = totalEarnings;
+    const totalRoiEwc = income.roi;
+
+    // =====================================================
+    // CURRENT LIVE BALANCE
+    //
+    // balance = Direct + Rank + Salary generated after
+    // latest closing and not yet rolled into cumulative.
+    // =====================================================
+
+    const [walletRows] = await db.execute(
+      `SELECT
+        COALESCE(balance, 0) AS balance,
+        COALESCE(cumulative_usdt_income, 0) AS cumulative_usdt_income,
+        COALESCE(cumulative_roi_ewc, 0) AS cumulative_roi_ewc
+       FROM user_wallet
+       WHERE user_id = ?
+       LIMIT 1`,
+      [user.id]
+    );
+
+    const currentBalance = Number(
+      walletRows[0]?.balance || 0
+    );
 
     // =====================================================
     // RECENT TRANSACTIONS
@@ -241,11 +366,11 @@ incomeRows.forEach((row) => {
         direction,
         description,
         created_at
-      FROM trasections
-      WHERE user_id = ?
-      AND direction IN (1, 5, 6, 7)
-      ORDER BY created_at DESC
-      LIMIT 5`,
+       FROM trasections
+       WHERE user_id = ?
+       AND direction IN (1, 5, 6, 7)
+       ORDER BY created_at DESC
+       LIMIT 5`,
       [user.id]
     );
 
@@ -262,6 +387,11 @@ incomeRows.forEach((row) => {
 
         amount: Number(transaction.credit || 0),
 
+        asset:
+          Number(transaction.direction) === 7
+            ? "EWC"
+            : "USDT",
+
         status: "Completed",
 
         date: formatTransactionDate(
@@ -271,88 +401,86 @@ incomeRows.forEach((row) => {
     );
 
     // =====================================================
-    // INVESTMENT
+    // ACTIVE INVESTMENT
     // =====================================================
 
-    const packageAmount = Number(
-      user.package_amount || 0
-    );
-
-    const packageChoose = Number(
-      user.package_choose || 1
+    const [latestInvestmentRows] = await db.execute(
+      `SELECT
+        id,
+        pack_amount,
+        token_amount,
+        created_on
+       FROM select_packages
+       WHERE u_id = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [user.id]
     );
 
     let activeInvestment = null;
 
-    if (packageChoose >= 2 && packageAmount > 0) {
-      let daysRemaining = null;
-      let progress = 0;
+    if (latestInvestmentRows.length) {
+      const latestInvestment =
+        latestInvestmentRows[0];
 
-      /*
-      |--------------------------------------------------------------------------
-      | 100 DAY LOCK
-      |--------------------------------------------------------------------------
-      */
+      const activationDate = new Date(
+        latestInvestment.created_on
+      );
 
-      if (user.date_of_activation) {
-        const activationDate = new Date(
-          user.date_of_activation
-        );
+      const now = new Date();
+      const lockDays = 100;
+      const millisecondsPerDay =
+        1000 * 60 * 60 * 24;
 
-        const now = new Date();
+      const daysPassed = Math.max(
+        0,
+        Math.floor(
+          (now.getTime() -
+            activationDate.getTime()) /
+            millisecondsPerDay
+        )
+      );
 
-        const lockDays = 100;
+      const daysRemaining = Math.max(
+        0,
+        lockDays - daysPassed
+      );
 
-        const millisecondsPerDay =
-          1000 * 60 * 60 * 24;
-
-        const daysPassed = Math.max(
+      const progress = Math.min(
+        100,
+        Math.max(
           0,
           Math.floor(
-            (now.getTime() -
-              activationDate.getTime()) /
-              millisecondsPerDay
+            (daysPassed / lockDays) * 100
           )
-        );
-
-        daysRemaining = Math.max(
-          0,
-          lockDays - daysPassed
-        );
-
-        progress = Math.min(
-          100,
-          Math.max(
-            0,
-            Math.floor(
-              (daysPassed / lockDays) * 100
-            )
-          )
-        );
-      }
+        )
+      );
 
       activeInvestment = {
-        amount: packageAmount,
+        amount: Number(
+          latestInvestment.pack_amount || 0
+        ),
 
-        /*
-        |--------------------------------------------------------------------------
-        | We don't currently have confirmed package names.
-        | Therefore return package ID instead of inventing names.
-        |--------------------------------------------------------------------------
-        */
+        ewcAllocation: Number(
+          latestInvestment.token_amount || 0
+        ),
 
-        package: `Package ${packageChoose}`,
+        package: `Investment #${latestInvestment.id}`,
 
-        packageId: packageChoose,
+        packageId: Number(
+          latestInvestment.id
+        ),
 
         monthlyReward: 2,
 
         daysRemaining,
-
         progress,
 
         activationDate:
-          user.date_of_activation || null,
+          latestInvestment.created_on,
+
+        roiStarts:
+          daysRemaining === 0,
       };
     }
 
@@ -373,18 +501,17 @@ incomeRows.forEach((row) => {
     const nextRank =
       RANKS.find(
         (rank) =>
-          rank.level === currentRankLevel + 1
+          rank.level ===
+          currentRankLevel + 1
       ) || null;
 
-    /*
-    |--------------------------------------------------------------------------
-    | DIRECT RANK MEMBERS
-    |--------------------------------------------------------------------------
-    |
-    | For the next rank we need direct members whose level_achieved
-    | is equal to or higher than the required rank.
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // QUALIFIED RANK MEMBERS
+    //
+    // IMPORTANT:
+    // Required ranked members can be ANYWHERE in downteam.
+    // Not only direct referrals.
+    // =====================================================
 
     let qualifiedRankMembers = 0;
 
@@ -394,12 +521,14 @@ incomeRows.forEach((row) => {
     ) {
       const [rankMemberRows] =
         await db.execute(
-          `SELECT COUNT(*) AS total
-          FROM member
-          WHERE real_sponsor_id = ?
-          AND level_achieved >= ?`,
+          `SELECT COUNT(DISTINCT l.from_id) AS total
+           FROM levels l
+           INNER JOIN member m
+             ON m.id = l.from_id
+           WHERE l.to_id = ?
+           AND m.level_achieved >= ?`,
           [
-            user.user_id,
+            user.id,
             nextRank.requiredRank,
           ]
         );
@@ -411,28 +540,30 @@ incomeRows.forEach((row) => {
 
     // =====================================================
     // RANK PROGRESS
-    //
-    // Dashboard needs one simple percentage.
-    // We calculate each requirement separately and use
-    // the lowest one because ALL requirements are required.
     // =====================================================
 
     let rankProgress = 100;
 
     if (nextRank) {
-      const directProgress = Math.min(
-        100,
-        (directSales /
-          nextRank.directBusiness) *
-          100
-      );
+      const directProgress =
+        nextRank.directBusiness > 0
+          ? Math.min(
+              100,
+              (directSales /
+                nextRank.directBusiness) *
+                100
+            )
+          : 100;
 
-      const communityProgress = Math.min(
-        100,
-        (communitySales /
-          nextRank.teamBusiness) *
-          100
-      );
+      const communityProgress =
+        nextRank.teamBusiness > 0
+          ? Math.min(
+              100,
+              (communitySales /
+                nextRank.teamBusiness) *
+                100
+            )
+          : 100;
 
       let rankMemberProgress = 100;
 
@@ -457,6 +588,61 @@ incomeRows.forEach((row) => {
     }
 
     // =====================================================
+    // CLAIMABLE
+    // =====================================================
+
+    const snapshotUser =
+      loadLatestSnapshotUser(user.trx);
+
+    const cumulativeUsdtIncome = Number(
+      snapshotUser?.cumulative_usdt_income || 0
+    );
+
+    const cumulativeRoiEwc = Number(
+      snapshotUser?.cumulative_roi_ewc || 0
+    );
+
+    // =====================================================
+    // LAST CLAIMED CUMULATIVE VALUES
+    //
+    // We need cumulative values, not SUM(), because each
+    // withdrawal row already stores the cumulative values
+    // supplied to the contract for that claim.
+    // =====================================================
+
+    const [claimedRows] = await db.execute(
+      `SELECT
+        cumulative_usdt,
+        cumulative_roi_ewc
+       FROM withdrawals
+       WHERE user_id = ?
+       AND status = 1
+       ORDER BY id DESC
+       LIMIT 1`,
+      [user.id]
+    );
+
+    const usdtClaimed = Number(
+      claimedRows[0]?.cumulative_usdt || 0
+    );
+
+    const roiEwcClaimed = Number(
+      claimedRows[0]?.cumulative_roi_ewc || 0
+    );
+
+    const claimableUsdt = Math.max(
+      0,
+      cumulativeUsdtIncome -
+        usdtClaimed
+    );
+
+    const claimableEwc = Math.max(
+      0,
+      cumulativeRoiEwc -
+        roiEwcClaimed
+    );
+
+    // =====================================================
     // TOKEN EXPLORER
     // =====================================================
 
@@ -464,22 +650,18 @@ incomeRows.forEach((row) => {
 
     if (EWC_TOKEN.contractAddress) {
       explorerUrl =
-        `https://bscscan.com/token/` +
+        `https://testnet.bscscan.com/token/` +
         EWC_TOKEN.contractAddress;
     }
 
     // =====================================================
-    // DASHBOARD RESPONSE
+    // RESPONSE
     // =====================================================
 
     return res.status(200).json({
       success: true,
 
       data: {
-        // -------------------------------------------------
-        // USER
-        // -------------------------------------------------
-
         user: {
           id: user.id,
           user_id: user.user_id,
@@ -493,7 +675,9 @@ incomeRows.forEach((row) => {
             user.trx || "",
 
           walletRegistered:
-            !!String(user.trx || "").trim(),
+            !!String(
+              user.trx || ""
+            ).trim(),
 
           joined_at:
             user.dateOfJoining,
@@ -502,56 +686,56 @@ incomeRows.forEach((row) => {
             user.date_of_activation,
 
           package_choose:
-            packageChoose,
+            Number(
+              user.package_choose || 1
+            ),
 
           package_amount:
-            packageAmount,
+            totalInvestment,
 
           level_achieved:
             currentRankLevel,
         },
 
-        // -------------------------------------------------
-        // STATS
-        // -------------------------------------------------
-
         stats: {
-          /*
-          |--------------------------------------------------------------------------
-          | Current package/investment amount.
-          |
-          | If later you keep multiple investment records,
-          | totalInvestment should be calculated from that table instead.
-          |--------------------------------------------------------------------------
-          */
-
-          totalInvestment:
-            packageAmount,
-
-          totalEarnings,
+          totalInvestment,
+          ewcAllocation,
+          investmentCount,
 
           /*
-          |--------------------------------------------------------------------------
-          | DO NOT derive claimable from Web2 transactions.
-          |
-          | Actual claimable depends on:
-          | Merkle cumulative entitlement
-          | -
-          | on-chain claimedAmount
-          |
-          | Keep this zero until dashboard is connected to that state.
-          |--------------------------------------------------------------------------
-          */
+           * USDT earnings only.
+           * ROI is EWC and is returned separately.
+           */
+          totalEarnings:
+            totalUsdtEarnings,
 
-          claimable: 0,
+          totalUsdtEarnings,
+          totalRoiEwc,
 
           /*
-          |--------------------------------------------------------------------------
-          | No confirmed DB source for EWC allocation yet.
-          |--------------------------------------------------------------------------
-          */
+           * Keep claimable for old Dashboard.jsx
+           * compatibility.
+           *
+           * claimable = USDT
+           */
+          claimable:
+            claimableUsdt,
 
-          ewcAllocation: 0,
+          claimableUsdt,
+          claimableEwc,
+
+          claimedUsdt:
+            usdtClaimed,
+
+          claimedEwc:
+            roiEwcClaimed,
+
+          /*
+           * Income generated after the last closing.
+           * This is NOT currently claimable until included
+           * in the next Merkle snapshot.
+           */
+          currentBalance,
 
           directPartners,
           totalCommunity,
@@ -563,12 +747,10 @@ incomeRows.forEach((row) => {
         },
 
         income,
-        // -------------------------------------------------
-        // RANK
-        // -------------------------------------------------
 
         rank: {
-          level: currentRankLevel,
+          level:
+            currentRankLevel,
 
           current:
             currentRank?.name ||
@@ -585,43 +767,37 @@ incomeRows.forEach((row) => {
           directSales,
           communitySales,
 
-          progress: rankProgress,
+          progress:
+            rankProgress,
 
-          nextRequirements: nextRank
-            ? {
-                directBusiness:
-                  nextRank.directBusiness,
+          nextRequirements:
+            nextRank
+              ? {
+                  directBusiness:
+                    nextRank.directBusiness,
 
-                communityBusiness:
-                  nextRank.teamBusiness,
+                  communityBusiness:
+                    nextRank.teamBusiness,
 
-                requiredRank:
-                  nextRank.requiredRank
-                    ? getRankName(
-                        nextRank.requiredRank
-                      )
-                    : null,
+                  requiredRank:
+                    nextRank.requiredRank
+                      ? getRankName(
+                          nextRank.requiredRank
+                        )
+                      : null,
 
-                requiredRankCount:
-                  nextRank.requiredRankCount,
+                  requiredRankCount:
+                    nextRank.requiredRankCount,
 
-                qualifiedRankMembers,
-              }
-            : null,
+                  qualifiedRankMembers,
+                }
+              : null,
         },
-
-        // -------------------------------------------------
-        // TOKEN
-        // -------------------------------------------------
 
         token: {
           ...EWC_TOKEN,
           explorerUrl,
         },
-
-        // -------------------------------------------------
-        // RECENT TRANSACTIONS
-        // -------------------------------------------------
 
         recentTransactions,
       },

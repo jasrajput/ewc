@@ -52,7 +52,8 @@ const Header = ({ user, title, subtitle, onOpenSidebar }) => {
 
   const isConnected = connection.status === "connected";
 
-  const { disconnect } = useDisconnect();
+  // const { disconnect } = useDisconnect();
+  const disconnectWallet = useDisconnect();
 
   const { open } = useWeb3Modal();
 
@@ -223,19 +224,20 @@ const Header = ({ user, title, subtitle, onOpenSidebar }) => {
   // LOGOUT
   // ============================================
 
-  const logout = () => {
-    localStorage.removeItem("ewc_token");
+ const logout = async () => {
+  try {
+    await disconnectWallet.mutateAsync();
+  } catch (error) {
+    console.error("Wallet disconnect error:", error);
+  }
 
-    localStorage.removeItem("ewc_user");
+  localStorage.removeItem("ewc_token");
+  localStorage.removeItem("ewc_user");
+  sessionStorage.removeItem("ewc_token");
+  sessionStorage.removeItem("ewc_user");
 
-    sessionStorage.removeItem("ewc_token");
-
-    sessionStorage.removeItem("ewc_user");
-
-    navigate("/login", {
-      replace: true,
-    });
-  };
+  navigate("/login", { replace: true });
+};
 
   const handleWallet = () => {
     open();
@@ -422,7 +424,7 @@ const Header = ({ user, title, subtitle, onOpenSidebar }) => {
               {isConnected && (
                 <button
                   onClick={() => {
-                    disconnect();
+                    disconnectWallet.mutateAsync();
 
                     setProfileOpen(false);
                   }}

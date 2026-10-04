@@ -1,0 +1,18 @@
+{
+  "snapshot_id": "20261004_105137",
+  "created_at": "2026-10-04T10:51:37.751Z",
+  "root": "0xe6d5ea22e1966c5deed9399bec3dfaa6a8500acecf7cdf381733db13aefe1ac5",
+  "users": [
+    {
+      "index": 0,
+      "user_id": 1,
+      "wallet": "0xc7af10162d2b8a9dcdf3942a2ca9b589485adfcc",
+      "cumulative_usdt_income": "112.500000000000000000",
+      "cumulative_roi_ewc": "0.000000000000000000",
+      "cumulative_usdt_income_wei": "112500000000000000000",
+      "cumulative_roi_ewc_wei": "0",
+      "leaf": "0xe6d5ea22e1966c5deed9399bec3dfaa6a8500acecf7cdf381733db13aefe1ac5",
+      "proof": []
+    }
+  ]
+}

@@ -68,9 +68,9 @@ const Community = () => {
     <UserLayout title="Community" subtitle="Your complete EWC downline">
       <section className={styles.pageHeader}>
         <div>
-          <span className={styles.eyebrow}>MY NETWORK</span>
+          <span className={styles.eyebrow}>MY TEAM</span>
           <h2>Community</h2>
-          <p>View all members within your referral network.</p>
+          <p>View all members within your referral team.</p>
         </div>
       </section>
 
@@ -86,7 +86,7 @@ const Community = () => {
         <div className={styles.statCard}>
           <div className={styles.statIcon}><Network size={20} /></div>
           <div>
-            <span>Network Levels</span>
+            <span>TEAM Levels</span>
             <strong>{totalLevels}</strong>
           </div>
         </div>

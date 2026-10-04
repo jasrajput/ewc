@@ -12,6 +12,7 @@ const withdrawalRoutes = require("./routes/withdrawalRoutes");
 const accountRoutes = require("./routes/accountRoutes");
 const supportRoutes = require("./routes/supportRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const investmentRoutes = require("./routes/investmentRoutes");
 
 const adminAuthRoutes = require("./routes/admin/adminAuthRoutes");
 const adminDashboardRoutes = require("./routes/admin/adminDashboardRoutes");
@@ -64,6 +65,7 @@ app.use("/api/withdrawal", withdrawalRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/investment", investmentRoutes);
 
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);

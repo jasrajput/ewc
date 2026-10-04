@@ -46,6 +46,12 @@ const WithdrawalHistory = () => {
       maximumFractionDigits: 2,
     }).format(Number(amount || 0));
 
+  const formatEwc = (amount) =>
+    new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
+    }).format(Number(amount || 0));
+
   const formatDate = (date) => {
     if (!date) return "—";
 
@@ -116,15 +122,30 @@ const WithdrawalHistory = () => {
                 filteredHistory.map((item, index) => (
                   <tr key={`${item.txn_id}-${index}`}>
                     <td>{index + 1}</td>
-                    <td className={styles.amount}>${formatAmount(item.amount)}</td>
+
+                    <td className={styles.amount}>
+                      {Number(item.usdt_amount || 0) > 0 && (
+                        <div>${formatAmount(item.usdt_amount)} USDT</div>
+                      )}
+
+                      {Number(item.roi_ewc_amount || 0) > 0 && (
+                        <div>{formatEwc(item.roi_ewc_amount)} EWC</div>
+                      )}
+
+                      {Number(item.usdt_amount || 0) <= 0 &&
+                        Number(item.roi_ewc_amount || 0) <= 0 && "—"}
+                    </td>
+
                     <td>
                       <span className={styles.txHash}>{item.txn_id || "—"}</span>
                     </td>
+
                     <td>
                       <span className={item.status === 1 ? styles.approved : styles.pending}>
                         {item.status_text}
                       </span>
                     </td>
+
                     <td>{formatDate(item.date_of_withdrawal)}</td>
                   </tr>
                 ))

@@ -174,7 +174,7 @@ const LevelGenealogy = () => {
 
       <section className={styles.pageHeader}>
         <div>
-          <span className={styles.eyebrow}>MY NETWORK</span>
+          <span className={styles.eyebrow}>MY TEAM</span>
           <h2>Level Genealogy</h2>
           <p>
             Track your community growth and investment across each level.
@@ -271,7 +271,7 @@ const LevelGenealogy = () => {
               <div className={styles.levelCard} key={item.level}>
                 <div className={styles.levelCardTop}>
                   <div>
-                    <span>NETWORK LEVEL</span>
+                    <span>TEAM LEVEL</span>
                     <strong>Level {item.level}</strong>
                   </div>
 

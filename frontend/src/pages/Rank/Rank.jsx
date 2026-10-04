@@ -262,7 +262,7 @@ const Rank = () => {
                     <div className={styles.requirement}>
                       <div className={styles.requirementTop}>
                         <span>
-                          Direct {rank.progress.rankMembers.requiredRank}+
+                          {rank.progress.rankMembers.requiredRank}+
                           Members
                         </span>
 

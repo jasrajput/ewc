@@ -820,8 +820,8 @@ const [
                 Earnings
               </option>
 
-              <option value="Network">
-                Network
+              <option value="Team">
+                TEAM
               </option>
 
               <option value="Other">
