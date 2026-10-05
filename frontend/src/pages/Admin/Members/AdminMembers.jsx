@@ -651,13 +651,13 @@ const AdminMembers = () => {
         <SummaryCard
           icon={UserCheck}
           label="Activated"
-          value="Package 2+"
+          value=""
         />
 
         <SummaryCard
           icon={UserRoundX}
           label="Not Activated"
-          value="Package 1"
+          value=""
         />
 
         <SummaryCard
