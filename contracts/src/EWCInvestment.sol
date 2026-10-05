@@ -615,7 +615,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
                 usdtAmount,
                 minEwcOut,
                 path,
-                address(this),
+                address(commissionPool),
                 block.timestamp + 300
             );
 
@@ -807,35 +807,6 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // =============================================================
     // CUMULATIVE MERKLE CLAIM
     // =============================================================
-
-    /*
-        Merkle leaf:
-
-        keccak256(
-            abi.encode(
-                user,
-                cumulativeUsdtIncome,
-                cumulativeRoiEwc
-            )
-        )
-
-        cumulativeUsdtIncome:
-
-            Direct
-            + Rank
-            + Salary
-
-            Paid in USDT.
-
-        cumulativeRoiEwc:
-
-            ROI only.
-
-            Already calculated/converted into EWC
-            by backend daily closing.
-
-            Paid in EWC.
-    */
 
     function claim(
         uint256 cumulativeUsdtIncome,

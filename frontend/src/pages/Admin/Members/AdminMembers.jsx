@@ -663,7 +663,7 @@ const AdminMembers = () => {
         <SummaryCard
           icon={Ban}
           label="Blocked"
-          value="Status 1"
+          value=""
         />
       </div>
 

@@ -805,23 +805,12 @@ const AdminWithdrawals = () => {
               summaryLoading
             }
           />
-
+{/* 
           <MiniStat
             label="Total Deductions"
             value={formatAmount(
               summary
                 ?.totalDeduction
-            )}
-            loading={
-              summaryLoading
-            }
-          />
-
-          <MiniStat
-            label="Total TDS"
-            value={formatAmount(
-              summary
-                ?.totalTds
             )}
             loading={
               summaryLoading
@@ -837,7 +826,7 @@ const AdminWithdrawals = () => {
             loading={
               summaryLoading
             }
-          />
+          /> */}
         </div>
 
 
