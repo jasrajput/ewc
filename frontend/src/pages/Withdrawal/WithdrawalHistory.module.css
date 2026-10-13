@@ -28,7 +28,7 @@
 
 .summaryCard span {
   color: #747b85;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .summaryCard strong {
@@ -101,7 +101,7 @@
   color: #737a84;
   background: rgba(255, 255, 255, 0.018);
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   text-align: left;
   text-transform: uppercase;
@@ -134,7 +134,7 @@
   display: inline-block;
   padding: 4px 8px;
   border-radius: 5px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 

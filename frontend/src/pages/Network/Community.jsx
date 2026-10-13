@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Network, Search, Users } from "lucide-react";
+import { Layers, Search, Users } from "lucide-react";
 
 import api from "../../services/api";
 import UserLayout from "../../components/layout/UserLayout";
@@ -84,9 +84,9 @@ const Community = () => {
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon}><Network size={20} /></div>
+          <div className={styles.statIcon}><Layers size={20} /></div>
           <div>
-            <span>TEAM Levels</span>
+            <span>Team Levels</span>
             <strong>{totalLevels}</strong>
           </div>
         </div>
@@ -119,7 +119,6 @@ const Community = () => {
           </div>
         ) : filteredMembers.length === 0 ? (
           <div className={styles.emptyState}>
-            <Network size={28} />
             <strong>No community members found</strong>
             <span>Your downline members will appear here.</span>
           </div>

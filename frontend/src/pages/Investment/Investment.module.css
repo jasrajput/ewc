@@ -27,7 +27,7 @@
 
 .eyebrow {
   color: var(--gold);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 1.5px;
 }
@@ -75,7 +75,7 @@
 
 .infoCard span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .infoCard strong {
@@ -138,7 +138,7 @@
   background: transparent;
   border: 0;
   border-radius: 5px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -203,7 +203,7 @@
   justify-content: space-between;
   margin-top: 7px;
   color: #6d747d;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .limits strong {
@@ -270,7 +270,7 @@
   justify-content: space-between;
   padding: 10px 3px;
   color: #737a83;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .quoteMeta strong {
@@ -286,7 +286,7 @@
   margin-top: 9px;
   padding: 10px 11px;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .errorBox {
@@ -336,7 +336,7 @@
   gap: 6px;
   margin: 11px 0 0;
   color: #656c75;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .spinner {
@@ -371,7 +371,7 @@
 
 .summaryRows span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .summaryRows strong {
@@ -404,13 +404,13 @@
 
 .quoteNotice strong {
   color: #c8b57f;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .quoteNotice span {
   margin-top: 3px;
   color: #737983;
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -435,7 +435,7 @@
   padding: 10px;
   color: #686f78;
   border-bottom: 1px solid var(--border);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   text-align: left;
   text-transform: uppercase;
@@ -454,7 +454,7 @@
   color: #6fd39b;
   background: rgba(61, 187, 117, 0.07);
   border-radius: 20px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .emptyState {
@@ -465,7 +465,7 @@
   justify-content: center;
   gap: 6px;
   color: #686f78;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .emptyState > svg {

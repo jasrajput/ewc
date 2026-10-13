@@ -8,16 +8,16 @@ import styles from "./Income.module.css";
 
 const INCOME_TYPES = {
   direct: {
-    title: "Direct Income",
-    subtitle: "Income earned from your direct referrals",
+    title: "Direct Rewards",
+    subtitle: "rewards earned from your direct referrals",
   },
   reward: {
-    title: "Reward Income",
-    subtitle: "Rewards earned from your EWC investments",
+    title: "Staking Rewards",
+    subtitle: "rewards earned from your EWC staking",
   },
   rank: {
-    title: "Rank Income",
-    subtitle: "Income earned from your rank",
+    title: "Rank Rewards",
+    subtitle: "rewards earned from your rank",
   },
   salary: {
     title: "Rank Salary",
@@ -44,40 +44,40 @@ const Income = () => {
     }
 
     const fetchIncome = async () => {
-  setLoading(true);
-  setError("");
+      setLoading(true);
+      setError("");
 
-  try {
-    const token =
-      localStorage.getItem("ewc_token") ||
-      sessionStorage.getItem("ewc_token");
+      try {
+        const token =
+          localStorage.getItem("ewc_token") ||
+          sessionStorage.getItem("ewc_token");
 
-    if (!token) {
-      navigate("/login", { replace: true });
-      return;
-    }
+        if (!token) {
+          navigate("/login", { replace: true });
+          return;
+        }
 
-    const response = await api.get(`/income/${type}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+        const response = await api.get(`/income/${type}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    setIncome(response.data.data || []);
-    setTotalIncome(Number(response.data.total || 0));
-  } catch (err) {
-    console.error("Income fetch error:", err);
+        setIncome(response.data.data || []);
+        setTotalIncome(Number(response.data.total || 0));
+      } catch (err) {
+        console.error("Rewards fetch error:", err);
 
-    if (err.response?.status === 401) {
-      navigate("/login", { replace: true });
-      return;
-    }
+        if (err.response?.status === 401) {
+          navigate("/login", { replace: true });
+          return;
+        }
 
-    setError(err.response?.data?.message || "Failed to load income.");
-  } finally {
-    setLoading(false);
-  }
-};
+        setError(err.response?.data?.message || "Failed to load rewards.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchIncome();
   }, [type, config, navigate]);
@@ -88,7 +88,7 @@ const Income = () => {
     const keyword = search.toLowerCase();
 
     return income.filter((item) =>
-      item.description?.toLowerCase().includes(keyword)
+      item.description?.toLowerCase().includes(keyword),
     );
   }, [income, search]);
 
@@ -126,7 +126,9 @@ const Income = () => {
 
       <section className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={styles.statIcon}><Coins size={20} /></div>
+          <div className={styles.statIcon}>
+            <Coins size={20} />
+          </div>
           <div>
             <span>Total {config.title}</span>
             <strong>{formatUsd(totalIncome)}</strong>
@@ -134,7 +136,9 @@ const Income = () => {
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon}><TrendingUp size={20} /></div>
+          <div className={styles.statIcon}>
+            <TrendingUp size={20} />
+          </div>
           <div>
             <span>Total Records</span>
             <strong>{income.length}</strong>
@@ -165,13 +169,13 @@ const Income = () => {
         {loading ? (
           <div className={styles.emptyState}>
             <span className={styles.spinner} />
-            <span>Loading income...</span>
+            <span>Loading rewards...</span>
           </div>
         ) : filteredIncome.length === 0 ? (
           <div className={styles.emptyState}>
             <Coins size={27} />
             <strong>No {config.title.toLowerCase()} yet</strong>
-            <span>Your income history will appear here.</span>
+            <span>Your rewards history will appear here.</span>
           </div>
         ) : (
           <div className={styles.tableWrapper}>
@@ -179,7 +183,7 @@ const Income = () => {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Income</th>
+                  <th>Reward</th>
                   <th>Description</th>
                   <th>Date</th>
                 </tr>
@@ -189,7 +193,11 @@ const Income = () => {
                 {filteredIncome.map((item, index) => (
                   <tr key={item.id || index}>
                     <td>#{index + 1}</td>
-                    <td><strong className={styles.amount}>+{formatUsd(item.credit)}</strong></td>
+                    <td>
+                      <strong className={styles.amount}>
+                        +{formatUsd(item.credit)}
+                      </strong>
+                    </td>
                     <td>{item.description || "—"}</td>
                     <td>{formatDate(item.created_at)}</td>
                   </tr>

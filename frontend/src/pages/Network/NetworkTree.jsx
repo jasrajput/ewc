@@ -189,7 +189,7 @@ const NetworkTree = () => {
       } catch (err) {
         console.error("genealogy tree error:", err);
 
-        setError(err.response?.data?.message || "Unable to load team genealogy.");
+        setError(err.response?.data?.message || "Unable to load community structure.");
       } finally {
         setLoading(false);
       }
@@ -200,14 +200,14 @@ const NetworkTree = () => {
 
   return (
     <UserLayout
-      title="Team Genealogy"
+      title="Community Structure"
       subtitle="Explore your community structure"
     >
       <section className={styles.pageHeader}>
         <div>
           <span className={styles.eyebrow}>MY TEAM</span>
 
-          <h2>Team Genealogy</h2>
+          <h2>Community Structure</h2>
 
           <p>Expand members to explore your referral team level by level.</p>
         </div>
@@ -223,8 +223,6 @@ const NetworkTree = () => {
       </section>
 
       <div className={styles.infoBox}>
-        <Network size={16} />
-
         <span>
           Select <strong>Expand Team</strong> on a member to view their direct
           referrals.

@@ -1265,14 +1265,14 @@ const getNetworkTree = async (
     });
   } catch (error) {
     console.error(
-      "Admin network tree error:",
+      "Admin community structure error:",
       error
     );
 
     return res.status(500).json({
       success: false,
       message:
-        "Unable to load network tree.",
+        "Unable to load community structure.",
     });
   }
 };

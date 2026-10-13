@@ -805,7 +805,7 @@ const [
               </option>
 
               <option value="Investment">
-                Investment
+                Staking
               </option>
 
               <option value="Withdrawal">
@@ -821,7 +821,7 @@ const [
               </option>
 
               <option value="Team">
-                TEAM
+                Team
               </option>
 
               <option value="Other">

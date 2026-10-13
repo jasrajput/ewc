@@ -206,7 +206,7 @@ const AdminNetworkTree = ({
         setError(
           err.response?.data
             ?.message ||
-            "Unable to load team genealogy."
+            "Unable to load community structure."
         );
       } finally {
         setLoading(false);
@@ -476,7 +476,7 @@ const AdminNetworkTree = ({
           />
 
           <span>
-            Loading team genealogy...
+            Loading community structure...
           </span>
         </div>
       ) : !tree ? (
@@ -488,7 +488,7 @@ const AdminNetworkTree = ({
           <GitBranch size={26} />
 
           <strong>
-            No team genealogy
+            No community structure
           </strong>
 
           <span>

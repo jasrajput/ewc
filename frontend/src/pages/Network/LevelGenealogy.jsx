@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
-  Network,
+  Layers,
   Search,
   UserCheck,
   UserX,
@@ -177,7 +177,7 @@ const LevelGenealogy = () => {
           <span className={styles.eyebrow}>MY TEAM</span>
           <h2>Level Genealogy</h2>
           <p>
-            Track your community growth and investment across each level.
+            Track your community growth and staking across each level.
           </p>
         </div>
       </section>
@@ -226,7 +226,7 @@ const LevelGenealogy = () => {
           </div>
 
           <div>
-            <span>Total Investment</span>
+            <span>Total Staking</span>
             <strong>{formatUsd(summary.investment)}</strong>
           </div>
         </div>
@@ -261,7 +261,7 @@ const LevelGenealogy = () => {
           </div>
         ) : levels.length === 0 ? (
           <div className={styles.emptyState}>
-            <Network size={28} />
+            <Layers size={28} />
             <strong>No level data yet</strong>
             <span>Your level-wise community will appear here.</span>
           </div>
@@ -303,7 +303,7 @@ const LevelGenealogy = () => {
                   </div>
 
                   <div>
-                    <span>Investment</span>
+                    <span>Staking</span>
                     <strong>
                       {formatUsd(item.total_investment)}
                     </strong>
@@ -352,7 +352,7 @@ const LevelGenealogy = () => {
                   {formatUsd(
                     selectedLevelData?.total_investment || 0
                   )}{" "}
-                  total investment
+                  total staking
                 </p>
               </div>
 
@@ -389,7 +389,7 @@ const LevelGenealogy = () => {
               </div>
 
               <div>
-                <span>Investment</span>
+                <span>Staking</span>
                 <strong>
                   {formatUsd(
                     selectedLevelData?.total_investment || 0

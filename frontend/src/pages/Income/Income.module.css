@@ -23,7 +23,7 @@
 
 .eyebrow {
   color: var(--gold);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 1.5px;
 }
@@ -65,7 +65,7 @@
 
 .statCard span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .statCard strong {
@@ -144,7 +144,7 @@
   padding: 11px 12px;
   color: #6e747d;
   border-bottom: 1px solid var(--border);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   text-align: left;
   text-transform: uppercase;
@@ -180,7 +180,7 @@
   justify-content: center;
   gap: 7px;
   color: #6e747d;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .emptyState svg {

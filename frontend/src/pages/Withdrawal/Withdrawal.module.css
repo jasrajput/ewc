@@ -51,7 +51,7 @@
 .priceBox span {
   margin-bottom: 3px;
   color: #737a84;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .priceBox strong {
@@ -132,7 +132,7 @@
 .stat span {
   margin-bottom: 3px;
   color: #747b85;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .stat strong {
@@ -162,7 +162,7 @@
 .walletSection span {
   margin-bottom: 4px;
   color: #686f79;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .walletSection strong {
@@ -194,7 +194,7 @@
 .claimNote {
   margin: 9px 0 0;
   color: #656c75;
-  font-size: 9px;
+  font-size: 12px;
   text-align: center;
 }
 

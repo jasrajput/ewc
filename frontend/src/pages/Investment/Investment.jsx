@@ -276,10 +276,10 @@ const Investment = () => {
         setInvestments([]);
       }
     } catch (error) {
-      console.error("Investment history error:", error);
+      console.error("Staking history error:", error);
       setInvestments([]);
       setHistoryError(
-        error?.response?.data?.message || "Unable to load investment history.",
+        error?.response?.data?.message || "Unable to load staking history.",
       );
     } finally {
       setHistoryLoading(false);
@@ -327,7 +327,7 @@ const Investment = () => {
     const available = Math.min(balance, MAX_DEPOSIT);
 
     if (available < MIN_DEPOSIT) {
-      setTxError(`Minimum investment is $${MIN_DEPOSIT}.`);
+      setTxError(`Minimum staking is $${MIN_DEPOSIT}.`);
 
       return;
     }
@@ -414,12 +414,12 @@ const Investment = () => {
     }
 
     if (amountNum < MIN_DEPOSIT) {
-      setTxError(`Minimum investment is $${MIN_DEPOSIT}.`);
+      setTxError(`Minimum staking is $${MIN_DEPOSIT}.`);
       return;
     }
 
     if (amountNum > MAX_DEPOSIT) {
-      setTxError(`Maximum investment is $${MAX_DEPOSIT.toLocaleString()}.`);
+      setTxError(`Maximum staking is $${MAX_DEPOSIT.toLocaleString()}.`);
       return;
     }
 
@@ -542,7 +542,7 @@ const Investment = () => {
         setTxStatus("");
       }, 3000);
     } catch (error) {
-      console.error("Investment error:", error);
+      console.error("staking error:", error);
 
       const message =
         error?.shortMessage || error?.message || "Transaction failed.";
@@ -585,7 +585,7 @@ const Investment = () => {
   // ACTION BUTTON
   // =========================================================
 
-  let buttonText = "Enter Investment Amount";
+  let buttonText = "Enter staking Amount";
 
   if (!isConnected) {
     buttonText = "Connect Wallet";
@@ -617,15 +617,15 @@ const Investment = () => {
   return (
   <UserLayout
     user={layoutUser}
-    title="Investment"
+    title="Staking"
     subtitle="Invest in EWC"
   >
     <section className={styles.pageHeader}>
       <div>
-        <span className={styles.eyebrow}>EWC INVESTMENT</span>
-        <h2>Invest in EWC</h2>
+        <span className={styles.eyebrow}>EWC STAKING</span>
+        <h2>Stake EWC</h2>
         <p>
-          Invest USDT and receive an EWC allocation based on the current EWC
+          Deposit USDT and receive an EWC allocation based on the current EWC
           market price.
         </p>
       </div>
@@ -669,7 +669,7 @@ const Investment = () => {
         <ShieldCheck size={20} />
 
         <div>
-          <span>Investment Limits</span>
+          <span>Staking Limits</span>
           <strong>
             ${MIN_DEPOSIT} — ${MAX_DEPOSIT.toLocaleString()}
           </strong>
@@ -685,8 +685,8 @@ const Investment = () => {
       <div className={styles.panel}>
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>INVEST</span>
-            <h3>Make an Investment</h3>
+            <span className={styles.eyebrow}>STAKE</span>
+            <h3>Stake EWC</h3>
           </div>
 
           <span className={styles.balance}>
@@ -696,12 +696,12 @@ const Investment = () => {
         </div>
 
         {/* =================================================
-            INVESTMENT BENEFICIARY
+            Staking BENEFICIARY
         ================================================= */}
 
         <div className={styles.investForSection}>
           <label className={styles.investForLabel}>
-            Investment For
+            Staking For
           </label>
 
           <div className={styles.investForTabs}>
@@ -793,7 +793,7 @@ const Investment = () => {
 
             <span>
               {investmentType === "self"
-                ? `${accountError} Please update your wallet address before investing.`
+                ? `${accountError} Please update your wallet address before staking.`
                 : accountError}
             </span>
           </div>
@@ -834,7 +834,7 @@ const Investment = () => {
         ================================================= */}
 
         <div className={styles.inputHeader}>
-          <label>Investment Amount</label>
+          <label>Staking Amount</label>
 
           <button
             type="button"
@@ -930,14 +930,14 @@ const Investment = () => {
         {amountNum > 0 && amountNum < MIN_DEPOSIT && (
           <div className={styles.errorBox}>
             <AlertCircle size={15} />
-            Minimum investment is ${MIN_DEPOSIT}.
+            Minimum staking is ${MIN_DEPOSIT}.
           </div>
         )}
 
         {amountNum > MAX_DEPOSIT && (
           <div className={styles.errorBox}>
             <AlertCircle size={15} />
-            Maximum investment is $
+            Maximum staking is $
             {MAX_DEPOSIT.toLocaleString()}.
           </div>
         )}
@@ -961,7 +961,7 @@ const Investment = () => {
         {txStatus === "success" && (
           <div className={styles.successBox}>
             <CheckCircle2 size={16} />
-            Investment successful.
+            Staking successful.
           </div>
         )}
 
@@ -984,7 +984,7 @@ const Investment = () => {
           {txStatus === "approving"
             ? "Approving USDT..."
             : txStatus === "investing"
-              ? "Confirming Investment..."
+              ? "Confirming Staking..."
               : buttonText}
         </button>
 
@@ -1002,12 +1002,12 @@ const Investment = () => {
         <span className={styles.eyebrow}>SUMMARY</span>
 
         <h3 className={styles.summaryTitle}>
-          Investment Summary
+          Staking Summary
         </h3>
 
         <div className={styles.summaryRows}>
           <div>
-            <span>Investment For</span>
+            <span>Staking For</span>
 
             <strong>
               {beneficiaryMember
@@ -1019,7 +1019,7 @@ const Investment = () => {
           </div>
 
           <div>
-            <span>You invest</span>
+            <span>You stake</span>
             <strong>{formatUsd(amountNum)}</strong>
           </div>
 
@@ -1069,7 +1069,7 @@ const Investment = () => {
 
             <span>
               Your EWC allocation is calculated from your full
-              USDT investment value.
+              USDT deposit value.
             </span>
           </div>
         </div>
@@ -1086,27 +1086,27 @@ const Investment = () => {
       <div className={styles.panelHeader}>
         <div>
           <span className={styles.eyebrow}>HISTORY</span>
-          <h3>My Investments</h3>
+          <h3>My Staking</h3>
         </div>
       </div>
 
       {historyLoading ? (
         <div className={styles.emptyState}>
           <span className={styles.spinner} />
-          Loading investments...
+          Loading staking...
         </div>
       ) : historyError ? (
         <div className={styles.emptyState}>
           <AlertCircle size={26} />
-          <strong>Unable to load investments</strong>
+          <strong>Unable to load staking</strong>
           <span>{historyError}</span>
         </div>
       ) : investments.length === 0 ? (
         <div className={styles.emptyState}>
           <Coins size={26} />
-          <strong>No investments yet</strong>
+          <strong>No staking yet</strong>
           <span>
-            Your investment history will appear here.
+            Your staking history will appear here.
           </span>
         </div>
       ) : (
@@ -1116,7 +1116,7 @@ const Investment = () => {
               <tr>
                 <th>#</th>
                 <th>Date</th>
-                <th>Investment</th>
+                <th>Staking</th>
                 <th>EWC Price</th>
                 <th>EWC Allocation</th>
                 <th>Status</th>

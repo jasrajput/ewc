@@ -10,7 +10,7 @@ import {
   ExternalLink,
   Package,
   HandCoins,
-  Network,
+  Layers,
   Link2,
   ShieldCheck,
   Clock3,
@@ -160,28 +160,28 @@ const Dashboard = () => {
   const incomeCards = [
     {
       key: "reward",
-      title: "Reward Income",
+      title: "Staking Rewards",
       value: income?.reward || 0,
       icon: TrendingUp,
       path: "/earnings/reward",
     },
     {
       key: "direct",
-      title: "Direct Income",
+      title: "Direct Rewards",
       value: income?.direct || 0,
       icon: UserPlus,
       path: "/earnings/direct",
     },
     {
       key: "rank",
-      title: "Rank Income",
+      title: "Rank Rewards",
       value: income?.rank || 0,
       icon: Trophy,
       path: "/earnings/rank",
     },
     {
       key: "salary",
-      title: "Salary Income",
+      title: "Salary Rewards",
       value: income?.salary || 0,
       icon: Award,
       path: "/earnings/salary",
@@ -216,7 +216,7 @@ const Dashboard = () => {
           </h1>
 
           <p>
-            Your investment, earnings and community performance
+            Your staking, rewards and community performance
             in one place.
           </p>
 
@@ -226,7 +226,7 @@ const Dashboard = () => {
               onClick={() => navigate("/investment")}
             >
               <Package size={17} />
-              Invest Now
+              Stake Now
             </button>
 
             <button
@@ -283,7 +283,7 @@ const Dashboard = () => {
               <Wallet size={20} />
             </div>
 
-            <span>Total Investment</span>
+            <span>Total Staking</span>
           </div>
 
           <strong className={styles.moneyValue}>
@@ -291,7 +291,7 @@ const Dashboard = () => {
           </strong>
 
           <div className={styles.moneyBottom}>
-            <span>Current investment value</span>
+            <span>Current staking value</span>
 
             <button onClick={() => navigate("/investment")}>
               Details <ArrowUpRight size={13} />
@@ -305,7 +305,7 @@ const Dashboard = () => {
               <CircleDollarSign size={20} />
             </div>
 
-            <span>Total Earnings</span>
+            <span>Total Rewards</span>
           </div>
 
           <strong className={styles.moneyValue}>
@@ -313,10 +313,10 @@ const Dashboard = () => {
           </strong>
 
           <div className={styles.moneyBottom}>
-            <span>All income combined</span>
+            <span>All rewards combined</span>
 
             <button onClick={() => navigate("/earnings/reward")}>
-              Earnings <ArrowUpRight size={13} />
+              Rewards <ArrowUpRight size={13} />
             </button>
           </div>
         </div>
@@ -370,10 +370,10 @@ const Dashboard = () => {
       <section className={styles.section}>
         <div className={styles.sectionHeading}>
           <div>
-            <span className={styles.eyebrow}>EARNINGS</span>
-            <h2>Income Overview</h2>
+            <span className={styles.eyebrow}>REWARDS</span>
+            <h2>Reward Overview</h2>
             <p>
-              Breakdown of your earnings across all income sources.
+              Breakdown of your rewards across all sources.
             </p>
           </div>
 
@@ -381,7 +381,7 @@ const Dashboard = () => {
             className={styles.sectionAction}
             onClick={() => navigate("/earnings/reward")}
           >
-            View Earnings
+            View rewards
             <ChevronRight size={16} />
           </button>
         </div>
@@ -422,17 +422,17 @@ const Dashboard = () => {
       </section>
 
       {/* =====================================================
-          INVESTMENT + RANK
+          Staking + RANK
       ===================================================== */}
 
       <section className={styles.featureGrid}>
-        {/* INVESTMENT */}
+        {/* Staking */}
 
         <div className={`${styles.panel} ${styles.investmentPanel}`}>
           <div className={styles.panelHeader}>
             <div>
-              <span className={styles.eyebrow}>INVESTMENT</span>
-              <h2>Active Investment</h2>
+              <span className={styles.eyebrow}>STAKING</span>
+              <h2>Active Staking</h2>
             </div>
 
             <button
@@ -447,7 +447,7 @@ const Dashboard = () => {
           {stats?.activeInvestment ? (
             <div className={styles.activeInvestment}>
               <div className={styles.investmentMain}>
-                <span>Current Investment</span>
+                <span>Current Staking</span>
 
                 <strong>
                   {formatUsd(stats.activeInvestment.amount)}
@@ -480,7 +480,7 @@ const Dashboard = () => {
 
               <div className={styles.progressArea}>
                 <div className={styles.progressLabels}>
-                  <span>Investment period</span>
+                  <span>Staking period</span>
                   <strong>
                     {stats.activeInvestment.progress || 0}%
                   </strong>
@@ -505,16 +505,16 @@ const Dashboard = () => {
               </div>
 
               <div>
-                <h3>No Active Investment</h3>
+                <h3>No Active Staking</h3>
 
                 <p>
-                  Start an EWC investment to activate your rewards
+                  Start an EWC staking to activate your rewards
                   and community benefits.
                 </p>
               </div>
 
               <button onClick={() => navigate("/investment")}>
-                Explore Investment
+                Explore Staking
                 <ArrowRight size={15} />
               </button>
             </div>
@@ -546,7 +546,7 @@ const Dashboard = () => {
 
               {rank?.teamPercentage > 0 && (
                 <small>
-                  {rank.teamPercentage}% Team Income
+                  {rank.teamPercentage}% Team rewards
                 </small>
               )}
             </div>
@@ -606,7 +606,7 @@ const Dashboard = () => {
             </div>
 
             <div className={styles.headerIcon}>
-              <Network size={20} />
+              <Layers size={20} />
             </div>
           </div>
 
@@ -668,7 +668,7 @@ const Dashboard = () => {
           <div className={styles.referralReward}>
             <span>Direct Referral Reward</span>
             <strong>10%</strong>
-            <small>on qualifying direct investments</small>
+            <small>on qualifying direct staking</small>
           </div>
 
           <p className={styles.referralDescription}>
@@ -702,7 +702,7 @@ const Dashboard = () => {
           <div className={styles.panelHeader}>
             <div>
               <span className={styles.eyebrow}>ACTIVITY</span>
-              <h2>Recent Earnings</h2>
+              <h2>Recent Rewards</h2>
             </div>
 
             <BadgeDollarSign size={21} />
@@ -736,9 +736,9 @@ const Dashboard = () => {
             ) : (
               <div className={styles.emptyActivity}>
                 <Clock3 size={23} />
-                <strong>No earnings yet</strong>
+                <strong>No rewards yet</strong>
                 <span>
-                  Your latest income transactions will appear here.
+                  Your latest rewards transactions will appear here.
                 </span>
               </div>
             )}
@@ -836,7 +836,7 @@ const Dashboard = () => {
         <button onClick={() => navigate("/investment")}>
           <Package size={18} />
           <span>
-            <strong>Investment</strong>
+            <strong>Staking</strong>
             <small>Manage your package</small>
           </span>
           <ChevronRight size={17} />
@@ -854,7 +854,7 @@ const Dashboard = () => {
         <button onClick={() => navigate("/network/tree")}>
           <Layers3 size={18} />
           <span>
-            <strong>Team Genealogy</strong>
+            <strong>Community Structure</strong>
             <small>Explore your community</small>
           </span>
           <ChevronRight size={17} />
@@ -864,7 +864,7 @@ const Dashboard = () => {
           <HandCoins size={18} />
           <span>
             <strong>Withdrawal</strong>
-            <small>Claim your earnings</small>
+            <small>Claim your rewards</small>
           </span>
           <ChevronRight size={17} />
         </button>

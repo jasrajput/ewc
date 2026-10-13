@@ -78,7 +78,7 @@
   gap: 7px;
   margin-bottom: 13px;
   color: var(--gold);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 1.7px;
 }
@@ -99,7 +99,7 @@
   max-width: 540px;
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.7;
 }
 
@@ -183,7 +183,7 @@
 
 .heroAccountTop span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .heroAccountTop strong {
@@ -209,13 +209,13 @@
 
 .heroAccountRow span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .heroAccountRow strong {
   min-width: 0;
   color: #d6d9de;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -263,7 +263,7 @@
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .moneyIcon {
@@ -308,7 +308,7 @@
 .moneyBottom > span {
   min-width: 0;
   color: var(--muted-dark);
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -323,7 +323,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 9px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -353,7 +353,7 @@
 
 .eyebrow {
   color: var(--gold);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 1.7px;
 }
@@ -381,7 +381,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 9px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -448,7 +448,7 @@
   display: block;
   margin-top: 14px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .incomeCard > strong {
@@ -467,7 +467,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .incomeCard:hover .incomeFooter {
@@ -537,7 +537,7 @@
 .investmentMain > span {
   display: block;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .investmentMain > strong {
@@ -558,7 +558,7 @@
   border-radius: 7px;
   background: rgba(214, 173, 85, 0.075);
   color: var(--gold-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .investmentStats {
@@ -582,7 +582,7 @@
 
 .investmentStats span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .investmentStats strong {
@@ -601,7 +601,7 @@
   justify-content: space-between;
   align-items: center;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .progressLabels strong {
@@ -727,7 +727,7 @@
 
 .rankHero span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .rankHero strong {
@@ -739,7 +739,7 @@
 .rankHero small {
   margin-top: 4px;
   color: var(--gold);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .rankMetrics {
@@ -764,7 +764,7 @@
 
 .rankMetrics span {
   color: var(--muted);
-  font-size: 7px;
+  font-size: 12px;
 }
 
 .rankMetrics strong {
@@ -789,7 +789,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 8px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -842,7 +842,7 @@
 
 .communityStats > button span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .communityStats > button strong {
@@ -881,7 +881,7 @@
 
 .communityMetric span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .communityMetric strong {
@@ -931,7 +931,7 @@
 
 .referralReward span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .referralReward strong {
@@ -943,7 +943,7 @@
 .referralReward small {
   margin-top: 2px;
   color: #656c76;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .referralDescription {
@@ -951,7 +951,7 @@
   z-index: 1;
   margin: 13px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -973,7 +973,7 @@
   min-width: 0;
   flex: 1;
   color: #9fa5ae;
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1060,7 +1060,7 @@
 .activityInfo span {
   margin-top: 3px;
   color: #646b75;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .activityAmount {
@@ -1080,7 +1080,7 @@
 .activityAmount span {
   margin-top: 3px;
   color: #636a73;
-  font-size: 7px;
+  font-size: 12px;
 }
 
 .emptyActivity {
@@ -1105,7 +1105,7 @@
 
 .emptyActivity span {
   margin-top: 4px;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 /* =========================================================
@@ -1153,7 +1153,7 @@
 .tokenIdentity span {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .tokenDetails {
@@ -1177,13 +1177,13 @@
 
 .tokenDetails span {
   color: var(--muted);
-  font-size: 7px;
+  font-size: 12px;
 }
 
 .tokenDetails strong {
   margin-top: 4px;
   color: #d4d7dc;
-  font-size: 9px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1213,13 +1213,13 @@
 
 .contractBox span {
   color: var(--muted);
-  font-size: 7px;
+  font-size: 12px;
 }
 
 .contractBox strong {
   margin-top: 4px;
   color: #aeb4bc;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .contractActions {
@@ -1302,14 +1302,14 @@
 
 .quickLinks strong {
   color: #d8dbe0;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .quickLinks small {
   margin-top: 3px;
   color: #666d76;
-  font-size: 7px;
+  font-size: 12px;
 }
 
 /* =========================================================

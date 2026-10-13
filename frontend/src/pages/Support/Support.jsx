@@ -665,7 +665,7 @@ const Support = () => {
 
                   <option value="Account">Account</option>
 
-                  <option value="Investment">Investment</option>
+                  <option value="Investment">Staking</option>
 
                   <option value="Withdrawal">Withdrawal</option>
 

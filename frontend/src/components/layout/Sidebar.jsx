@@ -206,7 +206,7 @@ const Sidebar = ({ user, open, onClose }) => {
           )}
         </div>
 
-        {/* INVESTMENT */}
+        {/* STAKING */}
 
         <button
           className={`${styles.navItem} ${
@@ -215,7 +215,7 @@ const Sidebar = ({ user, open, onClose }) => {
           onClick={() => goTo("/investment")}
         >
           <Package size={19} />
-          <span>Investment</span>
+          <span>Stake</span>
         </button>
 
         {/* EARNINGS */}
@@ -228,7 +228,7 @@ const Sidebar = ({ user, open, onClose }) => {
             onClick={() => toggleMenu("earnings")}
           >
             <CircleDollarSign size={19} />
-            <span>Earnings</span>
+            <span>Rewards</span>
 
             {openMenus.earnings ? (
               <ChevronDown className={styles.navArrow} size={17} />
@@ -246,7 +246,7 @@ const Sidebar = ({ user, open, onClose }) => {
                 onClick={() => goTo("/earnings/reward")}
               >
                 <span />
-                Reward Income
+                Staking Rewards
               </button>
 
               <button
@@ -256,7 +256,7 @@ const Sidebar = ({ user, open, onClose }) => {
                 onClick={() => goTo("/earnings/direct")}
               >
                 <span />
-                Direct Income
+                Direct Rewards
               </button>
 
               <button
@@ -266,7 +266,7 @@ const Sidebar = ({ user, open, onClose }) => {
                 onClick={() => goTo("/earnings/rank")}
               >
                 <span />
-                Rank Income
+                Rank Rewards
               </button>
 
               <button
@@ -360,7 +360,7 @@ const Sidebar = ({ user, open, onClose }) => {
                 onClick={() => goTo("/network/tree")}
               >
                 <span />
-                Network Tree
+                Community Structure
               </button>
             </div>
           )}

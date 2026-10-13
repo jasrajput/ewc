@@ -21,7 +21,7 @@ const MobileBottomNav = () => {
       active: location.pathname === "/dashboard",
     },
     {
-      label: "Invest",
+      label: "Stake",
       icon: Package,
       path: "/investment",
       active: location.pathname.startsWith("/investment"),
