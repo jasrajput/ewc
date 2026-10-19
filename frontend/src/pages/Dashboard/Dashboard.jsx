@@ -24,6 +24,7 @@ import {
   CircleDollarSign,
   Sparkles,
   ArrowRight,
+  LockKeyhole,
 } from "lucide-react";
 
 import api from "../../services/api";
@@ -38,8 +39,7 @@ const Dashboard = () => {
   const [copied, setCopied] = useState("");
 
   const token =
-    localStorage.getItem("ewc_token") ||
-    sessionStorage.getItem("ewc_token");
+    localStorage.getItem("ewc_token") || sessionStorage.getItem("ewc_token");
 
   // =========================================================
   // FETCH DASHBOARD
@@ -58,10 +58,7 @@ const Dashboard = () => {
       } catch (err) {
         console.error("Dashboard error:", err);
 
-        if (
-          err.response?.status === 401 ||
-          err.response?.status === 403
-        ) {
+        if (err.response?.status === 401 || err.response?.status === 403) {
           localStorage.removeItem("ewc_token");
           localStorage.removeItem("ewc_user");
           sessionStorage.removeItem("ewc_token");
@@ -215,10 +212,7 @@ const Dashboard = () => {
             Welcome back, <span>{firstName}</span>
           </h1>
 
-          <p>
-            Your staking, rewards and community performance
-            in one place.
-          </p>
+          <p>Your staking, rewards and community performance in one place.</p>
 
           <div className={styles.heroActions}>
             <button
@@ -353,8 +347,7 @@ const Dashboard = () => {
           </div>
 
           <strong className={styles.moneyValue}>
-            {formatNumber(stats?.ewcAllocation)}{" "}
-            <small>EWC</small>
+            {formatNumber(stats?.ewcAllocation)} <small>EWC</small>
           </strong>
 
           <div className={styles.moneyBottom}>
@@ -372,9 +365,7 @@ const Dashboard = () => {
           <div>
             <span className={styles.eyebrow}>REWARDS</span>
             <h2>Reward Overview</h2>
-            <p>
-              Breakdown of your rewards across all sources.
-            </p>
+            <p>Breakdown of your rewards across all sources.</p>
           </div>
 
           <button
@@ -401,10 +392,7 @@ const Dashboard = () => {
                     <Icon size={19} />
                   </div>
 
-                  <ArrowUpRight
-                    size={16}
-                    className={styles.incomeArrow}
-                  />
+                  <ArrowUpRight size={16} className={styles.incomeArrow} />
                 </div>
 
                 <span>{item.title}</span>
@@ -431,8 +419,8 @@ const Dashboard = () => {
         <div className={`${styles.panel} ${styles.investmentPanel}`}>
           <div className={styles.panelHeader}>
             <div>
-              <span className={styles.eyebrow}>STAKING</span>
-              <h2>Active Staking</h2>
+              <span className={styles.eyebrow}>ELEVATE WORLD COMMUNITY</span>
+              <h2>My EWC Staking Vault</h2>
             </div>
 
             <button
@@ -447,56 +435,76 @@ const Dashboard = () => {
           {stats?.activeInvestment ? (
             <div className={styles.activeInvestment}>
               <div className={styles.investmentMain}>
-                <span>Current Staking</span>
-
-                <strong>
-                  {formatUsd(stats.activeInvestment.amount)}
-                </strong>
-
-              </div>
-
-              <div className={styles.investmentStats}>
-                <div>
-                  <span>Monthly Reward</span>
-                  <strong>
-                    {stats.activeInvestment.monthlyReward || 2}%
+                <div className={styles.principalInfo}>
+                  <span>Locked Principal</span>
+                  <strong className={styles.lockedPrincipal}>
+                    {formatNumber(stats.ewcAllocation || 0)} EWC
                   </strong>
                 </div>
 
+                <span className={styles.lockedBadge}>
+                  <LockKeyhole size={15} strokeWidth={2} />
+                  <span>Locked</span>
+                </span>
+              </div>
+
+              <div className={styles.vaultStats}>
                 <div>
-                  <span>Days Remaining</span>
-                  <strong>
-                    {stats.activeInvestment.daysRemaining ?? "--"}
-                  </strong>
+                  <span>Lock Duration</span>
+                  <strong>5 Years</strong>
                 </div>
 
                 <div>
-                  <span>Progress</span>
-                  <strong>
-                    {stats.activeInvestment.progress || 0}%
-                  </strong>
+                  <span>Withdrawal</span>
+                  <strong>At Maturity</strong>
+                </div>
+
+                <div>
+                  <span>Reward Schedule</span>
+                  <strong>36 Installments</strong>
+                </div>
+
+                <div>
+                  <span>Member Entitlement</span>
+                  <strong>On-Chain Verification</strong>
                 </div>
               </div>
 
-              <div className={styles.progressArea}>
-                <div className={styles.progressLabels}>
-                  <span>Staking period</span>
-                  <strong>
-                    {stats.activeInvestment.progress || 0}%
-                  </strong>
+              <div className={styles.vaultVerification}>
+                <div className={styles.vaultVerificationHeader}>
+                  <h3>Blockchain Verification</h3>
+
+                  <a
+                    href="https://testnet.bscscan.com/address/0x7997dF07c925776152de13dcF6db3c6CA260FD01"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.vaultExplorerLink}
+                    title="View contract on BscScan"
+                  >
+                    <ExternalLink size={17} />
+                  </a>
                 </div>
 
-                <div className={styles.progressTrack}>
-                  <span
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        stats.activeInvestment.progress || 0
-                      )}%`,
-                    }}
-                  />
-                </div>
+                <p>
+                  Vault Contract: <span>0x7997...60FD01</span>
+                </p>
+
+                <p>
+                  Allocation ID:{" "}
+                  <span>
+                    {stats.activeInvestment.allocationId ?? "Not available"}
+                  </span>
+                </p>
+
+                <p>
+                  Network: <span>BNB Smart Chain Testnet</span>
+                </p>
               </div>
+
+              <p className={styles.vaultNote}>
+                Your EWC allocation represents a staking entitlement, not freely
+                transferable tokens in your wallet.
+              </p>
             </div>
           ) : (
             <div className={styles.emptyInvestment}>
@@ -504,14 +512,8 @@ const Dashboard = () => {
                 <Package size={28} />
               </div>
 
-              <div>
-                <h3>No Active Staking</h3>
-
-                <p>
-                  Start an EWC staking to activate your rewards
-                  and community benefits.
-                </p>
-              </div>
+              <h3>No Active Staking</h3>
+              <p>You currently have no EWC staking allocation.</p>
 
               <button onClick={() => navigate("/investment")}>
                 Explore Staking
@@ -545,9 +547,7 @@ const Dashboard = () => {
               <strong>{rank?.current || "Unranked"}</strong>
 
               {rank?.teamPercentage > 0 && (
-                <small>
-                  {rank.teamPercentage}% Team rewards
-                </small>
+                <small>{rank.teamPercentage}% Team rewards</small>
               )}
             </div>
           </div>
@@ -672,8 +672,8 @@ const Dashboard = () => {
           </div>
 
           <p className={styles.referralDescription}>
-            Share your unique referral link with your team and
-            grow your EWC community.
+            Share your unique referral link with your team and grow your EWC
+            community.
           </p>
 
           <div className={styles.referralBox}>
@@ -683,11 +683,7 @@ const Dashboard = () => {
               onClick={() => copyText(referralLink, "referral")}
               aria-label="Copy referral link"
             >
-              {copied === "referral" ? (
-                <Check size={17} />
-              ) : (
-                <Copy size={17} />
-              )}
+              {copied === "referral" ? <Check size={17} /> : <Copy size={17} />}
             </button>
           </div>
         </div>
@@ -711,10 +707,7 @@ const Dashboard = () => {
           <div className={styles.activityList}>
             {recentTransactions?.length > 0 ? (
               recentTransactions.map((transaction) => (
-                <div
-                  className={styles.activityItem}
-                  key={transaction.id}
-                >
+                <div className={styles.activityItem} key={transaction.id}>
                   <div className={styles.activityIcon}>
                     <TrendingUp size={17} />
                   </div>
@@ -725,9 +718,7 @@ const Dashboard = () => {
                   </div>
 
                   <div className={styles.activityAmount}>
-                    <strong>
-                      +{formatUsd(transaction.amount)}
-                    </strong>
+                    <strong>+{formatUsd(transaction.amount)}</strong>
 
                     <span>{transaction.status}</span>
                   </div>
@@ -737,9 +728,7 @@ const Dashboard = () => {
               <div className={styles.emptyActivity}>
                 <Clock3 size={23} />
                 <strong>No rewards yet</strong>
-                <span>
-                  Your latest rewards transactions will appear here.
-                </span>
+                <span>Your latest rewards transactions will appear here.</span>
               </div>
             )}
           </div>
@@ -779,9 +768,7 @@ const Dashboard = () => {
 
             <div>
               <span>Total Supply</span>
-              <strong>
-                {formatNumber(tokenInfo?.totalSupply)} EWC
-              </strong>
+              <strong>{formatNumber(tokenInfo?.totalSupply)} EWC</strong>
             </div>
           </div>
 
@@ -793,7 +780,7 @@ const Dashboard = () => {
                 {tokenInfo?.contractAddress
                   ? `${tokenInfo.contractAddress.slice(
                       0,
-                      10
+                      10,
                     )}...${tokenInfo.contractAddress.slice(-8)}`
                   : "Not configured"}
               </strong>
