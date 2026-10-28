@@ -5,8 +5,6 @@ import {
   LayoutDashboard,
   UsersRound,
   Trophy,
-  ReceiptText,
-  Settings,
   LogOut,
   X,
   ChevronDown,
@@ -18,6 +16,7 @@ import {
   Lock,
   LifeBuoy,
   Bell,
+  Gift
 } from "lucide-react";
 
 import {  useDisconnect } from "wagmi";
@@ -216,6 +215,16 @@ const Sidebar = ({ user, open, onClose }) => {
         >
           <Package size={19} />
           <span>Stake</span>
+        </button>
+
+         <button
+          className={`${styles.navItem} ${
+            isActive("/presale") ? styles.activeNav : ""
+          }`}
+          onClick={() => goTo("/presale")}
+        >
+          <Gift size={19} />
+          <span>Private Sale</span>
         </button>
 
         {/* EARNINGS */}

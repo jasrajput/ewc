@@ -2,11 +2,19 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    IERC20Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {
+    ReentrancyGuard
+} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {
+    MerkleProof
+} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 interface IEWCCommissionPool {
     function payUSDT(address to, uint256 amount) external;
@@ -32,11 +40,7 @@ interface IPancakePairV2 {
     function getReserves()
         external
         view
-        returns (
-            uint112 reserve0,
-            uint112 reserve1,
-            uint32 blockTimestampLast
-        );
+        returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
 }
 
 contract EWCInvestment is Ownable, ReentrancyGuard {
@@ -58,6 +62,12 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     uint256 public constant TREASURY_BPS = 4_000;
 
     uint256 public constant DEPOSIT_COOLDOWN = 3 seconds;
+
+    // uint256 public constant PRESALE_START = 1793491200; // Nov 1, 2026 UTC
+    uint256 public constant PRESALE_START = 1793145600; // Oct 28, 2026 00:00 UTC
+    uint256 public constant PRESALE_END = 1796083200; // Dec 1, 2026 UTC (exclusive)
+
+    uint256 public constant PRESALE_PRICE = 1e16; // $0.01
 
     // =============================================================
     // EXTERNAL CONTRACTS
@@ -89,6 +99,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     uint256 public immutable minDeposit;
     uint256 public immutable maxDeposit;
 
+    uint256 public constant PRIVATE_SALE_MIN_DEPOSIT = 10 ether;
+    uint256 public constant PRIVATE_SALE_MAX_DEPOSIT = 100_000 ether;
+
     uint256 public lastGlobalDepositTime;
 
     // =============================================================
@@ -105,62 +118,47 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     struct User {
         // Full 100% USDT invested.
         uint256 totalDepositedUSDT;
-
         // User's EWC allocation calculated from full 100% investment.
         uint256 totalAllocatedEWC;
-
         // Actual EWC bought by protocol using the 20% portion.
         // This is NOT the user's allocation.
         uint256 totalMarketBoughtEWC;
-
         uint256 depositCount;
-
         // Direct + Rank + Salary already claimed in USDT.
         uint256 usdtClaimed;
-
         // ROI already claimed in EWC.
         uint256 roiEwcClaimed;
-
         uint256 firstDepositTime;
         uint256 lastDepositTime;
     }
 
     struct Deposit {
         address payer;
-
         // Full 100% USDT investment.
         uint256 usdtAmount;
-
         // EWC price BEFORE our 20% market buy.
         // 18-decimal USDT price of 1 EWC.
         uint256 allocationPrice;
-
         // User's EWC allocation based on full investment.
         uint256 allocatedEWC;
-
         // Protocol fund routing.
         uint256 marketBuyUSDT;
         uint256 marketBoughtEWC;
         uint256 commissionUSDT;
         uint256 treasuryUSDT;
-
         uint256 timestamp;
     }
 
     struct ClaimRecord {
         // Direct + Rank + Salary paid in USDT.
         uint256 usdtReceived;
-
         // ROI paid in EWC.
         uint256 roiEwcReceived;
-
         uint256 cumulativeUsdtIncome;
         uint256 cumulativeRoiEwc;
-
         // Current Pancake spot price at claim.
         // Display/reference only.
         uint256 ewcPriceAtClaim;
-
         uint256 timestamp;
     }
 
@@ -207,7 +205,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         uint256 marketBoughtEWC,
         uint256 commissionUSDT,
         uint256 treasuryUSDT,
-        uint256 timestamp
+        uint256 timestamp,
+        bool isPresale,
+        uint256 bonusEWC
     );
 
     event EWCPurchased(
@@ -263,6 +263,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     error InvalidPair();
     error InvalidPrice();
     error InsufficientSwapOutput();
+    error InvestmentNotStarted();
 
     // =============================================================
     // MODIFIERS
@@ -316,7 +317,6 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         treasury = _treasury;
         rootUpdater = msg.sender;
 
-        minDeposit = _minDeposit;
         maxDeposit = _maxDeposit;
 
         usdtDecimals = IERC20Metadata(_usdt).decimals();
@@ -324,8 +324,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         address token0 = pancakePair.token0();
         address token1 = pancakePair.token1();
 
-        bool validPair =
-            (token0 == _ewc && token1 == _usdt) ||
+        bool validPair = (token0 == _ewc && token1 == _usdt) ||
             (token0 == _usdt && token1 == _ewc);
 
         if (!validPair) {
@@ -341,12 +340,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         uint256 usdtAmount,
         uint256 minEwcOut
     ) external nonReentrant {
-        _deposit(
-            msg.sender,
-            msg.sender,
-            usdtAmount,
-            minEwcOut
-        );
+        _deposit(msg.sender, msg.sender, usdtAmount, minEwcOut);
     }
 
     function depositFor(
@@ -358,12 +352,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             revert ZeroAddress();
         }
 
-        _deposit(
-            msg.sender,
-            beneficiary,
-            usdtAmount,
-            minEwcOut
-        );
+        _deposit(msg.sender, beneficiary, usdtAmount, minEwcOut);
     }
 
     function _deposit(
@@ -376,176 +365,254 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         // 3 SECOND GLOBAL COOLDOWN
         // ---------------------------------------------------------
 
-        if (
-            block.timestamp <
-            lastGlobalDepositTime + DEPOSIT_COOLDOWN
-        ) {
+        if (block.timestamp < lastGlobalDepositTime + DEPOSIT_COOLDOWN) {
             revert DepositCooldownActive();
+        }
+
+        bool isPresale = isPresaleActive();
+
+        // Private Sale: $10 – $100,000
+        // Regular Investment: $25 – $5,000
+
+        uint256 effectiveMinDeposit = isPresale
+            ? PRIVATE_SALE_MIN_DEPOSIT
+            : minDeposit;
+
+        uint256 effectiveMaxDeposit = isPresale
+            ? PRIVATE_SALE_MAX_DEPOSIT
+            : maxDeposit;
+
+        if (usdtAmount < effectiveMinDeposit) {
+            revert BelowMinimumDeposit();
+        }
+
+        if (usdtAmount > effectiveMaxDeposit) {
+            revert AboveMaximumDeposit();
         }
 
         // ---------------------------------------------------------
         // DEPOSIT LIMITS
         // ---------------------------------------------------------
 
-        if (usdtAmount < minDeposit) {
-            revert BelowMinimumDeposit();
-        }
+        // ---------------------------------------------------------
+        // INVESTMENT START VALIDATION
+        // ---------------------------------------------------------
 
-        if (usdtAmount > maxDeposit) {
-            revert AboveMaximumDeposit();
+        if (block.timestamp < PRESALE_START) {
+            revert InvestmentNotStarted();
         }
 
         /*
-            =========================================================
-            USER ALLOCATION
-            =========================================================
+        =========================================================
+        USER ALLOCATION
+        =========================================================
 
-            User pays the FULL investment amount.
+        User pays the FULL investment amount.
 
-            Example:
+        Example:
 
-                Investment = 1,000 USDT
-                EWC Price  = $0.05
+            Investment = 1,000 USDT
+            EWC Price  = $0.05
 
-            User allocation:
+        User allocation:
 
-                1,000 / 0.05
-                = 20,000 EWC
+            1,000 / 0.05
+            = 20,000 EWC
 
-            The 20% protocol market buy does NOT determine
-            the user's allocation.
-        */
+        The 20% protocol market buy does NOT determine
+        the user's allocation.
 
-        uint256 allocationPrice =
-            getCurrentEwcPrice();
+        PRESALE:
+
+            Fixed EWC price = $0.01
+
+            User receives additional bonus EWC
+            according to the presale bonus chart.
+
+            No PancakeSwap price calculation
+            during presale.
+    */
+
+        uint256 allocationPrice = isPresale
+            ? PRESALE_PRICE
+            : getCurrentEwcPrice();
 
         if (allocationPrice == 0) {
             revert InvalidPrice();
         }
 
-        uint256 allocatedEWC =
-            _calculateEwcFromUSDT(
-                usdtAmount,
-                allocationPrice
-            );
+        // ---------------------------------------------------------
+        // CALCULATE BASE EWC ALLOCATION
+        // ---------------------------------------------------------
+
+        uint256 allocatedEWC = _calculateEwcFromUSDT(
+            usdtAmount,
+            allocationPrice
+        );
+
+        // ---------------------------------------------------------
+        // PRESALE BONUS EWC
+        // ---------------------------------------------------------
+
+        /*
+        Bonus applies only during presale.
+
+        Example:
+
+            Investment       = 100 USDT
+            Presale Price    = $0.01
+            Base Allocation  = 10,000 EWC
+            Bonus            = 15%
+
+            Bonus EWC        = 1,500 EWC
+            Total Allocation = 11,500 EWC
+
+        Regular investments receive no presale bonus.
+    */
+        uint256 bonusEWC = 0;
+
+        if (isPresale) {
+            uint256 bonusBps = getPresaleBonusBps(usdtAmount);
+            bonusEWC = (allocatedEWC * bonusBps) / BPS;
+            allocatedEWC += bonusEWC;
+        }
 
         // ---------------------------------------------------------
         // 20 / 40 / 40 INTERNAL FUND ROUTING
         // ---------------------------------------------------------
 
-        uint256 marketBuyUSDT =
-            (usdtAmount * EWC_PURCHASE_BPS) /
-            BPS;
+        /*
+        REGULAR INVESTMENT:
 
-        uint256 commissionUSDT =
-            (usdtAmount * COMMISSION_BPS) /
-            BPS;
+            20% -> PancakeSwap market buy
+            40% -> Commission Pool
+            40% -> Treasury
 
-        // Remaining amount goes to treasury.
-        // Avoids leaving rounding dust in contract.
+        PRESALE:
 
-        uint256 treasuryUSDT =
-            usdtAmount -
-            marketBuyUSDT -
-            commissionUSDT;
+            100% -> Treasury / Founder Wallet
+              0% -> Commission Pool
+              0% -> PancakeSwap
+
+        Presale MLM commissions must be funded
+        separately because no USDT is transferred
+        to the Commission Pool during presale.
+    */
+
+        uint256 marketBuyUSDT;
+        uint256 marketBoughtEWC;
+        uint256 commissionUSDT;
+        uint256 treasuryUSDT;
+
+        if (isPresale) {
+            // 100% goes to treasury during presale.
+
+            treasuryUSDT = usdtAmount;
+        } else {
+            // Existing 20 / 40 / 40 distribution.
+
+            marketBuyUSDT = (usdtAmount * EWC_PURCHASE_BPS) / BPS;
+
+            commissionUSDT = (usdtAmount * COMMISSION_BPS) / BPS;
+
+            // Remaining amount goes to treasury.
+            // Avoids leaving rounding dust in contract.
+
+            treasuryUSDT = usdtAmount - marketBuyUSDT - commissionUSDT;
+        }
 
         // ---------------------------------------------------------
         // USER PAYS FULL 100% USDT
         // ---------------------------------------------------------
 
-        usdt.safeTransferFrom(
-            payer,
-            address(this),
-            usdtAmount
-        );
+        usdt.safeTransferFrom(payer, address(this), usdtAmount);
 
         // ---------------------------------------------------------
-        // 40% -> COMMISSION POOL
+        // FUND DISTRIBUTION
         // ---------------------------------------------------------
 
-        usdt.safeTransfer(
-            address(commissionPool),
-            commissionUSDT
-        );
+        if (isPresale) {
+            // ---------------------------------------------------------
+            // PRESALE: 100% -> TREASURY / FOUNDER WALLET
+            // ---------------------------------------------------------
 
-        // ---------------------------------------------------------
-        // 40% -> TREASURY
-        // ---------------------------------------------------------
+            /*
+            No USDT goes to PancakeSwap.
 
-        usdt.safeTransfer(
-            treasury,
-            treasuryUSDT
-        );
+            No USDT goes to Commission Pool.
 
-        // ---------------------------------------------------------
-        // 20% -> BUY EWC FROM PANCAKESWAP
-        // ---------------------------------------------------------
+            Entire investment amount goes
+            directly to the treasury wallet.
+        */
 
-        uint256 marketBoughtEWC =
-            _buyEwc(
-                beneficiary,
-                marketBuyUSDT,
-                minEwcOut
-            );
+            usdt.safeTransfer(treasury, treasuryUSDT);
+        } else {
+            // ---------------------------------------------------------
+            // 40% -> COMMISSION POOL
+            // ---------------------------------------------------------
+
+            usdt.safeTransfer(address(commissionPool), commissionUSDT);
+
+            // ---------------------------------------------------------
+            // 40% -> TREASURY
+            // ---------------------------------------------------------
+
+            usdt.safeTransfer(treasury, treasuryUSDT);
+
+            // ---------------------------------------------------------
+            // 20% -> BUY EWC FROM PANCAKESWAP
+            // ---------------------------------------------------------
+
+            marketBoughtEWC = _buyEwc(beneficiary, marketBuyUSDT, minEwcOut);
+        }
 
         // ---------------------------------------------------------
         // USER ACCOUNTING
         // ---------------------------------------------------------
 
-        User storage u =
-            users[beneficiary];
+        User storage u = users[beneficiary];
 
         if (u.depositCount == 0) {
-            u.firstDepositTime =
-                block.timestamp;
+            u.firstDepositTime = block.timestamp;
 
             totalUsers++;
         }
 
         // FULL 100% investment.
 
-        u.totalDepositedUSDT +=
-            usdtAmount;
+        u.totalDepositedUSDT += usdtAmount;
 
         // USER EWC allocation based on FULL 100%.
+        // During presale, this includes bonus EWC.
 
-        u.totalAllocatedEWC +=
-            allocatedEWC;
+        u.totalAllocatedEWC += allocatedEWC;
 
         // Actual protocol EWC market purchase using 20%.
+        // During presale, this remains zero.
 
-        u.totalMarketBoughtEWC +=
-            marketBoughtEWC;
+        u.totalMarketBoughtEWC += marketBoughtEWC;
 
         u.depositCount++;
 
-        u.lastDepositTime =
-            block.timestamp;
+        u.lastDepositTime = block.timestamp;
 
         // ---------------------------------------------------------
         // GLOBAL ACCOUNTING
         // ---------------------------------------------------------
 
-        totalDepositedUSDT +=
-            usdtAmount;
+        totalDepositedUSDT += usdtAmount;
 
-        totalAllocatedEWC +=
-            allocatedEWC;
+        totalAllocatedEWC += allocatedEWC;
 
-        totalMarketBuyUSDT +=
-            marketBuyUSDT;
+        totalMarketBuyUSDT += marketBuyUSDT;
 
-        totalMarketBoughtEWC +=
-            marketBoughtEWC;
+        totalMarketBoughtEWC += marketBoughtEWC;
 
-        totalCommissionUSDTAllocated +=
-            commissionUSDT;
+        totalCommissionUSDTAllocated += commissionUSDT;
 
-        totalTreasuryUSDTAllocated +=
-            treasuryUSDT;
+        totalTreasuryUSDTAllocated += treasuryUSDT;
 
-        lastGlobalDepositTime =
-            block.timestamp;
+        lastGlobalDepositTime = block.timestamp;
 
         // ---------------------------------------------------------
         // SAVE INVESTMENT HISTORY
@@ -565,6 +632,27 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             })
         );
 
+        // ---------------------------------------------------------
+        // EMIT DEPOSIT EVENT
+        // ---------------------------------------------------------
+
+        /*
+        Existing Deposited event is preserved.
+
+        This allows the existing backend event listener
+        to continue processing member activations,
+        investments and MLM calculations.
+
+        During presale:
+
+            marketBuyUSDT     = 0
+            marketBoughtEWC   = 0
+            commissionUSDT    = 0
+            treasuryUSDT      = full investment amount
+
+        allocatedEWC includes the presale bonus.
+    */
+
         emit Deposited(
             payer,
             beneficiary,
@@ -575,7 +663,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             marketBoughtEWC,
             commissionUSDT,
             treasuryUSDT,
-            block.timestamp
+            block.timestamp,
+            isPresale,
+            bonusEWC
         );
     }
 
@@ -592,13 +682,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             revert InvalidAmount();
         }
 
-        usdt.forceApprove(
-            address(pancakeRouter),
-            usdtAmount
-        );
+        usdt.forceApprove(address(pancakeRouter), usdtAmount);
 
-        address[] memory path =
-            new address[](2);
+        address[] memory path = new address[](2);
 
         path[0] = address(usdt);
         path[1] = address(ewc);
@@ -610,17 +696,15 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             swapExactTokensForTokens() is enough.
         */
 
-        uint256[] memory amounts =
-            pancakeRouter.swapExactTokensForTokens(
-                usdtAmount,
-                minEwcOut,
-                path,
-                address(commissionPool),
-                block.timestamp + 300
-            );
+        uint256[] memory amounts = pancakeRouter.swapExactTokensForTokens(
+            usdtAmount,
+            minEwcOut,
+            path,
+            address(commissionPool),
+            block.timestamp + 300
+        );
 
-        ewcReceived =
-            amounts[amounts.length - 1];
+        ewcReceived = amounts[amounts.length - 1];
 
         if (ewcReceived == 0) {
             revert InsufficientSwapOutput();
@@ -694,13 +778,10 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             revert InvalidPrice();
         }
 
-        uint256 normalizedUSDT =
-            (usdtAmount * 1e18) /
+        uint256 normalizedUSDT = (usdtAmount * 1e18) /
             (10 ** uint256(usdtDecimals));
 
-        return
-            (normalizedUSDT * 1e18) /
-            ewcPrice;
+        return (normalizedUSDT * 1e18) / ewcPrice;
     }
 
     // =============================================================
@@ -719,26 +800,14 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
 
     function previewEwcAllocation(
         uint256 usdtAmount
-    )
-        external
-        view
-        returns (
-            uint256 ewcPrice,
-            uint256 allocatedEWC
-        )
-    {
-        ewcPrice =
-            getCurrentEwcPrice();
+    ) external view returns (uint256 ewcPrice, uint256 allocatedEWC) {
+        ewcPrice = getCurrentEwcPrice();
 
         if (ewcPrice == 0) {
             return (0, 0);
         }
 
-        allocatedEWC =
-            _calculateEwcFromUSDT(
-                usdtAmount,
-                ewcPrice
-            );
+        allocatedEWC = _calculateEwcFromUSDT(usdtAmount, ewcPrice);
     }
 
     // =============================================================
@@ -763,45 +832,29 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             uint256 treasuryUSDT
         )
     {
-        marketBuyUSDT =
-            (usdtAmount * EWC_PURCHASE_BPS) /
-            BPS;
+        marketBuyUSDT = (usdtAmount * EWC_PURCHASE_BPS) / BPS;
 
-        commissionUSDT =
-            (usdtAmount * COMMISSION_BPS) /
-            BPS;
+        commissionUSDT = (usdtAmount * COMMISSION_BPS) / BPS;
 
-        treasuryUSDT =
-            usdtAmount -
-            marketBuyUSDT -
-            commissionUSDT;
+        treasuryUSDT = usdtAmount - marketBuyUSDT - commissionUSDT;
     }
 
     // =============================================================
     // MERKLE ROOT
     // =============================================================
 
-    function setMerkleRoot(
-        bytes32 newRoot
-    ) external onlyRootUpdater {
+    function setMerkleRoot(bytes32 newRoot) external onlyRootUpdater {
         if (newRoot == bytes32(0)) {
             revert InvalidMerkleRoot();
         }
 
-        bytes32 oldRoot =
-            merkleRoot;
+        bytes32 oldRoot = merkleRoot;
 
-        merkleRoot =
-            newRoot;
+        merkleRoot = newRoot;
 
-        lastRootUpdateTime =
-            block.timestamp;
+        lastRootUpdateTime = block.timestamp;
 
-        emit MerkleRootUpdated(
-            oldRoot,
-            newRoot,
-            block.timestamp
-        );
+        emit MerkleRootUpdated(oldRoot, newRoot, block.timestamp);
     }
 
     // =============================================================
@@ -813,27 +866,15 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         uint256 cumulativeRoiEwc,
         bytes32[] calldata proof
     ) external nonReentrant {
-        bytes32 leaf =
-            keccak256(
-                abi.encode(
-                    msg.sender,
-                    cumulativeUsdtIncome,
-                    cumulativeRoiEwc
-                )
-            );
+        bytes32 leaf = keccak256(
+            abi.encode(msg.sender, cumulativeUsdtIncome, cumulativeRoiEwc)
+        );
 
-        if (
-            !MerkleProof.verify(
-                proof,
-                merkleRoot,
-                leaf
-            )
-        ) {
+        if (!MerkleProof.verify(proof, merkleRoot, leaf)) {
             revert InvalidProof();
         }
 
-        User storage u =
-            users[msg.sender];
+        User storage u = users[msg.sender];
 
         /*
             Cumulative amounts can never
@@ -841,26 +882,17 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         */
 
         if (
-            cumulativeUsdtIncome <
-            u.usdtClaimed ||
-            cumulativeRoiEwc <
-            u.roiEwcClaimed
+            cumulativeUsdtIncome < u.usdtClaimed ||
+            cumulativeRoiEwc < u.roiEwcClaimed
         ) {
             revert InvalidProof();
         }
 
-        uint256 usdtClaimable =
-            cumulativeUsdtIncome -
-            u.usdtClaimed;
+        uint256 usdtClaimable = cumulativeUsdtIncome - u.usdtClaimed;
 
-        uint256 roiEwcClaimable =
-            cumulativeRoiEwc -
-            u.roiEwcClaimed;
+        uint256 roiEwcClaimable = cumulativeRoiEwc - u.roiEwcClaimed;
 
-        if (
-            usdtClaimable == 0 &&
-            roiEwcClaimable == 0
-        ) {
+        if (usdtClaimable == 0 && roiEwcClaimable == 0) {
             revert NothingToClaim();
         }
 
@@ -871,17 +903,13 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             the whole transaction reverts.
         */
 
-        u.usdtClaimed =
-            cumulativeUsdtIncome;
+        u.usdtClaimed = cumulativeUsdtIncome;
 
-        u.roiEwcClaimed =
-            cumulativeRoiEwc;
+        u.roiEwcClaimed = cumulativeRoiEwc;
 
-        totalUsdtIncomeClaimed +=
-            usdtClaimable;
+        totalUsdtIncomeClaimed += usdtClaimable;
 
-        totalRoiEwcClaimed +=
-            roiEwcClaimable;
+        totalRoiEwcClaimed += roiEwcClaimable;
 
         /*
             Current Pancake price at claim.
@@ -892,18 +920,14 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             ROI entitlement.
         */
 
-        uint256 ewcPriceAtClaim =
-            getCurrentEwcPrice();
+        uint256 ewcPriceAtClaim = getCurrentEwcPrice();
 
         // ---------------------------------------------------------
         // DIRECT + RANK + SALARY -> USDT
         // ---------------------------------------------------------
 
         if (usdtClaimable > 0) {
-            commissionPool.payUSDT(
-                msg.sender,
-                usdtClaimable
-            );
+            commissionPool.payUSDT(msg.sender, usdtClaimable);
         }
 
         // ---------------------------------------------------------
@@ -911,10 +935,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         // ---------------------------------------------------------
 
         if (roiEwcClaimable > 0) {
-            commissionPool.payEWC(
-                msg.sender,
-                roiEwcClaimable
-            );
+            commissionPool.payEWC(msg.sender, roiEwcClaimable);
         }
 
         // ---------------------------------------------------------
@@ -969,41 +990,24 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         It is NOT a TWAP/oracle.
     */
 
-    function getCurrentEwcPrice()
-        public
-        view
-        returns (uint256)
-    {
-        (
-            uint112 reserve0,
-            uint112 reserve1,
-        ) = pancakePair.getReserves();
+    function getCurrentEwcPrice() public view returns (uint256) {
+        (uint112 reserve0, uint112 reserve1, ) = pancakePair.getReserves();
 
-        if (
-            reserve0 == 0 ||
-            reserve1 == 0
-        ) {
+        if (reserve0 == 0 || reserve1 == 0) {
             return 0;
         }
 
         uint256 ewcReserve;
         uint256 usdtReserveAmount;
 
-        if (
-            pancakePair.token0() ==
-            address(ewc)
-        ) {
-            ewcReserve =
-                uint256(reserve0);
+        if (pancakePair.token0() == address(ewc)) {
+            ewcReserve = uint256(reserve0);
 
-            usdtReserveAmount =
-                uint256(reserve1);
+            usdtReserveAmount = uint256(reserve1);
         } else {
-            ewcReserve =
-                uint256(reserve1);
+            ewcReserve = uint256(reserve1);
 
-            usdtReserveAmount =
-                uint256(reserve0);
+            usdtReserveAmount = uint256(reserve0);
         }
 
         /*
@@ -1013,13 +1017,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             returns USDT/EWC with 18 decimals.
         */
 
-        return (
-            usdtReserveAmount *
-            1e36
-        ) / (
-            ewcReserve *
-            (10 ** uint256(usdtDecimals))
-        );
+        return
+            (usdtReserveAmount * 1e36) /
+            (ewcReserve * (10 ** uint256(usdtDecimals)));
     }
 
     // =============================================================
@@ -1042,8 +1042,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             uint256 lastDepositTime
         )
     {
-        User memory u =
-            users[user];
+        User memory u = users[user];
 
         return (
             u.totalDepositedUSDT,
@@ -1061,9 +1060,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // INVESTMENT HISTORY
     // =============================================================
 
-    function getUserDepositCount(
-        address user
-    ) external view returns (uint256) {
+    function getUserDepositCount(address user) external view returns (uint256) {
         return _deposits[user].length;
     }
 
@@ -1085,8 +1082,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             uint256 timestamp
         )
     {
-        Deposit memory d =
-            _deposits[user][index];
+        Deposit memory d = _deposits[user][index];
 
         return (
             d.payer,
@@ -1105,9 +1101,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // CLAIM HISTORY
     // =============================================================
 
-    function getUserClaimCount(
-        address user
-    ) external view returns (uint256) {
+    function getUserClaimCount(address user) external view returns (uint256) {
         return _claims[user].length;
     }
 
@@ -1126,8 +1120,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             uint256 timestamp
         )
     {
-        ClaimRecord memory c =
-            _claims[user][index];
+        ClaimRecord memory c = _claims[user][index];
 
         return (
             c.usdtReceived,
@@ -1146,15 +1139,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     function getCommissionPoolBalances()
         external
         view
-        returns (
-            uint256 usdtIncomeReserve,
-            uint256 ewcRoiReserve
-        )
+        returns (uint256 usdtIncomeReserve, uint256 ewcRoiReserve)
     {
-        return (
-            commissionPool.usdtReserve(),
-            commissionPool.ewcRoiReserve()
-        );
+        return (commissionPool.usdtReserve(), commissionPool.ewcRoiReserve());
     }
 
     // =============================================================
@@ -1193,41 +1180,58 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // ADMIN
     // =============================================================
 
-    function setRootUpdater(
-        address newUpdater
-    ) external onlyOwner {
+    function setRootUpdater(address newUpdater) external onlyOwner {
         if (newUpdater == address(0)) {
             revert ZeroAddress();
         }
 
-        address oldUpdater =
-            rootUpdater;
+        address oldUpdater = rootUpdater;
 
-        rootUpdater =
-            newUpdater;
+        rootUpdater = newUpdater;
 
-        emit RootUpdaterChanged(
-            oldUpdater,
-            newUpdater
-        );
+        emit RootUpdaterChanged(oldUpdater, newUpdater);
     }
 
-    function setTreasury(
-        address newTreasury
-    ) external onlyOwner {
+    function setTreasury(address newTreasury) external onlyOwner {
         if (newTreasury == address(0)) {
             revert ZeroAddress();
         }
 
-        address oldTreasury =
-            treasury;
+        address oldTreasury = treasury;
 
-        treasury =
-            newTreasury;
+        treasury = newTreasury;
 
-        emit TreasuryChanged(
-            oldTreasury,
-            newTreasury
-        );
+        emit TreasuryChanged(oldTreasury, newTreasury);
+    }
+
+    function isPresaleActive() public view returns (bool) {
+        return
+            block.timestamp >= PRESALE_START && block.timestamp < PRESALE_END;
+    }
+
+    // =============================================================
+    // PRESALE BONUS CALCULATION
+    // =============================================================
+
+    function getPresaleBonusBps(
+        uint256 usdtAmount
+    ) public view returns (uint256) {
+        uint256 unit = 10 ** uint256(usdtDecimals);
+
+        if (usdtAmount >= 75000 * unit) return 10000;
+        if (usdtAmount >= 50000 * unit) return 8500;
+        if (usdtAmount >= 40000 * unit) return 7000;
+        if (usdtAmount >= 25000 * unit) return 6000;
+        if (usdtAmount >= 10000 * unit) return 5000;
+        if (usdtAmount >= 6000 * unit) return 4000;
+        if (usdtAmount >= 3000 * unit) return 3500;
+        if (usdtAmount >= 1000 * unit) return 3000;
+        if (usdtAmount >= 650 * unit) return 2500;
+        if (usdtAmount >= 300 * unit) return 2000;
+        if (usdtAmount >= 100 * unit) return 1500;
+        if (usdtAmount >= 30 * unit) return 1000;
+        if (usdtAmount >= 10 * unit) return 500;
+
+        return 0;
     }
 }

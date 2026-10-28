@@ -4,13 +4,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConnection, usePublicClient } from "wagmi";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { formatUnits, parseUnits } from "viem";
+
 import {
   AlertCircle,
   CheckCircle2,
   Coins,
   ShieldCheck,
   Wallet,
+  Clock3,
+  LockKeyhole,
+  ArrowRight,
+  CalendarDays,
+  Sparkles,
 } from "lucide-react";
+
+import { Link } from "react-router-dom";
+
 import api from "../../services/api";
 
 import {
@@ -29,7 +38,13 @@ import {
 } from "../../contracts/config";
 
 import UserLayout from "../../components/layout/UserLayout";
+
 import styles from "./Investment.module.css";
+import comingStyles from "./InvestmentComingSoon.module.css";
+
+// =========================================================
+// CONFIGURATION
+// =========================================================
 
 const MIN_DEPOSIT = 25;
 const MAX_DEPOSIT = 5000;
@@ -40,20 +55,42 @@ const EWC_DECIMALS = 18;
 const TX_SLIPPAGE_BPS = 500n;
 const BPS = 10000n;
 
-/*
- * IMPORTANT:
- *
- * Protocol routing is intentionally NOT shown anywhere in the member UI.
- *
- * Member model:
- *
- * 100% USDT investment
- *          ↓
- * EWC allocation based on 100% investment value
- *
- * The protocol performs its internal treasury / commission / market
- * operations separately.
- */
+// December 1, 2026, 00:00 UTC
+const STAKING_START = Date.UTC(2026, 11, 1, 0, 0, 0);
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+const formatUsd = (value = 0) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+
+const formatNumber = (value = 0, digits = 4) =>
+  new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: digits,
+  }).format(Number(value || 0));
+
+const getCountdown = (now) => {
+  const difference = Math.max(0, STAKING_START - now);
+
+  return {
+    days: Math.floor(difference / 86400000),
+    hours: Math.floor((difference / 3600000) % 24),
+    minutes: Math.floor((difference / 60000) % 60),
+    seconds: Math.floor((difference / 1000) % 60),
+  };
+};
+
+const pad = (value) => String(value).padStart(2, "0");
+
+// =========================================================
+// PANCAKESWAP ROUTER ABI
+// =========================================================
 
 const ROUTER_ABI = [
   {
@@ -68,13 +105,42 @@ const ROUTER_ABI = [
   },
 ];
 
+// =========================================================
+// COMPONENT
+// =========================================================
+
 const Investment = () => {
   const connection = useConnection();
+
   const address = connection.address;
   const isConnected = connection.status === "connected";
 
   const { open } = useWeb3Modal();
   const publicClient = usePublicClient();
+
+  const { writeContract } = useContractWrite();
+
+  // =========================================================
+  // STAKING LAUNCH
+  // =========================================================
+
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const stakingNotStarted = currentTime < STAKING_START;
+
+  const countdown = getCountdown(currentTime);
+
+  // =========================================================
+  // STATE
+  // =========================================================
 
   const [amount, setAmount] = useState("");
   const [quote, setQuote] = useState(null);
@@ -95,29 +161,34 @@ const Investment = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
 
+  // =========================================================
+  // BALANCE AND ALLOWANCE
+  // =========================================================
+
   const { data: usdtBalance, refetch: refetchBalance } =
     useUSDTBalance(address);
 
   const { data: allowance, refetch: refetchAllowance } =
     useUSDTAllowance(address);
 
-  const { writeContract } = useContractWrite();
-
   const amountNum = Number(amount) || 0;
 
   const balance = useMemo(() => {
-    if (usdtBalance === undefined || usdtBalance === null) return 0;
+    if (usdtBalance == null) return 0;
 
     return Number(formatUnits(usdtBalance, USDT_DECIMALS));
   }, [usdtBalance]);
 
   const allowanceAmount = useMemo(() => {
-    if (allowance === undefined || allowance === null) return 0;
+    if (allowance == null) return 0;
 
     return Number(formatUnits(allowance, USDT_DECIMALS));
   }, [allowance]);
 
-  const validAmount = amountNum >= MIN_DEPOSIT && amountNum <= MAX_DEPOSIT;
+  const validAmount =
+    Number.isFinite(amountNum) &&
+    amountNum >= MIN_DEPOSIT &&
+    amountNum <= MAX_DEPOSIT;
 
   const hasEnoughBalance = amountNum <= balance;
 
@@ -125,40 +196,18 @@ const Investment = () => {
 
   const transactionBusy = txStatus === "approving" || txStatus === "investing";
 
-  const formatUsd = (value = 0) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Number(value || 0));
-
-  const formatNumber = (value = 0, digits = 4) =>
-    new Intl.NumberFormat("en-US", {
-      maximumFractionDigits: digits,
-    }).format(Number(value || 0));
-
   // =========================================================
-  // MEMBER EWC ALLOCATION
+  // EWC ALLOCATION PREVIEW
   // =========================================================
-
-  /*
-   * This is the ONLY quote shown to the member.
-   *
-   * previewEwcAllocation() calculates allocation from the full
-   * USDT investment.
-   *
-   * Example:
-   *
-   * $1,000
-   * EWC = $0.05
-   *
-   * Allocation = 20,000 EWC
-   */
 
   const fetchQuote = useCallback(
     async (value) => {
-      if (!publicClient || value < MIN_DEPOSIT || value > MAX_DEPOSIT) {
+      if (
+        !publicClient ||
+        Date.now() < STAKING_START ||
+        value < MIN_DEPOSIT ||
+        value > MAX_DEPOSIT
+      ) {
         setQuote(null);
         return;
       }
@@ -181,14 +230,11 @@ const Investment = () => {
         setQuote({
           priceRaw,
           allocationRaw,
-
           price: Number(formatUnits(priceRaw, 18)),
-
           allocation: Number(formatUnits(allocationRaw, EWC_DECIMALS)),
         });
       } catch (error) {
         console.error("EWC allocation quote error:", error);
-
         setQuote(null);
       } finally {
         setQuoteLoading(false);
@@ -196,6 +242,20 @@ const Investment = () => {
     },
     [publicClient],
   );
+
+  useEffect(() => {
+    if (stakingNotStarted) return;
+
+    const timer = setTimeout(() => {
+      fetchQuote(amountNum);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [amountNum, fetchQuote, stakingNotStarted]);
+
+  // =========================================================
+  // VERIFY MEMBER
+  // =========================================================
 
   const verifyInvestmentAccount = useCallback(async (walletAddress) => {
     if (!walletAddress) {
@@ -235,6 +295,8 @@ const Investment = () => {
   }, []);
 
   useEffect(() => {
+    if (stakingNotStarted) return;
+
     if (!isConnected || !address) {
       setBeneficiaryMember(null);
       setAccountError("");
@@ -248,18 +310,16 @@ const Investment = () => {
       setBeneficiaryMember(null);
       setAccountError("");
     }
-  }, [investmentType, address, isConnected, verifyInvestmentAccount]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchQuote(amountNum);
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [amountNum, fetchQuote]);
+  }, [
+    investmentType,
+    address,
+    isConnected,
+    verifyInvestmentAccount,
+    stakingNotStarted,
+  ]);
 
   // =========================================================
-  // INVESTMENT HISTORY
+  // STAKING HISTORY
   // =========================================================
 
   const loadInvestments = useCallback(async () => {
@@ -269,7 +329,6 @@ const Investment = () => {
 
       const response = await api.get("/investment/history");
 
-      console.log(response.data);
       if (response.data?.success) {
         setInvestments(response.data.investments || []);
       } else {
@@ -277,7 +336,9 @@ const Investment = () => {
       }
     } catch (error) {
       console.error("Staking history error:", error);
+
       setInvestments([]);
+
       setHistoryError(
         error?.response?.data?.message || "Unable to load staking history.",
       );
@@ -287,15 +348,17 @@ const Investment = () => {
   }, []);
 
   useEffect(() => {
+    if (stakingNotStarted) return;
+
     loadInvestments();
-  }, [loadInvestments]);
+  }, [loadInvestments, stakingNotStarted]);
 
   // =========================================================
-  // INPUT
+  // AMOUNT INPUT
   // =========================================================
 
-  const handleAmountChange = (e) => {
-    const value = e.target.value;
+  const handleAmountChange = (event) => {
+    const value = event.target.value;
 
     if (value === "") {
       setAmount("");
@@ -303,7 +366,9 @@ const Investment = () => {
       return;
     }
 
-    if (Number(value) < 0) return;
+    if (!/^\d*\.?\d{0,2}$/.test(value)) {
+      return;
+    }
 
     setAmount(value);
     setTxError("");
@@ -328,57 +393,16 @@ const Investment = () => {
 
     if (available < MIN_DEPOSIT) {
       setTxError(`Minimum staking is $${MIN_DEPOSIT}.`);
-
       return;
     }
 
-    setAmount(String(available));
-
+    setAmount(available.toFixed(2));
     setTxError("");
   };
 
   // =========================================================
-  // INTERNAL TRANSACTION PROTECTION
+  // BENEFICIARY
   // =========================================================
-
-  /*
-   * This value is NOT shown to the member.
-   *
-   * EWCInvestment.deposit() requires minEwcOut for its own
-   * internal PancakeSwap transaction.
-   *
-   * This calculation exists ONLY so the transaction can safely
-   * execute. It has nothing to do with the member's displayed
-   * EWC allocation.
-   */
-
-  const getInternalMinEwcOut = async (amountWei) => {
-    /*
-     * Keep this synchronized with EWCInvestment's internal
-     * EWC_PURCHASE_BPS.
-     *
-     * This is transaction plumbing only.
-     */
-
-    const internalSwapAmount = (amountWei * 2000n) / BPS;
-
-    const amounts = await publicClient.readContract({
-      address: ROUTER_ADDRESS,
-      abi: ROUTER_ABI,
-      functionName: "getAmountsOut",
-      args: [internalSwapAmount, [USDT_ADDRESS, TOKEN_ADDRESS]],
-    });
-
-    const expectedOut = amounts[1];
-
-    return expectedOut - (expectedOut * TX_SLIPPAGE_BPS) / BPS;
-  };
-
-  // =========================================================
-  // INVEST
-  // =========================================================
-
-  
 
   const handleVerifyOtherAccount = async () => {
     setAccountError("");
@@ -394,14 +418,45 @@ const Investment = () => {
     await verifyInvestmentAccount(cleanAddress);
   };
 
-  const handleBeneficiaryChange = (e) => {
-    setBeneficiaryAddress(e.target.value);
+  const handleBeneficiaryChange = (event) => {
+    setBeneficiaryAddress(event.target.value);
     setBeneficiaryMember(null);
     setAccountError("");
   };
 
+  // =========================================================
+  // INTERNAL PANCAKESWAP SLIPPAGE
+  // =========================================================
+
+  const getInternalMinEwcOut = async (amountWei) => {
+    const internalSwapAmount = (amountWei * 2000n) / BPS;
+
+    const amounts = await publicClient.readContract({
+      address: ROUTER_ADDRESS,
+      abi: ROUTER_ABI,
+      functionName: "getAmountsOut",
+      args: [internalSwapAmount, [USDT_ADDRESS, TOKEN_ADDRESS]],
+    });
+
+    const expectedOut = amounts[1];
+
+    return expectedOut - (expectedOut * TX_SLIPPAGE_BPS) / BPS;
+  };
+
+  // =========================================================
+  // STAKING TRANSACTION
+  // =========================================================
+
   const handleInvest = async () => {
     setTxError("");
+
+    // Regular staking must not be accessible
+    // before December 1, 2026.
+
+    if (Date.now() < STAKING_START) {
+      setTxError("Regular staking opens on December 1, 2026.");
+      return;
+    }
 
     if (!isConnected || !address) {
       open();
@@ -413,57 +468,39 @@ const Investment = () => {
       return;
     }
 
-    if (amountNum < MIN_DEPOSIT) {
-      setTxError(`Minimum staking is $${MIN_DEPOSIT}.`);
+    if (!validAmount) {
+      setTxError(
+        `Enter an amount between $${MIN_DEPOSIT} and $${MAX_DEPOSIT.toLocaleString()}.`,
+      );
       return;
     }
 
-    if (amountNum > MAX_DEPOSIT) {
-      setTxError(`Maximum staking is $${MAX_DEPOSIT.toLocaleString()}.`);
-      return;
-    }
+    let beneficiary = address;
 
-    let beneficiary;
-
-    if (investmentType === "self") {
-      beneficiary = address;
-    } else {
+    if (investmentType === "other") {
       beneficiary = beneficiaryAddress.trim();
 
       if (!/^0x[a-fA-F0-9]{40}$/.test(beneficiary)) {
-        setTxError("Please enter a valid beneficiary wallet address.");
+        setTxError("Enter a valid beneficiary wallet address.");
         return;
       }
     }
 
     if (!beneficiaryMember) {
-      if (investmentType === "self") {
-        setTxError(
-          "Your connected wallet is not registered with your account. Please update your wallet address first.",
-        );
-      } else {
-        setTxError("Please verify the beneficiary account before investing.");
-      }
-
+      setTxError("Please verify the beneficiary account.");
       return;
     }
 
     try {
-      // Re-verify beneficiary immediately before transaction.
       const verifiedMember = await verifyInvestmentAccount(beneficiary);
 
       if (!verifiedMember) {
-        setTxError(
-          investmentType === "self"
-            ? "Your connected wallet is not registered with your account. Please update your wallet address first."
-            : "The beneficiary account could not be verified.",
-        );
+        setTxError("Beneficiary verification failed.");
         return;
       }
 
       const amountWei = parseUnits(amount, USDT_DECIMALS);
 
-      // Connected wallet is always the payer.
       const freshBalance = await publicClient.readContract({
         address: USDT_ADDRESS,
         abi: TOKEN_ABI,
@@ -493,9 +530,13 @@ const Investment = () => {
           args: [STAKING_ADDRESS, amountWei],
         });
 
-        await publicClient.waitForTransactionReceipt({
+        const approvalReceipt = await publicClient.waitForTransactionReceipt({
           hash: approvalHash,
         });
+
+        if (approvalReceipt.status !== "success") {
+          throw new Error("USDT approval failed.");
+        }
 
         await refetchAllowance?.();
       }
@@ -512,7 +553,6 @@ const Investment = () => {
           abi: STAKING_ABI,
           functionName: "deposit",
           args: [amountWei, minEwcOut],
-          gas: 9000000n,
         });
       } else {
         depositHash = await writeContract({
@@ -520,13 +560,16 @@ const Investment = () => {
           abi: STAKING_ABI,
           functionName: "depositFor",
           args: [beneficiary, amountWei, minEwcOut],
-          gas: 9000000n,
         });
       }
 
-      await publicClient.waitForTransactionReceipt({
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash: depositHash,
       });
+
+      if (receipt.status !== "success") {
+        throw new Error("Staking transaction failed.");
+      }
 
       setTxStatus("success");
       setAmount("");
@@ -540,9 +583,9 @@ const Investment = () => {
 
       setTimeout(() => {
         setTxStatus("");
-      }, 3000);
+      }, 5000);
     } catch (error) {
-      console.error("staking error:", error);
+      console.error("Staking error:", error);
 
       const message =
         error?.shortMessage || error?.message || "Transaction failed.";
@@ -550,7 +593,7 @@ const Investment = () => {
       setTxStatus("");
 
       if (message.toLowerCase().includes("rejected")) {
-        setTxError("Transaction rejected.");
+        setTxError("Transaction rejected by wallet.");
       } else if (message.includes("INSUFFICIENT_OUTPUT_AMOUNT")) {
         setTxError("Price changed too much. Please try again.");
       } else {
@@ -560,7 +603,7 @@ const Investment = () => {
   };
 
   // =========================================================
-  // LAYOUT USER
+  // USER LAYOUT
   // =========================================================
 
   let storedUser = {};
@@ -582,607 +625,602 @@ const Investment = () => {
   };
 
   // =========================================================
-  // ACTION BUTTON
+  // COMING SOON — BEFORE DECEMBER 1
   // =========================================================
 
-  let buttonText = "Enter staking Amount";
+  if (stakingNotStarted) {
+    return (
+      <UserLayout
+        user={layoutUser}
+        title="EWC Staking"
+        subtitle="Coming December 1, 2026"
+      >
+        <div className={comingStyles.page}>
+          <div className={comingStyles.backgroundGlow} />
+
+          <section className={comingStyles.hero}>
+            <div className={comingStyles.badge}>
+              <Sparkles size={15} />
+              COMING SOON
+            </div>
+
+            <div className={comingStyles.iconWrapper}>
+              <LockKeyhole size={36} />
+            </div>
+
+            <h1>
+              EWC Staking
+              <span> Opens Soon.</span>
+            </h1>
+
+            <p className={comingStyles.description}>
+              A new chapter of Elevate World Community begins on December 1,
+              2026.
+              <br />
+              Regular EWC staking will become available after the Private Sale
+              concludes.
+            </p>
+
+            <div className={comingStyles.launchDate}>
+              <CalendarDays size={19} />
+
+              <div>
+                <span>OFFICIAL STAKING LAUNCH</span>
+
+                <strong>December 1, 2026</strong>
+              </div>
+            </div>
+
+            <div className={comingStyles.countdownSection}>
+              <div className={comingStyles.countdownHeading}>
+                <Clock3 size={18} />
+                <span>STAKING BEGINS IN</span>
+              </div>
+
+              <div className={comingStyles.countdownGrid}>
+                {[
+                  ["DAYS", countdown.days],
+                  ["HOURS", countdown.hours],
+                  ["MINUTES", countdown.minutes],
+                  ["SECONDS", countdown.seconds],
+                ].map(([label, value]) => (
+                  <div className={comingStyles.countdownBox} key={label}>
+                    <strong>{pad(value)}</strong>
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={comingStyles.infoGrid}>
+              <div className={comingStyles.infoCard}>
+                <Coins size={22} />
+                <span>MINIMUM STAKING</span>
+                <strong>$25 USDT</strong>
+              </div>
+
+              <div className={comingStyles.infoCard}>
+                <Wallet size={22} />
+                <span>MAXIMUM STAKING</span>
+                <strong>$5,000 USDT</strong>
+              </div>
+
+              <div className={comingStyles.infoCard}>
+                <ShieldCheck size={22} />
+                <span>NETWORK</span>
+                <strong>BNB Smart Chain</strong>
+              </div>
+            </div>
+
+            <div className={comingStyles.privateSaleCard}>
+              <div className={comingStyles.privateSaleContent}>
+                <div className={comingStyles.saleBadge}>EWC PRIVATE SALE</div>
+
+                <h2>Don't Want to Wait?</h2>
+
+                <p>
+                  Participate in the EWC Private Sale and secure your allocation
+                  at a fixed price of $0.01 per EWC, with exclusive tier-based
+                  bonuses.
+                </p>
+
+                <div className={comingStyles.saleHighlights}>
+                  <span>✓ $0.01 per EWC</span>
+
+                  <span>✓ Up to 100% Bonus</span>
+
+                  <span>✓ Starting from $10</span>
+                </div>
+              </div>
+
+              <Link to="/presale" className={comingStyles.saleButton}>
+                Explore Private Sale
+                <ArrowRight size={18} />
+              </Link>
+            </div>
+
+            <div className={comingStyles.footerNote}>
+              <ShieldCheck size={16} />
+
+              <span>
+                Regular staking opens automatically on December 1, 2026 at 00:00
+                UTC.
+              </span>
+            </div>
+          </section>
+        </div>
+      </UserLayout>
+    );
+  }
+
+  // =========================================================
+  // REGULAR STAKING — DECEMBER 1 ONWARD
+  // =========================================================
+
+  let buttonText = "Enter Staking Amount";
 
   if (!isConnected) {
     buttonText = "Connect Wallet";
   } else if (validAmount && !hasEnoughBalance) {
     buttonText = "Insufficient USDT";
   } else if (validAmount && needsApproval) {
-    buttonText = `Approve & Invest ${formatUsd(amountNum)}`;
+    buttonText = `Approve & Stake ${formatUsd(amountNum)}`;
   } else if (validAmount) {
-    buttonText = `Invest ${formatUsd(amountNum)}`;
+    buttonText = `Stake ${formatUsd(amountNum)}`;
   }
 
-  /*
-   * Important:
-   * disconnected button stays enabled so it can open Web3Modal.
-   */
-
   const actionDisabled =
-    isConnected &&
-    (!validAmount ||
-      !hasEnoughBalance ||
-      !quote ||
-      quoteLoading ||
-      transactionBusy);
-
-  // =========================================================
-  // PAGE
-  // =========================================================
+    transactionBusy ||
+    (isConnected &&
+      (!validAmount ||
+        !hasEnoughBalance ||
+        !quote ||
+        quoteLoading ||
+        accountChecking ||
+        !beneficiaryMember));
 
   return (
-  <UserLayout
-    user={layoutUser}
-    title="Staking"
-    subtitle="Invest in EWC"
-  >
-    <section className={styles.pageHeader}>
-      <div>
-        <span className={styles.eyebrow}>EWC STAKING</span>
-        <h2>Stake EWC</h2>
-        <p>
-          Deposit USDT and receive an EWC allocation based on the current EWC
-          market price.
-        </p>
-      </div>
-
-      <div className={styles.rangeBadge}>
-        <ShieldCheck size={16} />
-        ${MIN_DEPOSIT} — ${MAX_DEPOSIT.toLocaleString()}
-      </div>
-    </section>
-
-    {/* =====================================================
-        TOP INFO
-    ===================================================== */}
-
-    <section className={styles.infoGrid}>
-      <div className={styles.infoCard}>
-        <Wallet size={20} />
-
+    <UserLayout user={layoutUser} title="Staking" subtitle="Invest in EWC">
+      <section className={styles.pageHeader}>
         <div>
-          <span>Available USDT</span>
-          <strong>
-            {isConnected
-              ? `${formatNumber(balance, 2)} USDT`
-              : "Connect wallet"}
-          </strong>
+          <span className={styles.eyebrow}>EWC STAKING</span>
+
+          <h2>Stake EWC</h2>
+
+          <p>
+            Deposit USDT and receive an EWC allocation based on the current EWC
+            market price.
+          </p>
         </div>
-      </div>
 
-      <div className={styles.infoCard}>
-        <Coins size={20} />
-
-        <div>
-          <span>EWC Allocation</span>
-          <strong>
-            {quote ? `${formatNumber(quote.allocation)} EWC` : "—"}
-          </strong>
+        <div className={styles.rangeBadge}>
+          <ShieldCheck size={16} />${MIN_DEPOSIT} — $
+          {MAX_DEPOSIT.toLocaleString()}
         </div>
-      </div>
+      </section>
 
-      <div className={styles.infoCard}>
-        <ShieldCheck size={20} />
+      <section className={styles.infoGrid}>
+        <div className={styles.infoCard}>
+          <Wallet size={20} />
 
-        <div>
-          <span>Staking Limits</span>
-          <strong>
-            ${MIN_DEPOSIT} — ${MAX_DEPOSIT.toLocaleString()}
-          </strong>
-        </div>
-      </div>
-    </section>
-
-    {/* =====================================================
-        MAIN
-    ===================================================== */}
-
-    <section className={styles.mainGrid}>
-      <div className={styles.panel}>
-        <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>STAKE</span>
-            <h3>Stake EWC</h3>
-          </div>
+            <span>Available USDT</span>
 
-          <span className={styles.balance}>
-            Balance:{" "}
-            {isConnected ? `${formatNumber(balance, 2)} USDT` : "—"}
-          </span>
-        </div>
-
-        {/* =================================================
-            Staking BENEFICIARY
-        ================================================= */}
-
-        <div className={styles.investForSection}>
-          <label className={styles.investForLabel}>
-            Staking For
-          </label>
-
-          <div className={styles.investForTabs}>
-            <button
-              type="button"
-              className={
-                investmentType === "self"
-                  ? styles.activeInvestFor
-                  : ""
-              }
-              onClick={() => setInvestmentType("self")}
-              disabled={transactionBusy}
-            >
-              My Account
-            </button>
-
-            <button
-              type="button"
-              className={
-                investmentType === "other"
-                  ? styles.activeInvestFor
-                  : ""
-              }
-              onClick={() => setInvestmentType("other")}
-              disabled={transactionBusy}
-            >
-              Other Account
-            </button>
+            <strong>
+              {isConnected
+                ? `${formatNumber(balance, 2)} USDT`
+                : "Connect wallet"}
+            </strong>
           </div>
         </div>
 
-        {/* =================================================
-            OTHER ACCOUNT ADDRESS
-        ================================================= */}
+        <div className={styles.infoCard}>
+          <Coins size={20} />
 
-        {investmentType === "other" && (
-          <div className={styles.beneficiarySection}>
-            <label>Account Wallet Address</label>
-
-            <div className={styles.beneficiaryInputRow}>
-              <input
-                type="text"
-                value={beneficiaryAddress}
-                onChange={handleBeneficiaryChange}
-                placeholder="0x..."
-                disabled={transactionBusy || accountChecking}
-              />
-
-              <button
-                type="button"
-                onClick={handleVerifyOtherAccount}
-                disabled={
-                  transactionBusy ||
-                  accountChecking ||
-                  !beneficiaryAddress.trim()
-                }
-              >
-                {accountChecking ? (
-                  <>
-                    <span className={styles.smallSpinner} />
-                    Checking
-                  </>
-                ) : (
-                  "Verify"
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* =================================================
-            SELF ACCOUNT CHECKING
-        ================================================= */}
-
-        {accountChecking && investmentType === "self" && (
-          <div className={styles.accountChecking}>
-            <span className={styles.smallSpinner} />
-            Verifying your account...
-          </div>
-        )}
-
-        {/* =================================================
-            ACCOUNT ERROR
-        ================================================= */}
-
-        {accountError && (
-          <div className={styles.errorBox}>
-            <AlertCircle size={15} />
-
-            <span>
-              {investmentType === "self"
-                ? `${accountError} Please update your wallet address before staking.`
-                : accountError}
-            </span>
-          </div>
-        )}
-
-        {/* =================================================
-            VERIFIED ACCOUNT
-        ================================================= */}
-
-        {beneficiaryMember && (
-          <div className={styles.verifiedAccount}>
-            <div className={styles.verifiedIcon}>
-              <CheckCircle2 size={18} />
-            </div>
-
-            <div className={styles.verifiedDetails}>
-              <span>Account Verified</span>
-
-              <strong>{beneficiaryMember.name}</strong>
-
-              <div className={styles.verifiedMeta}>
-                <span>
-                  User ID: {beneficiaryMember.user_id}
-                </span>
-
-                <span>
-                  {beneficiaryMember.activated
-                    ? "Active Account"
-                    : "Account Not Yet Activated"}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* =================================================
-            INVESTMENT AMOUNT
-        ================================================= */}
-
-        <div className={styles.inputHeader}>
-          <label>Staking Amount</label>
-
-          <button
-            type="button"
-            onClick={setMax}
-            disabled={transactionBusy}
-          >
-            MAX
-          </button>
-        </div>
-
-        <div
-          className={`${styles.amountBox} ${
-            validAmount ? styles.validAmount : ""
-          }`}
-        >
-          <span className={styles.dollar}>$</span>
-
-          <input
-            type="number"
-            value={amount}
-            min={MIN_DEPOSIT}
-            max={MAX_DEPOSIT}
-            step="0.01"
-            placeholder="25"
-            onChange={handleAmountChange}
-            disabled={transactionBusy}
-          />
-
-          <span className={styles.usdtBadge}>USDT</span>
-        </div>
-
-        <div className={styles.limits}>
-          <span>
-            Minimum <strong>${MIN_DEPOSIT}</strong>
-          </span>
-
-          <span>
-            Maximum{" "}
-            <strong>${MAX_DEPOSIT.toLocaleString()}</strong>
-          </span>
-        </div>
-
-        <div className={styles.presets}>
-          {[25, 100, 250, 500, 1000, 5000].map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => selectPreset(value)}
-              disabled={transactionBusy}
-              className={
-                amountNum === value ? styles.activePreset : ""
-              }
-            >
-              ${value.toLocaleString()}
-            </button>
-          ))}
-        </div>
-
-        {/* =================================================
-            MEMBER ALLOCATION
-        ================================================= */}
-
-        <div className={styles.outputBox}>
           <div>
             <span>EWC Allocation</span>
 
             <strong>
-              {quoteLoading && validAmount
-                ? "Calculating..."
-                : quote
-                  ? `${formatNumber(quote.allocation)} EWC`
-                  : "0 EWC"}
+              {quote ? `${formatNumber(quote.allocation)} EWC` : "—"}
             </strong>
           </div>
-
-          <Coins size={24} />
         </div>
 
-        {quote && (
-          <div className={styles.quoteMeta}>
-            <span>Current EWC Price</span>
+        <div className={styles.infoCard}>
+          <ShieldCheck size={20} />
+
+          <div>
+            <span>Staking Limits</span>
 
             <strong>
-              ${formatNumber(quote.price, 6)}
+              ${MIN_DEPOSIT} — ${MAX_DEPOSIT.toLocaleString()}
             </strong>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* =================================================
-            VALIDATION ERRORS
-        ================================================= */}
+      <section className={styles.mainGrid}>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <span className={styles.eyebrow}>STAKE</span>
 
-        {amountNum > 0 && amountNum < MIN_DEPOSIT && (
-          <div className={styles.errorBox}>
-            <AlertCircle size={15} />
-            Minimum staking is ${MIN_DEPOSIT}.
+              <h3>Stake EWC</h3>
+            </div>
+
+            <span className={styles.balance}>
+              Balance: {isConnected ? `${formatNumber(balance, 2)} USDT` : "—"}
+            </span>
           </div>
-        )}
 
-        {amountNum > MAX_DEPOSIT && (
-          <div className={styles.errorBox}>
-            <AlertCircle size={15} />
-            Maximum staking is $
-            {MAX_DEPOSIT.toLocaleString()}.
+          <div className={styles.investForSection}>
+            <label className={styles.investForLabel}>Staking For</label>
+
+            <div className={styles.investForTabs}>
+              <button
+                type="button"
+                className={
+                  investmentType === "self" ? styles.activeInvestFor : ""
+                }
+                onClick={() => setInvestmentType("self")}
+                disabled={transactionBusy}
+              >
+                My Account
+              </button>
+
+              <button
+                type="button"
+                className={
+                  investmentType === "other" ? styles.activeInvestFor : ""
+                }
+                onClick={() => setInvestmentType("other")}
+                disabled={transactionBusy}
+              >
+                Other Account
+              </button>
+            </div>
           </div>
-        )}
 
-        {isConnected &&
-          validAmount &&
-          !hasEnoughBalance && (
+          {investmentType === "other" && (
+            <div className={styles.beneficiarySection}>
+              <label>Account Wallet Address</label>
+
+              <div className={styles.beneficiaryInputRow}>
+                <input
+                  type="text"
+                  value={beneficiaryAddress}
+                  onChange={handleBeneficiaryChange}
+                  placeholder="0x..."
+                  disabled={transactionBusy || accountChecking}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleVerifyOtherAccount}
+                  disabled={
+                    transactionBusy ||
+                    accountChecking ||
+                    !beneficiaryAddress.trim()
+                  }
+                >
+                  {accountChecking ? "Checking..." : "Verify"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {accountChecking && (
+            <div className={styles.accountChecking}>Verifying account...</div>
+          )}
+
+          {accountError && (
+            <div className={styles.errorBox}>
+              <AlertCircle size={15} />
+              <span>{accountError}</span>
+            </div>
+          )}
+
+          {beneficiaryMember && (
+            <div className={styles.verifiedAccount}>
+              <div className={styles.verifiedIcon}>
+                <CheckCircle2 size={18} />
+              </div>
+
+              <div className={styles.verifiedDetails}>
+                <span>Account Verified</span>
+
+                <strong>{beneficiaryMember.name}</strong>
+
+                <div className={styles.verifiedMeta}>
+                  <span>User ID: {beneficiaryMember.user_id}</span>
+
+                  <span>
+                    {beneficiaryMember.activated
+                      ? "Active Account"
+                      : "Account Not Yet Activated"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.inputHeader}>
+            <label>Staking Amount</label>
+
+            <button type="button" onClick={setMax} disabled={transactionBusy}>
+              MAX
+            </button>
+          </div>
+
+          <div
+            className={`${styles.amountBox} ${
+              validAmount ? styles.validAmount : ""
+            }`}
+          >
+            <span className={styles.dollar}>$</span>
+
+            <input
+              type="number"
+              value={amount}
+              min={MIN_DEPOSIT}
+              max={MAX_DEPOSIT}
+              step="0.01"
+              placeholder="25"
+              onChange={handleAmountChange}
+              disabled={transactionBusy}
+            />
+
+            <span className={styles.usdtBadge}>USDT</span>
+          </div>
+
+          <div className={styles.limits}>
+            <span>
+              Minimum <strong>${MIN_DEPOSIT}</strong>
+            </span>
+
+            <span>
+              Maximum <strong>${MAX_DEPOSIT.toLocaleString()}</strong>
+            </span>
+          </div>
+
+          <div className={styles.presets}>
+            {[25, 100, 250, 500, 1000, 5000].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => selectPreset(value)}
+                disabled={transactionBusy}
+                className={amountNum === value ? styles.activePreset : ""}
+              >
+                ${value.toLocaleString()}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.outputBox}>
+            <div>
+              <span>EWC Allocation</span>
+
+              <strong>
+                {quoteLoading && validAmount
+                  ? "Calculating..."
+                  : quote
+                    ? `${formatNumber(quote.allocation)} EWC`
+                    : "0 EWC"}
+              </strong>
+            </div>
+
+            <Coins size={24} />
+          </div>
+
+          {quote && (
+            <div className={styles.quoteMeta}>
+              <span>Current EWC Price</span>
+
+              <strong>${formatNumber(quote.price, 6)}</strong>
+            </div>
+          )}
+
+          {amountNum > 0 && amountNum < MIN_DEPOSIT && (
+            <div className={styles.errorBox}>
+              <AlertCircle size={15} />
+              Minimum staking is ${MIN_DEPOSIT}.
+            </div>
+          )}
+
+          {amountNum > MAX_DEPOSIT && (
+            <div className={styles.errorBox}>
+              <AlertCircle size={15} />
+              Maximum staking is ${MAX_DEPOSIT.toLocaleString()}.
+            </div>
+          )}
+
+          {isConnected && validAmount && !hasEnoughBalance && (
             <div className={styles.errorBox}>
               <AlertCircle size={15} />
               Insufficient USDT balance.
             </div>
           )}
 
-        {txError && (
-          <div className={styles.errorBox}>
-            <AlertCircle size={15} />
-            {txError}
-          </div>
-        )}
-
-        {txStatus === "success" && (
-          <div className={styles.successBox}>
-            <CheckCircle2 size={16} />
-            Staking successful.
-          </div>
-        )}
-
-        {/* =================================================
-            ACTION
-        ================================================= */}
-
-        <button
-          type="button"
-          className={styles.investButton}
-          onClick={handleInvest}
-          disabled={actionDisabled}
-        >
-          {transactionBusy && (
-            <span className={styles.spinner} />
+          {txError && (
+            <div className={styles.errorBox}>
+              <AlertCircle size={15} />
+              {txError}
+            </div>
           )}
 
-          {!transactionBusy && <Wallet size={18} />}
+          {txStatus === "success" && (
+            <div className={styles.successBox}>
+              <CheckCircle2 size={16} />
+              Staking successful.
+            </div>
+          )}
 
-          {txStatus === "approving"
-            ? "Approving USDT..."
-            : txStatus === "investing"
-              ? "Confirming Staking..."
-              : buttonText}
-        </button>
+          <button
+            type="button"
+            className={styles.investButton}
+            onClick={handleInvest}
+            disabled={actionDisabled}
+          >
+            {txStatus === "approving"
+              ? "Approving USDT..."
+              : txStatus === "investing"
+                ? "Confirming Staking..."
+                : buttonText}
+          </button>
 
-        <p className={styles.securityText}>
-          <ShieldCheck size={14} />
-          Transaction is executed on BNB Smart Chain.
-        </p>
-      </div>
+          <p className={styles.securityText}>
+            <ShieldCheck size={14} />
+            Transaction is executed on BNB Smart Chain.
+          </p>
+        </div>
 
-      {/* ===================================================
-          SUMMARY
-      =================================================== */}
+        <aside className={styles.panel}>
+          <span className={styles.eyebrow}>SUMMARY</span>
 
-      <aside className={styles.panel}>
-        <span className={styles.eyebrow}>SUMMARY</span>
+          <h3 className={styles.summaryTitle}>Staking Summary</h3>
 
-        <h3 className={styles.summaryTitle}>
-          Staking Summary
-        </h3>
+          <div className={styles.summaryRows}>
+            <div>
+              <span>Staking For</span>
 
-        <div className={styles.summaryRows}>
-          <div>
-            <span>Staking For</span>
+              <strong>
+                {beneficiaryMember
+                  ? `${beneficiaryMember.name} (${beneficiaryMember.user_id})`
+                  : investmentType === "self"
+                    ? "My Account"
+                    : "Not verified"}
+              </strong>
+            </div>
 
-            <strong>
-              {beneficiaryMember
-                ? `${beneficiaryMember.name} (${beneficiaryMember.user_id})`
-                : investmentType === "self"
-                  ? "My Account"
-                  : "Not verified"}
-            </strong>
+            <div>
+              <span>You Stake</span>
+              <strong>{formatUsd(amountNum)}</strong>
+            </div>
+
+            <div>
+              <span>EWC Price</span>
+
+              <strong>
+                {quote ? `$${formatNumber(quote.price, 6)}` : "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>EWC Allocation</span>
+
+              <strong className={styles.gold}>
+                {quote ? `${formatNumber(quote.allocation)} EWC` : "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>USDT Approval</span>
+
+              <strong>
+                {validAmount ? (needsApproval ? "Required" : "Ready") : "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Network</span>
+              <strong>BNB Smart Chain</strong>
+            </div>
           </div>
 
-          <div>
-            <span>You stake</span>
-            <strong>{formatUsd(amountNum)}</strong>
+          <div className={styles.quoteNotice}>
+            <Coins size={18} />
+
+            <div>
+              <strong>Live EWC Price</strong>
+
+              <span>
+                Your EWC allocation is calculated from your full USDT deposit
+                value.
+              </span>
+            </div>
           </div>
+        </aside>
+      </section>
 
+      <section className={`${styles.panel} ${styles.historyPanel}`}>
+        <div className={styles.panelHeader}>
           <div>
-            <span>EWC Price</span>
+            <span className={styles.eyebrow}>HISTORY</span>
 
-            <strong>
-              {quote
-                ? `$${formatNumber(quote.price, 6)}`
-                : "—"}
-            </strong>
-          </div>
-
-          <div>
-            <span>EWC Allocation</span>
-
-            <strong className={styles.gold}>
-              {quote
-                ? `${formatNumber(quote.allocation)} EWC`
-                : "—"}
-            </strong>
-          </div>
-
-          <div>
-            <span>USDT Approval</span>
-
-            <strong>
-              {validAmount
-                ? needsApproval
-                  ? "Required"
-                  : "Ready"
-                : "—"}
-            </strong>
-          </div>
-
-          <div>
-            <span>Network</span>
-            <strong>BNB Smart Chain</strong>
+            <h3>My Staking</h3>
           </div>
         </div>
 
-        <div className={styles.quoteNotice}>
-          <Coins size={18} />
+        {historyLoading ? (
+          <div className={styles.emptyState}>Loading staking...</div>
+        ) : historyError ? (
+          <div className={styles.emptyState}>
+            <AlertCircle size={26} />
 
-          <div>
-            <strong>Live EWC Price</strong>
+            <strong>Unable to load staking</strong>
 
-            <span>
-              Your EWC allocation is calculated from your full
-              USDT deposit value.
-            </span>
+            <span>{historyError}</span>
           </div>
-        </div>
-      </aside>
-    </section>
+        ) : investments.length === 0 ? (
+          <div className={styles.emptyState}>
+            <Coins size={26} />
 
-    {/* =====================================================
-        HISTORY
-    ===================================================== */}
+            <strong>No staking yet</strong>
 
-    <section
-      className={`${styles.panel} ${styles.historyPanel}`}
-    >
-      <div className={styles.panelHeader}>
-        <div>
-          <span className={styles.eyebrow}>HISTORY</span>
-          <h3>My Staking</h3>
-        </div>
-      </div>
+            <span>Your staking history will appear here.</span>
+          </div>
+        ) : (
+          <div className={styles.tableWrapper}>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Staking</th>
+                  <th>EWC Price</th>
+                  <th>EWC Allocation</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
 
-      {historyLoading ? (
-        <div className={styles.emptyState}>
-          <span className={styles.spinner} />
-          Loading staking...
-        </div>
-      ) : historyError ? (
-        <div className={styles.emptyState}>
-          <AlertCircle size={26} />
-          <strong>Unable to load staking</strong>
-          <span>{historyError}</span>
-        </div>
-      ) : investments.length === 0 ? (
-        <div className={styles.emptyState}>
-          <Coins size={26} />
-          <strong>No staking yet</strong>
-          <span>
-            Your staking history will appear here.
-          </span>
-        </div>
-      ) : (
-        <div className={styles.tableWrapper}>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Staking</th>
-                <th>EWC Price</th>
-                <th>EWC Allocation</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+              <tbody>
+                {investments.map((item, index) => {
+                  const date = item.createdOn
+                    ? new Date(item.createdOn).toLocaleString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "—";
 
-            <tbody>
-              {investments.map((item, index) => {
-                const date = item.createdOn
-                  ? new Date(
-                      item.createdOn,
-                    ).toLocaleString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "—";
+                  return (
+                    <tr key={item.id}>
+                      <td>#{investments.length - index}</td>
 
-                return (
-                  <tr key={item.id}>
-                    <td>
-                      #{investments.length - index}
-                    </td>
+                      <td>{date}</td>
 
-                    <td>{date}</td>
+                      <td>{formatUsd(item.amount)}</td>
 
-                    <td>
-                      {formatUsd(item.amount)}
-                    </td>
+                      <td>${formatNumber(item.ewcPrice, 6)}</td>
 
-                    <td>
-                      $
-                      {formatNumber(
-                        item.ewcPrice,
-                        6,
-                      )}
-                    </td>
+                      <td>{formatNumber(item.ewcAllocation)} EWC</td>
 
-                    <td>
-                      {formatNumber(
-                        item.ewcAllocation,
-                      )}{" "}
-                      EWC
-                    </td>
-
-                    <td>
-                      <span
-                        className={
-                          styles.statusSuccess
-                        }
-                      >
-                        Completed
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  </UserLayout>
-);
+                      <td>
+                        <span className={styles.statusSuccess}>Completed</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </UserLayout>
+  );
 };
 
 export default Investment;

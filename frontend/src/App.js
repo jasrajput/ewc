@@ -12,6 +12,7 @@ import Login from "./pages/Login/Login";
 import Register from "./pages/Register/Register";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Investment from "./pages/Investment/Investment";
+import Presale from "./pages/Presale/Presale";
 import Income from "./pages/Income/Income";
 import DirectPartners from "./pages/Network/DirectPartners";
 import Community from "./pages/Network/Community";
@@ -70,6 +71,8 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/investment" element={<Investment />} />
+          <Route path="/presale" element={<Presale />} />
+          
           <Route path="/earnings/:type" element={<Income />} />
           <Route path="/network/directs" element={<DirectPartners />} />
           <Route path="/network/community" element={<Community />} />
