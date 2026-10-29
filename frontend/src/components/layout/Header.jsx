@@ -416,9 +416,9 @@ const Header = ({ user, title, subtitle, onOpenSidebar }) => {
                 My Profile
               </button>
 
-              <button onClick={() => navigate("/settings")}>
+              <button onClick={() => navigate("/wallet")}>
                 <Settings size={17} />
-                Settings
+                Wallet Settings
               </button>
 
               {isConnected && (

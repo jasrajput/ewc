@@ -16,9 +16,9 @@ import {
   LockKeyhole,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
   Wallet,
-  Zap,
+  RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 
 import api from "../../services/api";
@@ -43,7 +43,8 @@ import styles from "./Presale.module.css";
 // PRIVATE SALE CONFIGURATION
 // =========================================================
 
-// const PRESALE_START = Date.UTC(2026, 10, 1, 0, 0, 0);
+// Testing start date.
+// For production, update this to November 1, 2026.
 const PRESALE_START = Date.UTC(2026, 9, 28, 0, 0, 0);
 const PRESALE_END = Date.UTC(2026, 11, 1, 0, 0, 0);
 
@@ -117,15 +118,212 @@ const getPresalePhase = (timestamp) => {
 const getCountdown = (now, target) => {
   const difference = Math.max(0, target - now);
 
-  const days = Math.floor(difference / 86400000);
-  const hours = Math.floor((difference / 3600000) % 24);
-  const minutes = Math.floor((difference / 60000) % 60);
-  const seconds = Math.floor((difference / 1000) % 60);
-
-  return { days, hours, minutes, seconds };
+  return {
+    days: Math.floor(difference / 86400000),
+    hours: Math.floor((difference / 3600000) % 24),
+    minutes: Math.floor((difference / 60000) % 60),
+    seconds: Math.floor((difference / 1000) % 60),
+  };
 };
 
 const pad = (value) => String(value).padStart(2, "0");
+
+const formatDate = (value) => {
+  if (!value) return "Date unavailable";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Date unavailable";
+  }
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// =========================================================
+// HISTORY STYLES
+// =========================================================
+
+const historyStyles = {
+  section: {
+    marginTop: 48,
+    marginBottom: 48,
+  },
+
+  summary: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: 16,
+    marginBottom: 24,
+  },
+
+  statCard: {
+    background: "#14171d",
+    border: "1px solid rgba(212,175,55,0.15)",
+    borderRadius: 14,
+    padding: 22,
+  },
+
+  statLabel: {
+    display: "block",
+    color: "#9ca3af",
+    fontSize: 13,
+    marginBottom: 12,
+  },
+
+  statValue: {
+    display: "block",
+    color: "#e9c45a",
+    fontSize: 22,
+    fontWeight: 700,
+    overflowWrap: "anywhere",
+  },
+
+  list: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))",
+    gap: 18,
+  },
+
+  card: {
+    background: "#14171d",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    padding: 24,
+  },
+
+  cardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 24,
+  },
+
+  label: {
+    fontSize: 11,
+    color: "#d4af37",
+    fontWeight: 700,
+    letterSpacing: 1,
+  },
+
+  amount: {
+    color: "#fff",
+    fontSize: 25,
+    margin: "8px 0",
+  },
+
+  date: {
+    color: "#9ca3af",
+    fontSize: 12,
+  },
+
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    background: "rgba(34,197,94,0.1)",
+    color: "#4ade80",
+    borderRadius: 20,
+    padding: "7px 11px",
+    fontSize: 12,
+    whiteSpace: "nowrap",
+  },
+
+  details: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 18,
+    marginBottom: 22,
+  },
+
+  detailLabel: {
+    display: "block",
+    color: "#9ca3af",
+    fontSize: 12,
+    marginBottom: 6,
+  },
+
+  detailValue: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: 600,
+    overflowWrap: "anywhere",
+  },
+
+  bonusValue: {
+    color: "#e9c45a",
+    fontSize: 15,
+    fontWeight: 700,
+    overflowWrap: "anywhere",
+  },
+
+  total: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 12,
+    padding: 17,
+    background: "rgba(212,175,55,0.07)",
+    border: "1px solid rgba(212,175,55,0.14)",
+    borderRadius: 10,
+  },
+
+  totalLabel: {
+    color: "#c7c9ce",
+    fontSize: 13,
+  },
+
+  totalValue: {
+    color: "#e9c45a",
+    fontSize: 19,
+    fontWeight: 700,
+    overflowWrap: "anywhere",
+  },
+
+  empty: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    padding: "48px 24px",
+    textAlign: "center",
+    background: "#14171d",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    color: "#9ca3af",
+  },
+
+  refreshButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "9px 15px",
+    background: "rgba(212,175,55,0.1)",
+    border: "1px solid rgba(212,175,55,0.3)",
+    borderRadius: 8,
+    color: "#e9c45a",
+    cursor: "pointer",
+  },
+
+  txLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 18,
+    color: "#e9c45a",
+    textDecoration: "none",
+    fontSize: 13,
+  },
+};
 
 // =========================================================
 // COMPONENT
@@ -148,6 +346,10 @@ const Presale = () => {
   const { data: allowance, refetch: refetchAllowance } =
     useUSDTAllowance(address);
 
+  // =========================================================
+  // STATE
+  // =========================================================
+
   const [now, setNow] = useState(Date.now());
 
   const [amount, setAmount] = useState("");
@@ -163,27 +365,41 @@ const Presale = () => {
   const [quoteLoading, setQuoteLoading] = useState(false);
 
   const [contractPresaleActive, setContractPresaleActive] = useState(false);
-
   const [contractChecking, setContractChecking] = useState(true);
 
   const [txStatus, setTxStatus] = useState("");
   const [txError, setTxError] = useState("");
 
+  // =========================================================
+  // HISTORY STATE
+  // =========================================================
+
+  const [presaleHistory, setPresaleHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+
+  // =========================================================
+  // CALCULATED VALUES
+  // =========================================================
+
   const amountNum = Number(amount) || 0;
 
   const phase = getPresalePhase(now);
 
-  const countdownTarget = phase === "upcoming" ? PRESALE_START : PRESALE_END;
+  const countdownTarget =
+    phase === "upcoming" ? PRESALE_START : PRESALE_END;
 
   const countdown = getCountdown(now, countdownTarget);
 
   const balance = useMemo(() => {
     if (usdtBalance == null) return 0;
+
     return Number(formatUnits(usdtBalance, USDT_DECIMALS));
   }, [usdtBalance]);
 
   const allowanceAmount = useMemo(() => {
     if (allowance == null) return 0;
+
     return Number(formatUnits(allowance, USDT_DECIMALS));
   }, [allowance]);
 
@@ -194,11 +410,14 @@ const Presale = () => {
 
   const hasEnoughBalance = amountNum <= balance;
 
-  const needsApproval = validAmount && allowanceAmount < amountNum;
+  const needsApproval =
+    validAmount && allowanceAmount < amountNum;
 
-  const transactionBusy = txStatus === "approving" || txStatus === "investing";
+  const transactionBusy =
+    txStatus === "approving" || txStatus === "investing";
 
-  const canPurchase = phase === "live" && contractPresaleActive;
+  const canPurchase =
+    phase === "live" && contractPresaleActive;
 
   // =========================================================
   // CLOCK
@@ -213,7 +432,7 @@ const Presale = () => {
   }, []);
 
   // =========================================================
-  // CONTRACT PRIVATE SALE STATUS
+  // CONTRACT STATUS
   // =========================================================
 
   const checkPresaleStatus = useCallback(async () => {
@@ -248,12 +467,16 @@ const Presale = () => {
   }, [checkPresaleStatus]);
 
   // =========================================================
-  // PRIVATE SALE ALLOCATION
+  // PRIVATE SALE QUOTE
   // =========================================================
 
   const fetchQuote = useCallback(
     async (value) => {
-      if (!publicClient || value < MIN_DEPOSIT || value > MAX_DEPOSIT) {
+      if (
+        !publicClient ||
+        value < MIN_DEPOSIT ||
+        value > MAX_DEPOSIT
+      ) {
         setQuote(null);
         return;
       }
@@ -261,7 +484,10 @@ const Presale = () => {
       setQuoteLoading(true);
 
       try {
-        const amountWei = parseUnits(String(value), USDT_DECIMALS);
+        const amountWei = parseUnits(
+          String(value),
+          USDT_DECIMALS
+        );
 
         const bonusBps = await publicClient.readContract({
           address: STAKING_ADDRESS,
@@ -270,17 +496,30 @@ const Presale = () => {
           args: [amountWei],
         });
 
-        const baseEwcWei = (amountWei * 10n ** 18n) / PRESALE_PRICE_WEI;
+        const baseEwcWei =
+          (amountWei * 10n ** 18n) / PRESALE_PRICE_WEI;
 
-        const bonusEwcWei = (baseEwcWei * bonusBps) / BPS;
+        const bonusEwcWei =
+          (baseEwcWei * bonusBps) / BPS;
 
-        const totalEwcWei = baseEwcWei + bonusEwcWei;
+        const totalEwcWei =
+          baseEwcWei + bonusEwcWei;
 
         setQuote({
           price: PRESALE_PRICE,
-          baseEwc: Number(formatUnits(baseEwcWei, EWC_DECIMALS)),
-          bonusEwc: Number(formatUnits(bonusEwcWei, EWC_DECIMALS)),
-          totalEwc: Number(formatUnits(totalEwcWei, EWC_DECIMALS)),
+
+          baseEwc: Number(
+            formatUnits(baseEwcWei, EWC_DECIMALS)
+          ),
+
+          bonusEwc: Number(
+            formatUnits(bonusEwcWei, EWC_DECIMALS)
+          ),
+
+          totalEwc: Number(
+            formatUnits(totalEwcWei, EWC_DECIMALS)
+          ),
+
           bonusPercent: Number(bonusBps) / 100,
         });
       } catch (error) {
@@ -290,7 +529,7 @@ const Presale = () => {
         setQuoteLoading(false);
       }
     },
-    [publicClient],
+    [publicClient]
   );
 
   useEffect(() => {
@@ -305,40 +544,49 @@ const Presale = () => {
   // VERIFY MEMBER
   // =========================================================
 
-  const verifyInvestmentAccount = useCallback(async (walletAddress) => {
-    if (!walletAddress) {
-      setBeneficiaryMember(null);
-      setAccountError("Wallet address is required.");
-      return null;
-    }
-
-    setAccountChecking(true);
-    setAccountError("");
-    setBeneficiaryMember(null);
-
-    try {
-      const response = await api.post("/auth/check-investment-account", {
-        address: walletAddress,
-      });
-
-      if (response.data?.success && response.data?.member) {
-        setBeneficiaryMember(response.data.member);
-        return response.data.member;
+  const verifyInvestmentAccount = useCallback(
+    async (walletAddress) => {
+      if (!walletAddress) {
+        setBeneficiaryMember(null);
+        setAccountError("Wallet address is required.");
+        return null;
       }
 
-      setAccountError("Unable to verify this account.");
-      return null;
-    } catch (error) {
-      const message =
-        error?.response?.data?.message ||
-        "Unable to verify this wallet address.";
+      setAccountChecking(true);
+      setAccountError("");
+      setBeneficiaryMember(null);
 
-      setAccountError(message);
-      return null;
-    } finally {
-      setAccountChecking(false);
-    }
-  }, []);
+      try {
+        const response = await api.post(
+          "/auth/check-investment-account",
+          {
+            address: walletAddress,
+          }
+        );
+
+        if (
+          response.data?.success &&
+          response.data?.member
+        ) {
+          setBeneficiaryMember(response.data.member);
+          return response.data.member;
+        }
+
+        setAccountError("Unable to verify this account.");
+        return null;
+      } catch (error) {
+        const message =
+          error?.response?.data?.message ||
+          "Unable to verify this wallet address.";
+
+        setAccountError(message);
+        return null;
+      } finally {
+        setAccountChecking(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isConnected || !address) {
@@ -354,7 +602,12 @@ const Presale = () => {
       setBeneficiaryMember(null);
       setAccountError("");
     }
-  }, [investmentType, address, isConnected, verifyInvestmentAccount]);
+  }, [
+    investmentType,
+    address,
+    isConnected,
+    verifyInvestmentAccount,
+  ]);
 
   const handleVerifyOtherAccount = async () => {
     const cleanAddress = beneficiaryAddress.trim();
@@ -368,29 +621,91 @@ const Presale = () => {
   };
 
   // =========================================================
-  // AMOUNT
+  // FETCH PRIVATE SALE HISTORY
+  // =========================================================
+
+  const fetchPresaleHistory = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError("");
+
+      const response = await api.get("/investment/history");
+
+      if (!response.data?.success) {
+        throw new Error("Unable to load investment history.");
+      }
+
+      const investments = response.data.investments || [];
+
+      const filtered = investments.filter(
+        (investment) => investment.isPresale === true
+      );
+
+      setPresaleHistory(filtered);
+    } catch (error) {
+      console.error("Private Sale history error:", error);
+
+      setHistoryError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load Private Sale history."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPresaleHistory();
+  }, [fetchPresaleHistory]);
+
+  // =========================================================
+  // HISTORY SUMMARY
+  // =========================================================
+
+  const historySummary = useMemo(() => {
+    const confirmed = presaleHistory.filter(
+      (item) => Number(item.status) === 1
+    );
+
+    return confirmed.reduce(
+      (totals, item) => {
+        totals.totalInvested += Number(item.amount || 0);
+        totals.baseEwc += Number(item.baseEwc || 0);
+        totals.bonusEwc += Number(item.bonusEwc || 0);
+        totals.totalEwc += Number(item.ewcAllocation || 0);
+
+        return totals;
+      },
+      {
+        totalInvested: 0,
+        baseEwc: 0,
+        bonusEwc: 0,
+        totalEwc: 0,
+      }
+    );
+  }, [presaleHistory]);
+
+  // =========================================================
+  // AMOUNT HANDLERS
   // =========================================================
 
   const handleAmountChange = (event) => {
-  const value = event.target.value;
+    const value = event.target.value;
 
-  if (value === "") {
-    setAmount("");
+    if (value === "") {
+      setAmount("");
+      setTxError("");
+      return;
+    }
+
+    if (!/^\d*\.?\d{0,2}$/.test(value)) return;
+
+    if (Number(value) < 0) return;
+
+    setAmount(value);
     setTxError("");
-    return;
-  }
-
-  if (!/^\d*\.?\d{0,2}$/.test(value)) {
-    return;
-  }
-
-  if (Number(value) < 0) {
-    return;
-  }
-
-  setAmount(value);
-  setTxError("");
-};
+  };
 
   const selectPreset = (value) => {
     if (transactionBusy) return;
@@ -410,11 +725,16 @@ const Presale = () => {
     const available = Math.min(balance, MAX_DEPOSIT);
 
     if (available < MIN_DEPOSIT) {
-      setTxError(`Minimum private sale investment is $${MIN_DEPOSIT}.`);
+      setTxError(
+        `Minimum private sale investment is $${MIN_DEPOSIT}.`
+      );
       return;
     }
 
-    setAmount(String(available));
+    // Keep the amount within two decimal places.
+    const maxAmount = Math.floor(available * 100) / 100;
+
+    setAmount(maxAmount.toFixed(2));
     setTxError("");
   };
 
@@ -442,7 +762,7 @@ const Presale = () => {
 
     if (!validAmount) {
       setTxError(
-        `Enter an amount between $${MIN_DEPOSIT} and $${MAX_DEPOSIT}.`,
+        `Enter an amount between $${MIN_DEPOSIT} and $${MAX_DEPOSIT}.`
       );
       return;
     }
@@ -469,7 +789,8 @@ const Presale = () => {
     }
 
     try {
-      const verifiedMember = await verifyInvestmentAccount(beneficiary);
+      const verifiedMember =
+        await verifyInvestmentAccount(beneficiary);
 
       if (!verifiedMember) {
         setTxError("Beneficiary verification failed.");
@@ -487,7 +808,10 @@ const Presale = () => {
         return;
       }
 
-      const amountWei = parseUnits(amount, USDT_DECIMALS);
+      const amountWei = parseUnits(
+        amount,
+        USDT_DECIMALS
+      );
 
       const freshBalance = await publicClient.readContract({
         address: USDT_ADDRESS,
@@ -518,9 +842,10 @@ const Presale = () => {
           args: [STAKING_ADDRESS, amountWei],
         });
 
-        const approvalReceipt = await publicClient.waitForTransactionReceipt({
-          hash: approvalHash,
-        });
+        const approvalReceipt =
+          await publicClient.waitForTransactionReceipt({
+            hash: approvalHash,
+          });
 
         if (approvalReceipt.status !== "success") {
           throw new Error("USDT approval failed.");
@@ -531,8 +856,7 @@ const Presale = () => {
 
       setTxStatus("investing");
 
-      // During private sale, the contract performs no PancakeSwap.
-      // minEwcOut is therefore zero.
+      // No PancakeSwap market buy during Private Sale.
       const minEwcOut = 0n;
 
       let depositHash;
@@ -555,9 +879,10 @@ const Presale = () => {
         });
       }
 
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: depositHash,
-      });
+      const receipt =
+        await publicClient.waitForTransactionReceipt({
+          hash: depositHash,
+        });
 
       if (receipt.status !== "success") {
         throw new Error("Private Sale transaction failed.");
@@ -567,14 +892,28 @@ const Presale = () => {
       setAmount("");
       setQuote(null);
 
-      await Promise.all([refetchBalance?.(), refetchAllowance?.()]);
+      await Promise.all([
+        refetchBalance?.(),
+        refetchAllowance?.(),
+      ]);
 
-      setTimeout(() => setTxStatus(""), 5000);
+      // The database may need time to index the event.
+      fetchPresaleHistory();
+
+      setTimeout(() => {
+        fetchPresaleHistory();
+      }, 5000);
+
+      setTimeout(() => {
+        setTxStatus("");
+      }, 5000);
     } catch (error) {
       console.error("Private Sale purchase error:", error);
 
       const message =
-        error?.shortMessage || error?.message || "Transaction failed.";
+        error?.shortMessage ||
+        error?.message ||
+        "Transaction failed.";
 
       setTxStatus("");
 
@@ -594,7 +933,8 @@ const Presale = () => {
 
   try {
     const raw =
-      localStorage.getItem("ewc_user") || sessionStorage.getItem("ewc_user");
+      localStorage.getItem("ewc_user") ||
+      sessionStorage.getItem("ewc_user");
 
     if (raw) storedUser = JSON.parse(raw);
   } catch (error) {
@@ -607,13 +947,13 @@ const Presale = () => {
   };
 
   // =========================================================
-  // BUTTON
+  // PURCHASE BUTTON
   // =========================================================
 
   let buttonText = "Enter Purchase Amount";
 
   if (phase === "upcoming") {
-    buttonText = "Private Sale Starts November 1";
+    buttonText = "Private Sale Coming Soon";
   } else if (phase === "ended") {
     buttonText = "Private Sale Has Ended";
   } else if (contractChecking) {
@@ -636,7 +976,10 @@ const Presale = () => {
     !contractPresaleActive ||
     contractChecking ||
     (isConnected &&
-      (!validAmount || !hasEnoughBalance || !quote || quoteLoading));
+      (!validAmount ||
+        !hasEnoughBalance ||
+        !quote ||
+        quoteLoading));
 
   // =========================================================
   // PAGE
@@ -649,7 +992,10 @@ const Presale = () => {
       subtitle="Exclusive Token Launch"
     >
       <div className={styles.page}>
-        {/* HERO */}
+
+        {/* =====================================================
+            HERO
+        ===================================================== */}
 
         <section className={styles.hero}>
           <div className={styles.heroGlow} />
@@ -661,8 +1007,8 @@ const Presale = () => {
               {phase === "upcoming"
                 ? "PRIVATE SALE COMING SOON"
                 : phase === "live"
-                  ? "PRIVATE SALE IS LIVE"
-                  : "PRIVATE SALE ENDED"}
+                ? "PRIVATE SALE IS LIVE"
+                : "PRIVATE SALE ENDED"}
             </div>
 
             <h1>
@@ -672,8 +1018,9 @@ const Presale = () => {
             </h1>
 
             <p className={styles.heroDescription}>
-              Join the Elevate World Community token private sale. Secure your EWC
-              allocation at a fixed launch price and unlock exclusive private sale
+              Join the Elevate World Community token private
+              sale. Secure your EWC allocation at a fixed
+              launch price and unlock exclusive private sale
               bonuses.
             </p>
 
@@ -706,8 +1053,8 @@ const Presale = () => {
                 {phase === "upcoming"
                   ? "PRIVATE SALE STARTS IN"
                   : phase === "live"
-                    ? "PRIVATE SALE ENDS IN"
-                    : "PRIVATE SALE COMPLETED"}
+                  ? "PRIVATE SALE ENDS IN"
+                  : "PRIVATE SALE COMPLETED"}
               </span>
             </div>
 
@@ -719,7 +1066,10 @@ const Presale = () => {
                   ["MINUTES", countdown.minutes],
                   ["SECONDS", countdown.seconds],
                 ].map(([label, value]) => (
-                  <div className={styles.countdownUnit} key={label}>
+                  <div
+                    className={styles.countdownUnit}
+                    key={label}
+                  >
                     <strong>{pad(value)}</strong>
                     <span>{label}</span>
                   </div>
@@ -744,40 +1094,48 @@ const Presale = () => {
                     phase === "upcoming"
                       ? 0
                       : phase === "ended"
-                        ? 100
-                        : Math.min(
-                            100,
-                            Math.max(
-                              0,
-                              ((now - PRESALE_START) /
-                                (PRESALE_END - PRESALE_START)) *
-                                100,
-                            ),
+                      ? 100
+                      : Math.min(
+                          100,
+                          Math.max(
+                            0,
+                            ((now - PRESALE_START) /
+                              (PRESALE_END - PRESALE_START)) *
+                              100
                           )
+                        )
                   }%`,
                 }}
               />
             </div>
 
-            <p className={styles.progressCaption}>Private Sale timeline progress</p>
+            <p className={styles.progressCaption}>
+              Private Sale timeline progress
+            </p>
           </div>
         </section>
 
-        {/* MAIN PURCHASE AREA */}
+        {/* =====================================================
+            PURCHASE AREA
+        ===================================================== */}
 
         <section className={styles.purchaseGrid}>
+
           {/* PURCHASE CARD */}
 
           <div className={styles.purchaseCard}>
             <div className={styles.cardHeading}>
               <div>
-                <span className={styles.eyebrow}>EXCLUSIVE PRIVATE SALE</span>
+                <span className={styles.eyebrow}>
+                  EXCLUSIVE PRIVATE SALE
+                </span>
 
                 <h2>Purchase EWC Tokens</h2>
 
                 <p>
-                  Choose how much USDT you'd like to spend. Your EWC allocation
-                  and private sale bonus will be calculated instantly.
+                  Choose how much USDT you'd like to spend.
+                  Your EWC allocation and private sale bonus
+                  will be calculated instantly.
                 </p>
               </div>
 
@@ -795,7 +1153,11 @@ const Presale = () => {
               <div className={styles.accountTabs}>
                 <button
                   type="button"
-                  className={investmentType === "self" ? styles.activeTab : ""}
+                  className={
+                    investmentType === "self"
+                      ? styles.activeTab
+                      : ""
+                  }
                   onClick={() => setInvestmentType("self")}
                   disabled={transactionBusy}
                 >
@@ -804,7 +1166,11 @@ const Presale = () => {
 
                 <button
                   type="button"
-                  className={investmentType === "other" ? styles.activeTab : ""}
+                  className={
+                    investmentType === "other"
+                      ? styles.activeTab
+                      : ""
+                  }
                   onClick={() => setInvestmentType("other")}
                   disabled={transactionBusy}
                 >
@@ -839,14 +1205,18 @@ const Presale = () => {
                       !beneficiaryAddress.trim()
                     }
                   >
-                    {accountChecking ? "Checking..." : "Verify"}
+                    {accountChecking
+                      ? "Checking..."
+                      : "Verify"}
                   </button>
                 </div>
               </div>
             )}
 
             {accountChecking && (
-              <div className={styles.infoMessage}>Verifying account...</div>
+              <div className={styles.infoMessage}>
+                Verifying account...
+              </div>
             )}
 
             {accountError && (
@@ -863,7 +1233,10 @@ const Presale = () => {
                 <div>
                   <strong>{beneficiaryMember.name}</strong>
 
-                  <span>{beneficiaryMember.user_id} · Verified Account</span>
+                  <span>
+                    {beneficiaryMember.user_id} ·
+                    Verified Account
+                  </span>
                 </div>
               </div>
             )}
@@ -903,21 +1276,29 @@ const Presale = () => {
               <div className={styles.amountLimits}>
                 <span>Min: ${MIN_DEPOSIT}</span>
 
-                <span>Max: ${MAX_DEPOSIT.toLocaleString()}</span>
+                <span>
+                  Max: ${MAX_DEPOSIT.toLocaleString()}
+                </span>
               </div>
 
               <div className={styles.amountPresets}>
-                {[10, 100, 1000, 10000, 50000, 100000].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => selectPreset(value)}
-                    className={amountNum === value ? styles.selectedPreset : ""}
-                    disabled={transactionBusy}
-                  >
-                    ${value.toLocaleString()}
-                  </button>
-                ))}
+                {[10, 100, 1000, 10000, 50000, 100000].map(
+                  (value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => selectPreset(value)}
+                      className={
+                        amountNum === value
+                          ? styles.selectedPreset
+                          : ""
+                      }
+                      disabled={transactionBusy}
+                    >
+                      ${value.toLocaleString()}
+                    </button>
+                  )
+                )}
               </div>
             </div>
 
@@ -926,7 +1307,6 @@ const Presale = () => {
             <div className={styles.allocationCard}>
               <div className={styles.allocationHeader}>
                 <span>Your EWC Token Allocation</span>
-
                 <Gift size={19} />
               </div>
 
@@ -934,8 +1314,8 @@ const Presale = () => {
                 {quoteLoading
                   ? "Calculating..."
                   : quote
-                    ? formatNumber(quote.totalEwc, 4)
-                    : "0"}
+                  ? formatNumber(quote.totalEwc, 4)
+                  : "0"}
 
                 {!quoteLoading && <small> EWC</small>}
               </div>
@@ -945,7 +1325,9 @@ const Presale = () => {
                   <span>Base Allocation</span>
 
                   <strong>
-                    {quote ? `${formatNumber(quote.baseEwc)} EWC` : "—"}
+                    {quote
+                      ? `${formatNumber(quote.baseEwc)} EWC`
+                      : "—"}
                   </strong>
                 </div>
 
@@ -953,7 +1335,9 @@ const Presale = () => {
                   <span>Private Sale Bonus</span>
 
                   <strong className={styles.bonusText}>
-                    {quote ? `+${formatNumber(quote.bonusEwc)} EWC` : "—"}
+                    {quote
+                      ? `+${formatNumber(quote.bonusEwc)} EWC`
+                      : "—"}
                   </strong>
                 </div>
 
@@ -961,7 +1345,9 @@ const Presale = () => {
                   <span>Bonus Percentage</span>
 
                   <strong className={styles.bonusText}>
-                    {quote ? `+${quote.bonusPercent}%` : "—"}
+                    {quote
+                      ? `+${quote.bonusPercent}%`
+                      : "—"}
                   </strong>
                 </div>
               </div>
@@ -992,6 +1378,7 @@ const Presale = () => {
               <div className={styles.successMessage}>
                 <CheckCircle2 size={16} />
                 EWC purchase completed successfully.
+                Your purchase history will update shortly.
               </div>
             )}
 
@@ -1004,8 +1391,8 @@ const Presale = () => {
               {txStatus === "approving"
                 ? "Approving USDT..."
                 : txStatus === "investing"
-                  ? "Confirming Purchase..."
-                  : buttonText}
+                ? "Confirming Purchase..."
+                : buttonText}
 
               {!transactionBusy && <ArrowRight size={18} />}
             </button>
@@ -1024,7 +1411,9 @@ const Presale = () => {
                 <Gift size={23} />
               </div>
 
-              <span className={styles.eyebrow}>PRIVATE SALE EXCLUSIVE</span>
+              <span className={styles.eyebrow}>
+                PRIVATE SALE EXCLUSIVE
+              </span>
 
               <h3>
                 More EWC.
@@ -1033,8 +1422,9 @@ const Presale = () => {
               </h3>
 
               <p>
-                Receive additional EWC tokens based on your investment tier
-                during the limited private sale.
+                Receive additional EWC tokens based on
+                your investment tier during the limited
+                private sale.
               </p>
 
               <div className={styles.highlightStat}>
@@ -1055,7 +1445,8 @@ const Presale = () => {
                   <strong>Fixed Private Sale Price</strong>
 
                   <p>
-                    EWC is allocated at $0.01 per token throughout the private sale.
+                    EWC is allocated at $0.01 per token
+                    throughout the private sale.
                   </p>
                 </div>
               </div>
@@ -1068,7 +1459,10 @@ const Presale = () => {
                 <div>
                   <strong>Exclusive Bonus Allocation</strong>
 
-                  <p>Earn additional EWC based on your investment amount.</p>
+                  <p>
+                    Earn additional EWC based on your
+                    investment amount.
+                  </p>
                 </div>
               </div>
 
@@ -1081,8 +1475,8 @@ const Presale = () => {
                   <strong>Five-Year Token Lock</strong>
 
                   <p>
-                    Purchased EWC is locked immediately under the platform's
-                    locking mechanism.
+                    Purchased EWC is locked immediately
+                    under the platform's locking mechanism.
                   </p>
                 </div>
               </div>
@@ -1093,11 +1487,14 @@ const Presale = () => {
                 </div>
 
                 <div>
-                  <strong>Staking Rewards Waiting Period</strong>
+                  <strong>
+                    Staking Rewards Waiting Period
+                  </strong>
 
                   <p>
-                    The 100-day waiting period for staking rewards begins
-                    December 1, 2026 for all Private Sale purchases.
+                    The 100-day waiting period for staking
+                    rewards begins December 1, 2026 for
+                    all Private Sale purchases.
                   </p>
                 </div>
               </div>
@@ -1105,17 +1502,264 @@ const Presale = () => {
           </div>
         </section>
 
-        {/* BONUS TIERS */}
+        {/* =====================================================
+            PRIVATE SALE HISTORY
+        ===================================================== */}
+
+        <section style={historyStyles.section}>
+          <div className={styles.sectionHeading}>
+            <span className={styles.eyebrow}>
+              YOUR PRIVATE SALE PORTFOLIO
+            </span>
+
+            <h2>My Private Sale Purchases</h2>
+
+            <p>
+              Track your investments, bonus EWC, and
+              total token allocation.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginBottom: 18,
+            }}
+          >
+            <button
+              type="button"
+              style={historyStyles.refreshButton}
+              onClick={fetchPresaleHistory}
+              disabled={historyLoading}
+            >
+              <RefreshCw size={15} />
+
+              {historyLoading
+                ? "Refreshing..."
+                : "Refresh History"}
+            </button>
+          </div>
+
+          {historyLoading ? (
+            <div style={historyStyles.empty}>
+              <RefreshCw size={26} />
+
+              <p>Loading your Private Sale purchases...</p>
+            </div>
+          ) : historyError ? (
+            <div style={historyStyles.empty}>
+              <AlertCircle size={28} />
+
+              <p>{historyError}</p>
+
+              <button
+                type="button"
+                style={historyStyles.refreshButton}
+                onClick={fetchPresaleHistory}
+              >
+                Try Again
+              </button>
+            </div>
+          ) : presaleHistory.length === 0 ? (
+            <div style={historyStyles.empty}>
+              <Coins size={34} />
+
+              <h3 style={{ color: "#fff", margin: 0 }}>
+                No Private Sale Purchases Yet
+              </h3>
+
+              <p style={{ margin: 0 }}>
+                Your Private Sale purchase history
+                will appear here.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* SUMMARY */}
+
+              <div style={historyStyles.summary}>
+                <div style={historyStyles.statCard}>
+                  <span style={historyStyles.statLabel}>
+                    Total USDT Invested
+                  </span>
+
+                  <strong style={historyStyles.statValue}>
+                    {formatUsd(historySummary.totalInvested)}
+                  </strong>
+                </div>
+
+                <div style={historyStyles.statCard}>
+                  <span style={historyStyles.statLabel}>
+                    Base EWC Allocation
+                  </span>
+
+                  <strong style={historyStyles.statValue}>
+                    {formatNumber(
+                      historySummary.baseEwc,
+                      2
+                    )}
+                  </strong>
+                </div>
+
+                <div style={historyStyles.statCard}>
+                  <span style={historyStyles.statLabel}>
+                    Total Bonus EWC
+                  </span>
+
+                  <strong style={historyStyles.statValue}>
+                    +{formatNumber(
+                      historySummary.bonusEwc,
+                      2
+                    )}
+                  </strong>
+                </div>
+
+                <div style={historyStyles.statCard}>
+                  <span style={historyStyles.statLabel}>
+                    Total EWC Allocated
+                  </span>
+
+                  <strong style={historyStyles.statValue}>
+                    {formatNumber(
+                      historySummary.totalEwc,
+                      2
+                    )}
+                  </strong>
+                </div>
+              </div>
+
+              {/* HISTORY CARDS */}
+
+              <div style={historyStyles.list}>
+                {presaleHistory.map((purchase) => (
+                  <div
+                    key={purchase.id}
+                    style={historyStyles.card}
+                  >
+                    <div style={historyStyles.cardHeader}>
+                      <div>
+                        <span style={historyStyles.label}>
+                          PRIVATE SALE PURCHASE
+                        </span>
+
+                        <h3 style={historyStyles.amount}>
+                          {formatUsd(purchase.amount)}
+                        </h3>
+
+                        <small style={historyStyles.date}>
+                          {formatDate(purchase.createdOn)}
+                        </small>
+                      </div>
+
+                      <span style={historyStyles.badge}>
+                        <CheckCircle2 size={14} />
+
+                        {Number(purchase.status) === 1
+                          ? "Completed"
+                          : "Processing"}
+                      </span>
+                    </div>
+
+                    <div style={historyStyles.details}>
+                      <div>
+                        <span style={historyStyles.detailLabel}>
+                          EWC Price
+                        </span>
+
+                        <strong style={historyStyles.detailValue}>
+                          ${purchase.ewcPrice}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span style={historyStyles.detailLabel}>
+                          Base EWC
+                        </span>
+
+                        <strong style={historyStyles.detailValue}>
+                          {formatNumber(
+                            purchase.baseEwc,
+                            2
+                          )}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span style={historyStyles.detailLabel}>
+                          Bonus Percentage
+                        </span>
+
+                        <strong style={historyStyles.bonusValue}>
+                          +{formatNumber(
+                            purchase.bonusPercentage,
+                            2
+                          )}%
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span style={historyStyles.detailLabel}>
+                          Bonus EWC
+                        </span>
+
+                        <strong style={historyStyles.bonusValue}>
+                          +{formatNumber(
+                            purchase.bonusEwc,
+                            2
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div style={historyStyles.total}>
+                      <span style={historyStyles.totalLabel}>
+                        Total EWC Allocated
+                      </span>
+
+                      <strong style={historyStyles.totalValue}>
+                        {formatNumber(
+                          purchase.ewcAllocation,
+                          2
+                        )}{" "}
+                        EWC
+                      </strong>
+                    </div>
+
+                    {purchase.txnId && (
+                      <a
+                        href={`https://testnet.bscscan.com/tx/${purchase.txnId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={historyStyles.txLink}
+                      >
+                        View Transaction
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* =====================================================
+            BONUS TIERS
+        ===================================================== */}
 
         <section className={styles.tiersSection}>
           <div className={styles.sectionHeading}>
-            <span className={styles.eyebrow}>EXCLUSIVE REWARDS</span>
+            <span className={styles.eyebrow}>
+              EXCLUSIVE REWARDS
+            </span>
 
             <h2>Unlock Your Private Sale Bonus</h2>
 
             <p>
-              Higher investment tiers unlock additional EWC allocation at the
-              same fixed private sale price.
+              Higher investment tiers unlock additional
+              EWC allocation at the same fixed private
+              sale price.
             </p>
           </div>
 
@@ -1136,13 +1780,13 @@ const Presale = () => {
                 >
                   <div className={styles.tierTop}>
                     <span>
-                      {nextTier
-                        ? `$${tier.min.toLocaleString()}+`
-                        : `$${tier.min.toLocaleString()}+`}
+                      ${tier.min.toLocaleString()}+
                     </span>
 
                     {active && (
-                      <span className={styles.currentTier}>YOUR TIER</span>
+                      <span className={styles.currentTier}>
+                        YOUR TIER
+                      </span>
                     )}
                   </div>
 
@@ -1155,11 +1799,15 @@ const Presale = () => {
           </div>
         </section>
 
-        {/* TIMELINE */}
+        {/* =====================================================
+            TIMELINE
+        ===================================================== */}
 
         <section className={styles.timelineSection}>
           <div className={styles.sectionHeading}>
-            <span className={styles.eyebrow}>IMPORTANT DATES</span>
+            <span className={styles.eyebrow}>
+              IMPORTANT DATES
+            </span>
 
             <h2>Your EWC Journey</h2>
           </div>
@@ -1173,8 +1821,8 @@ const Presale = () => {
               <strong>Private Sale Begins</strong>
 
               <p>
-                Purchase EWC at the fixed private sale price and receive your bonus
-                allocation.
+                Purchase EWC at the fixed private sale
+                price and receive your bonus allocation.
               </p>
             </div>
 
@@ -1185,7 +1833,10 @@ const Presale = () => {
 
               <strong>Private Sale Ends</strong>
 
-              <p>The limited-time private sale closes and exclusive bonuses end.</p>
+              <p>
+                The limited-time private sale closes
+                and exclusive bonuses end.
+              </p>
             </div>
 
             <div className={styles.timelineCard}>
@@ -1193,11 +1844,13 @@ const Presale = () => {
 
               <h3>December 1, 2026</h3>
 
-              <strong>Staking Rewards Waiting Period Starts</strong>
+              <strong>
+                Staking Rewards Waiting Period Starts
+              </strong>
 
               <p>
-                All November private sale investments begin their 100-day waiting
-                period.
+                All November private sale investments
+                begin their 100-day waiting period.
               </p>
             </div>
 
@@ -1206,25 +1859,32 @@ const Presale = () => {
 
               <h3>March 11, 2027</h3>
 
-              <strong>First Staking Rewards Eligibility</strong>
+              <strong>
+                First Staking Rewards Eligibility
+              </strong>
 
               <p>
-                Private Sale investments reach day 101 under the platform's Staking
-                Rewards schedule.
+                Private Sale investments reach day 101
+                under the platform's Staking Rewards
+                schedule.
               </p>
             </div>
           </div>
         </section>
 
-        {/* FOOTER */}
+        {/* =====================================================
+            FOOTER
+        ===================================================== */}
 
         <div className={styles.bottomNotice}>
           <ShieldCheck size={19} />
 
           <p>
-            EWC private sale allocations are calculated using the fixed private sale price
-            and applicable bonus tier. All transactions are executed on BNB
-            Smart Chain. Review the smart contract terms before purchasing.
+            EWC private sale allocations are calculated
+            using the fixed private sale price and
+            applicable bonus tier. All transactions are
+            executed on BNB Smart Chain. Review the
+            smart contract terms before purchasing.
           </p>
         </div>
       </div>

@@ -147,6 +147,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         uint256 commissionUSDT;
         uint256 treasuryUSDT;
         uint256 timestamp;
+        // Private Sale information
+        bool isPresale;
+        uint256 bonusEWC;
     }
 
     struct ClaimRecord {
@@ -628,7 +631,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
                 marketBoughtEWC: marketBoughtEWC,
                 commissionUSDT: commissionUSDT,
                 treasuryUSDT: treasuryUSDT,
-                timestamp: block.timestamp
+                timestamp: block.timestamp,
+                isPresale: isPresale,
+                bonusEWC: bonusEWC
             })
         );
 
@@ -1079,7 +1084,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             uint256 marketBoughtEWC,
             uint256 commissionUSDT,
             uint256 treasuryUSDT,
-            uint256 timestamp
+            uint256 timestamp,
+            bool isPresale,
+            uint256 bonusEWC
         )
     {
         Deposit memory d = _deposits[user][index];
@@ -1093,7 +1100,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             d.marketBoughtEWC,
             d.commissionUSDT,
             d.treasuryUSDT,
-            d.timestamp
+            d.timestamp,
+            d.isPresale,
+            d.bonusEWC
         );
     }
 
