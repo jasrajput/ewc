@@ -25,7 +25,7 @@ import {
 
 import styles from "./Withdrawal.module.css";
 
-const BSC_CHAIN_ID = 56;
+const BSC_CHAIN_ID = 97;
 
 const TOKEN_ABI = [
   {
