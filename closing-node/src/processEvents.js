@@ -16,21 +16,25 @@ const HEALTHCHECK_INTERVAL_MS = Number(process.env.HEALTHCHECK_INTERVAL_MS) || 6
 const MAX_CONSECUTIVE_RPC_FAILURES = 5;
 const DIRECT_INCOME_PERCENT = 10;
 const PRESALE_PRICE_USDT = 0.01;
+
 const RANKS = [
-    // Direct business threshold OR (community volume + two preceding-rank members).
-    { rank: 1, directBusiness: 1000, teamBusiness: 1000, requiredRank: 0, requiredCount: 0, percent: 1 },
-    { rank: 2, directBusiness: 1500, teamBusiness: 3000, requiredRank: 1, requiredCount: 2, percent: 3 },
-    { rank: 3, directBusiness: 5000, teamBusiness: 10000, requiredRank: 2, requiredCount: 2, percent: 6 },
-    { rank: 4, directBusiness: 15000, teamBusiness: 30000, requiredRank: 3, requiredCount: 2, percent: 9 },
-    { rank: 5, directBusiness: 50000, teamBusiness: 100000, requiredRank: 4, requiredCount: 2, percent: 12 },
-    { rank: 6, directBusiness: 150000, teamBusiness: 300000, requiredRank: 5, requiredCount: 2, percent: 15 },
-    { rank: 7, directBusiness: 500000, teamBusiness: 1000000, requiredRank: 6, requiredCount: 2, percent: 18 },
-    { rank: 8, directBusiness: 1500000, teamBusiness: 3000000, requiredRank: 7, requiredCount: 2, percent: 21 },
-    { rank: 9, directBusiness: 5000000, teamBusiness: 10000000, requiredRank: 8, requiredCount: 2, percent: 24 },
-    { rank: 10, directBusiness: 15000000, teamBusiness: 30000000, requiredRank: 9, requiredCount: 2, percent: 26 },
-    { rank: 11, directBusiness: 50000000, teamBusiness: 100000000, requiredRank: 10, requiredCount: 2, percent: 28 },
-    { rank: 12, directBusiness: 250000000, teamBusiness: 500000000, requiredRank: 11, requiredCount: 2, percent: 30 }
+    // Personal investment is mandatory for both qualification paths.
+    // Path 1: Direct business
+    // Path 2: Community business + required ranked direct members.
+    { rank: 1, personalInvestment: 50, directBusiness: 1000, teamBusiness: 1000, requiredRank: 0, requiredCount: 0, percent: 1 },
+    { rank: 2, personalInvestment: 50, directBusiness: 1500, teamBusiness: 3000, requiredRank: 1, requiredCount: 2, percent: 3 },
+    { rank: 3, personalInvestment: 50, directBusiness: 5000, teamBusiness: 10000, requiredRank: 2, requiredCount: 2, percent: 6 },
+    { rank: 4, personalInvestment: 100, directBusiness: 15000, teamBusiness: 30000, requiredRank: 3, requiredCount: 2, percent: 9 },
+    { rank: 5, personalInvestment: 200, directBusiness: 50000, teamBusiness: 100000, requiredRank: 4, requiredCount: 2, percent: 12 },
+    { rank: 6, personalInvestment: 300, directBusiness: 150000, teamBusiness: 300000, requiredRank: 5, requiredCount: 2, percent: 15 },
+    { rank: 7, personalInvestment: 500, directBusiness: 500000, teamBusiness: 1000000, requiredRank: 6, requiredCount: 2, percent: 18 },
+    { rank: 8, personalInvestment: 750, directBusiness: 1500000, teamBusiness: 3000000, requiredRank: 7, requiredCount: 2, percent: 21 },
+    { rank: 9, personalInvestment: 1500, directBusiness: 5000000, teamBusiness: 10000000, requiredRank: 8, requiredCount: 2, percent: 24 },
+    { rank: 10, personalInvestment: 3000, directBusiness: 15000000, teamBusiness: 30000000, requiredRank: 9, requiredCount: 2, percent: 26 },
+    { rank: 11, personalInvestment: 5000, directBusiness: 50000000, teamBusiness: 100000000, requiredRank: 10, requiredCount: 2, percent: 28 },
+    { rank: 12, personalInvestment: 10000, directBusiness: 250000000, teamBusiness: 500000000, requiredRank: 11, requiredCount: 2, percent: 30 }
 ];
+
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const PRESALE_ABI = [
@@ -603,31 +607,85 @@ async function getRankedDownlineCount(connection, memberId, requiredRank) {
     return Number(rows[0]?.total || 0);
 }
 
+
+async function getPersonalInvestment(connection, memberId) {
+    const [rows] = await connection.execute(
+        `SELECT COALESCE(package_amount, 0) AS personal_investment
+         FROM member
+         WHERE id = ?
+         LIMIT 1`,
+        [memberId]
+    );
+
+    return Number(rows[0]?.personal_investment || 0);
+}
+
+
+
 async function calculateQualifiedRank(connection, memberId) {
-    const directBusiness = await getDirectBusiness(connection, memberId);
-    const teamBusiness = await getTeamBusiness(connection, memberId);
+    const personalInvestment = await getPersonalInvestment(
+        connection,
+        memberId
+    );
+
+    const directBusiness = await getDirectBusiness(
+        connection,
+        memberId
+    );
+
+    const teamBusiness = await getTeamBusiness(
+        connection,
+        memberId
+    );
 
     let qualifiedRank = 0;
 
     for (const rank of RANKS) {
-        const directRoute = directBusiness >= rank.directBusiness;
-        let communityRoute = false;
-        if (teamBusiness >= rank.teamBusiness) {
-            const rankedCount = rank.requiredCount > 0
-                ? await getRankedDownlineCount(connection, memberId, rank.requiredRank)
-                : 0;
-            communityRoute = rankedCount >= rank.requiredCount;
+        // Mandatory personal investment for every rank.
+        const personalQualified =
+            personalInvestment >= rank.personalInvestment;
+
+        if (!personalQualified) {
+            break;
         }
-        if (!directRoute && !communityRoute) break;
+
+        // Path 1: Direct business alone.
+        const directRoute =
+            directBusiness >= rank.directBusiness;
+
+        // Path 2: Community business AND ranked direct members.
+        let communityRoute = false;
+
+        if (teamBusiness >= rank.teamBusiness) {
+            const rankedCount =
+                rank.requiredCount > 0
+                    ? await getRankedDownlineCount(
+                        connection,
+                        memberId,
+                        rank.requiredRank
+                    )
+                    : 0;
+
+            communityRoute =
+                rankedCount >= rank.requiredCount;
+        }
+
+        // Personal investment AND (Path 1 OR Path 2).
+        if (!directRoute && !communityRoute) {
+            break;
+        }
+
         qualifiedRank = rank.rank;
     }
 
     return {
         rank: qualifiedRank,
+        personalInvestment,
         directBusiness,
         teamBusiness
     };
 }
+
 
 async function updateUplineRanks(connection, member) {
     let parentUserId = member.real_sponsor_id;
