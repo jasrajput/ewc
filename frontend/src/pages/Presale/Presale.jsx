@@ -670,16 +670,16 @@ const Presale = () => {
           address: PRESALE_ADDRESS,
           abi: PRESALE_ABI,
           functionName: "deposit",
-          args: [amountWei, minEwcOut],
-          gas: 9000000n,
+          args: [amountWei],
+          // gas: 9000000n,
         });
       } else {
         depositHash = await writeContract({
           address: PRESALE_ADDRESS,
           abi: PRESALE_ABI,
           functionName: "depositFor",
-          args: [beneficiary, amountWei, minEwcOut],
-          gas: 9000000n,
+          args: [beneficiary, amountWei],
+          // gas: 9000000n,
         });
       }
 
