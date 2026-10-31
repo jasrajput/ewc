@@ -46,6 +46,7 @@ const PAIR_ABI = [
 
 const SNAPSHOT_DIR = path.resolve(
     __dirname,
+    "..",
     config.merkleDirectory || "merkle_snapshots"
 );
 

@@ -25,3 +25,7 @@ npm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+
+# Generated Merkle snapshots
+closing-node/merkle_snapshots/
+closing-node/src/merkle_snapshots/
