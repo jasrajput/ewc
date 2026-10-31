@@ -960,10 +960,18 @@ const Presale = () => {
 
             {accountError && (
               <div className={styles.errorMessage}>
-                <AlertCircle size={17} />
+                <AlertCircle size={18} />
 
-                <div>
-                  <p>{accountError}</p>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: "block", marginBottom: 6 }}>
+                    Wallet Not Linked
+                  </strong>
+
+                  <p style={{ margin: 0, lineHeight: 1.6 }}>
+                    {accountError.includes("not linked to an EWC account")
+                      ? "Your connected wallet isn't linked to your EWC account. Link it to continue with your purchase."
+                      : accountError}
+                  </p>
 
                   {investmentType === "self" &&
                     accountError.includes("not linked to an EWC account") && (
@@ -972,13 +980,21 @@ const Presale = () => {
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: "6px",
-                          marginTop: "10px",
-                          fontWeight: 600,
-                          textDecoration: "underline",
+                          justifyContent: "center",
+                          gap: 8,
+                          marginTop: 14,
+                          padding: "10px 18px",
+                          borderRadius: 8,
+                          background:
+                            "linear-gradient(135deg, #e9c45a, #b68c32)",
+                          color: "#111111",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          textDecoration: "none",
                         }}
                       >
-                        Go to Wallet Page
+                        <Wallet size={16} />
+                        Link Wallet
                         <ArrowRight size={15} />
                       </a>
                     )}
