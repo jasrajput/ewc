@@ -2,6 +2,13 @@
 name: Deploy EWC to AWS Lightsail
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'closing-node/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -13,18 +20,23 @@ concurrency:
 
 jobs:
   deploy:
+    name: Deploy EWC Backend and Closing
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     steps:
+      # Step 1: Checkout latest GitHub code
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      # Step 2: Configure SSH
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
         run: |
           set -e
+
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
@@ -34,7 +46,7 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      
+      # Step 3: Deploy main backend
       - name: Deploy backend
         run: |
           rsync -rz \
@@ -46,6 +58,7 @@ jobs:
             --exclude='*.log' \
             ./backend/ ubuntu@13.206.187.201:/var/www/ewc/backend/
 
+      # Step 4: Deploy closing system
       - name: Deploy closing-node
         run: |
           rsync -rz \
@@ -57,20 +70,51 @@ jobs:
             --exclude='*.log' \
             ./closing-node/ ubuntu@13.206.187.201:/var/www/ewc/closing-node/
 
+      # Step 5: Install dependencies and restart PM2
       - name: Install dependencies and restart applications
         run: |
           ssh -o BatchMode=yes ubuntu@13.206.187.201 'bash -se' <<'EOF'
             set -e
 
+            echo "Installing backend dependencies..."
             cd /var/www/ewc/backend
             npm ci --omit=dev
 
+            echo "Installing closing-node dependencies..."
             cd /var/www/ewc/closing-node
             npm ci --omit=dev
 
+            echo "Restarting EWC applications..."
             pm2 restart server --update-env
             pm2 restart processEvents --update-env
 
             sleep 5
+
+            echo "Checking application status..."
             pm2 list
+
+            pm2 jlist | node -e '
+              let data = "";
+              process.stdin.on("data", c => data += c);
+              process.stdin.on("end", () => {
+                const processes = JSON.parse(data);
+                for (const name of ["server", "processEvents"]) {
+                  const app = processes.find(p => p.name === name);
+                  if (!app || app.pm2_env.status !== "online") {
+                    console.error(name + " is not online");
+                    process.exitCode = 1;
+                  } else {
+                    console.log(name + " is online");
+                  }
+                }
+              });
+            '
           EOF
+
+      # Step 6: Completion
+      - name: Deployment completed
+        run: |
+          echo "EWC deployment completed successfully."
+          echo "Backend deployed."
+          echo "Closing-node deployed."
+          echo "Frontend and contracts were not deployed."
