@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   Award,
   Check,
+  CheckCircle2,
   CircleDollarSign,
   Crown,
   Target,
@@ -15,21 +16,6 @@ import api from "../../services/api";
 import UserLayout from "../../components/layout/UserLayout";
 import styles from "./Rank.module.css";
 
-const RANK_REQUIREMENTS = [
-  { level: 1, personal: 50, direct: 1000, team: 1000, requiredRank: 0, count: 0 },
-  { level: 2, personal: 50, direct: 1500, team: 3000, requiredRank: 1, count: 2 },
-  { level: 3, personal: 50, direct: 5000, team: 10000, requiredRank: 2, count: 2 },
-  { level: 4, personal: 100, direct: 15000, team: 30000, requiredRank: 3, count: 2 },
-  { level: 5, personal: 200, direct: 50000, team: 100000, requiredRank: 4, count: 2 },
-  { level: 6, personal: 300, direct: 150000, team: 300000, requiredRank: 5, count: 2 },
-  { level: 7, personal: 500, direct: 500000, team: 1000000, requiredRank: 6, count: 2 },
-  { level: 8, personal: 750, direct: 1500000, team: 3000000, requiredRank: 7, count: 2 },
-  { level: 9, personal: 1500, direct: 5000000, team: 10000000, requiredRank: 8, count: 2 },
-  { level: 10, personal: 3000, direct: 15000000, team: 30000000, requiredRank: 9, count: 2 },
-  { level: 11, personal: 5000, direct: 50000000, team: 100000000, requiredRank: 10, count: 2 },
-  { level: 12, personal: 10000, direct: 250000000, team: 500000000, requiredRank: 11, count: 2 },
-];
-
 const formatUsd = (value) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -37,11 +23,14 @@ const formatUsd = (value) =>
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
 
-const percentage = (current, required) => {
-  if (!required) return 100;
+const getPercentage = (current, required) => {
+  const target = Number(required || 0);
+
+  if (target <= 0) return 100;
+
   return Math.min(
     100,
-    Math.max(0, (Number(current || 0) / Number(required)) * 100)
+    Math.max(0, (Number(current || 0) / target) * 100)
   );
 };
 
@@ -51,74 +40,31 @@ const ProgressRow = ({
   required,
   completed,
   isMoney = true,
-}) => (
-  <div className={styles.requirement} style={{ marginTop: 12 }}>
-    <div className={styles.requirementTop}>
-      <span>{label}</span>
-      <strong>
-        {isMoney ? formatUsd(current) : current}
-        {" / "}
-        {isMoney ? formatUsd(required) : required}
-      </strong>
-    </div>
+}) => {
+  const displayValue = (value) =>
+    isMoney ? formatUsd(value) : Number(value || 0);
 
-    <div className={styles.progressTrack}>
-      <div
-        className={styles.progressFill}
-        style={{
-          width: `${percentage(current, required)}%`,
-          ...(completed ? { background: "#e9c45a" } : {}),
-        }}
-      />
-    </div>
-  </div>
-);
+  return (
+    <div className={styles.requirement}>
+      <div className={styles.requirementTop}>
+        <span>{label}</span>
 
-const PathCard = ({ title, qualified, children }) => (
-  <div
-    style={{
-      padding: 14,
-      borderRadius: 10,
-      border: qualified
-        ? "1px solid rgba(233,196,90,0.55)"
-        : "1px solid rgba(255,255,255,0.10)",
-      background: qualified
-        ? "rgba(233,196,90,0.07)"
-        : "rgba(255,255,255,0.02)",
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexWrap: "wrap",
-        gap: 8,
-      }}
-    >
-      <strong style={{ color: "#e9c45a", fontSize: 13 }}>
-        {title}
-      </strong>
+        <strong className={completed ? styles.completedValue : ""}>
+          {displayValue(current)} / {displayValue(required)}
+        </strong>
+      </div>
 
-      {qualified && (
-        <span
+      <div className={styles.progressTrack}>
+        <div
+          className={styles.progressFill}
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            color: "#e9c45a",
-            fontSize: 12,
+            width: `${getPercentage(current, required)}%`,
           }}
-        >
-          <Check size={14} />
-          Complete
-        </span>
-      )}
+        />
+      </div>
     </div>
-
-    {children}
-  </div>
-);
+  );
+};
 
 const Rank = () => {
   const [data, setData] = useState(null);
@@ -126,25 +72,39 @@ const Rank = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchRankProgress = async () => {
       try {
         setLoading(true);
         setError("");
 
         const response = await api.get("/rank/progress");
-        setData(response.data.data);
+
+        if (mounted) {
+          setData(response.data.data);
+        }
       } catch (err) {
         console.error("Rank progress error:", err);
-        setError(
-          err.response?.data?.message ||
-          "Unable to load rank progress."
-        );
+
+        if (mounted) {
+          setError(
+            err.response?.data?.message ||
+              "Unable to load rank progress."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchRankProgress();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (loading) {
@@ -160,10 +120,14 @@ const Rank = () => {
     );
   }
 
-  const personalInvestment =
-    data?.personalInvestment ??
-    data?.packageAmount ??
-    null;
+  const personalInvestment = Number(
+    data?.personalInvestment || 0
+  );
+
+  const directBusiness = Number(data?.directBusiness || 0);
+  const teamBusiness = Number(data?.teamBusiness || 0);
+
+  const nextRankLevel = data?.nextRank?.level ?? null;
 
   return (
     <UserLayout
@@ -176,12 +140,17 @@ const Rank = () => {
 
       {data && (
         <>
+          {/* ==========================================
+              SUMMARY
+          ========================================== */}
+
           <div className={styles.summaryGrid}>
             <div className={styles.summaryCard}>
               <div className={styles.summaryIcon}>
                 <Trophy size={21} />
               </div>
-              <div>
+
+              <div className={styles.summaryInfo}>
                 <span>Current Rank</span>
                 <strong>
                   {data.currentRank?.name || "Unranked"}
@@ -193,7 +162,8 @@ const Rank = () => {
               <div className={styles.summaryIcon}>
                 <Target size={21} />
               </div>
-              <div>
+
+              <div className={styles.summaryInfo}>
                 <span>Next Rank</span>
                 <strong>
                   {data.nextRank?.name || "Maximum Rank"}
@@ -205,13 +175,10 @@ const Rank = () => {
               <div className={styles.summaryIcon}>
                 <Wallet size={21} />
               </div>
-              <div>
+
+              <div className={styles.summaryInfo}>
                 <span>Personal Investment</span>
-                <strong>
-                  {personalInvestment === null
-                    ? "Unavailable"
-                    : formatUsd(personalInvestment)}
-                </strong>
+                <strong>{formatUsd(personalInvestment)}</strong>
               </div>
             </div>
 
@@ -219,9 +186,10 @@ const Rank = () => {
               <div className={styles.summaryIcon}>
                 <CircleDollarSign size={21} />
               </div>
-              <div>
+
+              <div className={styles.summaryInfo}>
                 <span>Direct Business</span>
-                <strong>{formatUsd(data.directBusiness)}</strong>
+                <strong>{formatUsd(directBusiness)}</strong>
               </div>
             </div>
 
@@ -229,85 +197,148 @@ const Rank = () => {
               <div className={styles.summaryIcon}>
                 <UsersRound size={21} />
               </div>
-              <div>
+
+              <div className={styles.summaryInfo}>
                 <span>Community Business</span>
-                <strong>{formatUsd(data.teamBusiness)}</strong>
+                <strong>{formatUsd(teamBusiness)}</strong>
               </div>
             </div>
           </div>
+
+          {/* ==========================================
+              SECTION HEADER
+          ========================================== */}
 
           <div className={styles.sectionHeader}>
             <div>
               <span>ELEVATOR RANKS</span>
               <h2>Rank Requirements</h2>
             </div>
+
             <p>
-              Personal investment is mandatory. Then qualify
-              through Direct Business OR Community Business
-              with the required E-rank direct members.
+              Personal investment is mandatory. Qualify through
+              Direct Business or Community Business with
+              the required E-rank members.
             </p>
           </div>
 
+          {/* ==========================================
+              RANK CARDS
+          ========================================== */}
+
           <div className={styles.rankGrid}>
             {(data.ranks || []).map((rank) => {
-              const req = RANK_REQUIREMENTS.find(
-                (r) => r.level === Number(rank.level)
+              const personalRequired = Number(
+                rank.personalInvestment ??
+                  rank.progress?.personalInvestment?.required ??
+                  0
               );
 
-              if (!req) return null;
+              const personalCurrent = Number(
+                rank.progress?.personalInvestment?.current ??
+                  personalInvestment
+              );
+
+              const directRequired = Number(
+                rank.progress?.directBusiness?.required ??
+                  rank.directBusiness ??
+                  0
+              );
 
               const directCurrent = Number(
                 rank.progress?.directBusiness?.current ??
-                data.directBusiness ??
-                0
+                  directBusiness
+              );
+
+              const teamRequired = Number(
+                rank.progress?.teamBusiness?.required ??
+                  rank.teamBusiness ??
+                  0
               );
 
               const teamCurrent = Number(
                 rank.progress?.teamBusiness?.current ??
-                data.teamBusiness ??
-                0
+                  teamBusiness
               );
 
-              const membersCurrent = Number(
+              const requiredRankCount = Number(
+                rank.progress?.rankMembers?.required ??
+                  rank.requiredRankCount ??
+                  0
+              );
+
+              const rankMembersCurrent = Number(
                 rank.progress?.rankMembers?.current ?? 0
               );
 
-              const personalCurrent =
-                personalInvestment === null
-                  ? null
-                  : Number(personalInvestment);
+              const requiredRankLevel = Number(
+                rank.requiredRank || 0
+              );
 
-              const personalQualified =
-                personalCurrent !== null &&
-                personalCurrent >= req.personal;
+              const personalCompleted =
+                personalCurrent >= personalRequired;
 
-              const directQualified =
-                directCurrent >= req.direct;
+              const directCompleted =
+                directCurrent >= directRequired;
 
-              const communityQualified =
-                teamCurrent >= req.team &&
-                membersCurrent >= req.count;
+              const teamCompleted =
+                teamCurrent >= teamRequired;
 
-              const requirementsMet =
-                personalQualified &&
-                (directQualified || communityQualified);
+              const rankMembersCompleted =
+                requiredRankCount === 0 ||
+                rankMembersCurrent >= requiredRankCount;
+
+              const communityCompleted =
+                teamCompleted && rankMembersCompleted;
+
+              const eligible =
+                personalCompleted &&
+                (directCompleted || communityCompleted);
+
+              const isNextRank =
+                Number(rank.level) === Number(nextRankLevel);
+
+              const directProgress = getPercentage(
+                directCurrent,
+                directRequired
+              );
+
+              const teamProgress = getPercentage(
+                teamCurrent,
+                teamRequired
+              );
+
+              const personalProgress = getPercentage(
+                personalCurrent,
+                personalRequired
+              );
+
+              const nextProgress =
+                Math.max(directProgress, teamProgress);
 
               return (
                 <div
                   key={rank.level}
-                  className={`${styles.rankCard} ${
-                    rank.achieved ? styles.achievedCard : ""
-                  }`}
+                  className={[
+                    styles.rankCard,
+                    rank.achieved ? styles.achievedCard : "",
+                    isNextRank ? styles.nextRankCard : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
+                  {/* HEADER */}
+
                   <div className={styles.rankHeader}>
                     <div className={styles.rankTitle}>
                       <div className={styles.rankIcon}>
-                        {rank.level >= 11 ? (
+                        {Number(rank.level) >= 11 ? (
                           <Crown size={21} />
                         ) : (
                           <Award size={21} />
                         )}
                       </div>
+
                       <div>
                         <span>Elevator Rank</span>
                         <h3>{rank.name}</h3>
@@ -320,128 +351,149 @@ const Rank = () => {
                     </div>
                   </div>
 
+                  {/* ACHIEVED */}
+
                   {rank.achieved && (
                     <div className={styles.achievedBadge}>
                       <Check size={13} />
-                      Achieved
+                      Rank Achieved
                     </div>
                   )}
 
-                  <div style={{ marginTop: 18 }}>
-                    <PathCard
-                      title="Mandatory — Personal Investment"
-                      qualified={personalQualified}
-                    >
-                      {personalCurrent === null ? (
-                        <p style={{ fontSize: 12, color: "#f5b971" }}>
-                          Personal investment data is not available
-                          from the rank API.
-                        </p>
-                      ) : (
-                        <ProgressRow
-                          label="Your Investment"
-                          current={personalCurrent}
-                          required={req.personal}
-                          completed={personalQualified}
-                        />
-                      )}
-                    </PathCard>
+                  {/* MANDATORY PERSONAL INVESTMENT */}
+
+                  <div className={styles.personalRequirement}>
+                    <div className={styles.personalTop}>
+                      <div className={styles.personalLabel}>
+                        {personalCompleted ? (
+                          <CheckCircle2 size={16} />
+                        ) : (
+                          <Wallet size={16} />
+                        )}
+
+                        <span>Personal Investment</span>
+
+                        <small>Required</small>
+                      </div>
+
+                      <strong>
+                        {formatUsd(personalCurrent)}
+                        {" / "}
+                        {formatUsd(personalRequired)}
+                      </strong>
+                    </div>
+
+                    <div className={styles.progressTrack}>
+                      <div
+                        className={styles.progressFill}
+                        style={{
+                          width: `${personalProgress}%`,
+                        }}
+                      />
+                    </div>
                   </div>
 
-                  <div
-                    style={{
-                      textAlign: "center",
-                      color: "#9ca3af",
-                      fontSize: 12,
-                      margin: "14px 0",
-                      fontWeight: 600,
-                    }}
-                  >
-                    AND COMPLETE ONE OF THESE PATHS
-                  </div>
+                  {/* PATH 1 */}
 
-                  <PathCard
-                    title="Path 1 — Direct Business"
-                    qualified={directQualified}
-                  >
+                  <div className={styles.businessSection}>
                     <ProgressRow
                       label="Direct Business"
                       current={directCurrent}
-                      required={req.direct}
-                      completed={directQualified}
-                    />
-                  </PathCard>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      margin: "14px 0",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: 1,
-                        flex: 1,
-                        background: "rgba(255,255,255,0.1)",
-                      }}
-                    />
-                    <strong
-                      style={{
-                        color: "#e9c45a",
-                        fontSize: 12,
-                        letterSpacing: 2,
-                      }}
-                    >
-                      OR
-                    </strong>
-                    <div
-                      style={{
-                        height: 1,
-                        flex: 1,
-                        background: "rgba(255,255,255,0.1)",
-                      }}
+                      required={directRequired}
+                      completed={directCompleted}
                     />
                   </div>
 
-                  <PathCard
-                    title="Path 2 — Community Business + E-Members"
-                    qualified={communityQualified}
-                  >
+                  {/* OR SEPARATOR */}
+
+                  <div className={styles.orSeparator}>
+                    <span>OR</span>
+                  </div>
+
+                  {/* PATH 2 */}
+
+                  <div className={styles.businessSection}>
                     <ProgressRow
                       label="Community Business"
                       current={teamCurrent}
-                      required={req.team}
-                      completed={teamCurrent >= req.team}
+                      required={teamRequired}
+                      completed={teamCompleted}
                     />
 
-                    {req.count > 0 ? (
-                      <ProgressRow
-                        label={`E-${String(req.requiredRank).padStart(2, "0")}+ Direct Members`}
-                        current={membersCurrent}
-                        required={req.count}
-                        completed={membersCurrent >= req.count}
-                        isMoney={false}
-                      />
-                    ) : (
-                      <div className={styles.firstRankNote}>
-                        No ranked direct members required
+                    <div className={styles.membersRow}>
+                      {requiredRankCount > 0 ? (
+                        <>
+                          <span>
+                            E-
+                            {String(requiredRankLevel).padStart(
+                              2,
+                              "0"
+                            )}
+                            + Direct Members
+                          </span>
+
+                          <strong
+                            className={
+                              rankMembersCompleted
+                                ? styles.completedValue
+                                : ""
+                            }
+                          >
+                            {rankMembersCurrent} /{" "}
+                            {requiredRankCount}
+                          </strong>
+                        </>
+                      ) : (
+                        <>
+                          <span>E-rank Members</span>
+                          <strong>Not Required</strong>
+                        </>
+                      )}
+                    </div>
+
+                    {requiredRankCount > 0 && (
+                      <div className={styles.progressTrack}>
+                        <div
+                          className={styles.progressFill}
+                          style={{
+                            width: `${getPercentage(
+                              rankMembersCurrent,
+                              requiredRankCount
+                            )}%`,
+                          }}
+                        />
                       </div>
                     )}
-                  </PathCard>
+                  </div>
 
-                  {requirementsMet && !rank.achieved && (
-                    <div
-                      style={{
-                        marginTop: 14,
-                        color: "#e9c45a",
-                        textAlign: "center",
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}
-                    >
-                      All qualification requirements met
+                  {/* FOOTER */}
+
+                  {isNextRank && !rank.achieved && (
+                    <div className={styles.nextRankFooter}>
+                      {eligible ? (
+                        <>
+                          <CheckCircle2 size={14} />
+                          Qualification requirements met
+                        </>
+                      ) : !personalCompleted ? (
+                        <>
+                          <Target size={14} />
+                          Personal investment required to advance
+                        </>
+                      ) : (
+                        <>
+                          <Target size={14} />
+                          Next Rank ·{" "}
+                          {Math.round(nextProgress)}% business progress
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {!isNextRank && eligible && !rank.achieved && (
+                    <div className={styles.eligibleFooter}>
+                      <CheckCircle2 size={14} />
+                      Qualification requirements met
                     </div>
                   )}
                 </div>
