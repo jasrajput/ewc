@@ -1,0 +1,56 @@
+name: Deploy EWC to AWS Lightsail
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy EWC Backend and Closing
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Test EWC backend deployment
+        run: |
+          rsync -avzn --itemize-changes \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='node_modules/' \
+            --exclude='logs/' \
+            --exclude='*.log' \
+            ./backend/ ubuntu@13.206.187.201:/var/www/ewc/backend/
+
+      - name: Test EWC closing-node deployment
+        run: |
+          rsync -avzn --itemize-changes \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='node_modules/' \
+            --exclude='logs/' \
+            --exclude='*.log' \
+            ./closing-node/ ubuntu@13.206.187.201:/var/www/ewc/closing-node/
+
+      - name: Deployment test completed
+        run: |
+          echo "EWC deployment dry run completed."
+          echo "No files were uploaded."
+          echo "No PM2 processes were restarted."

@@ -1,12 +1,20 @@
+
 require("dotenv").config();
 
 module.exports = {
+    // Blockchain
     rpcUrl: process.env.RPC_URL,
     chainId: Number(process.env.CHAIN_ID),
 
-    privateKey: process.env.ROOT_UPDATER_PRIVATE_KEY,
+    // Contracts
+    presaleContract: process.env.EWC_PRESALE_CONTRACT,
+    investmentContract: process.env.EWC_INVESTMENT_CONTRACT,
     merkleContract: process.env.MERKLE_CONTRACT,
 
+    // Merkle root updater
+    privateKey: process.env.ROOT_UPDATER_PRIVATE_KEY,
+
+    // Database
     database: {
         host: process.env.DB_HOST,
         port: Number(process.env.DB_PORT || 3306),
@@ -15,6 +23,7 @@ module.exports = {
         database: process.env.DB_NAME
     },
 
+    // Merkle snapshots
     merkleDirectory:
         process.env.MERKLE_DIRECTORY || "./merkle_snapshots"
 };

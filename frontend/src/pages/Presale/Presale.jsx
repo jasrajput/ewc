@@ -30,9 +30,9 @@ import {
 } from "../../hooks/useContract";
 
 import {
-  STAKING_ADDRESS,
+  PRESALE_ADDRESS,
   USDT_ADDRESS,
-  STAKING_ABI,
+  PRESALE_ABI,
   TOKEN_ABI,
 } from "../../contracts/config";
 
@@ -73,23 +73,6 @@ const BONUS_TIERS = [
   { min: 40000, bonus: 70 },
   { min: 50000, bonus: 85 },
   { min: 75000, bonus: 100 },
-];
-
-const PRESALE_ABI = [
-  {
-    type: "function",
-    name: "isPresaleActive",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "bool" }],
-  },
-  {
-    type: "function",
-    name: "getPresaleBonusBps",
-    stateMutability: "pure",
-    inputs: [{ name: "amount", type: "uint256" }],
-    outputs: [{ type: "uint256" }],
-  },
 ];
 
 // =========================================================
@@ -144,185 +127,6 @@ const formatDate = (value) => {
     hour: "2-digit",
     minute: "2-digit",
   });
-};
-
-// =========================================================
-// HISTORY STYLES
-// =========================================================
-
-const historyStyles = {
-  section: {
-    marginTop: 48,
-    marginBottom: 48,
-  },
-
-  summary: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-    gap: 16,
-    marginBottom: 24,
-  },
-
-  statCard: {
-    background: "#14171d",
-    border: "1px solid rgba(212,175,55,0.15)",
-    borderRadius: 14,
-    padding: 22,
-  },
-
-  statLabel: {
-    display: "block",
-    color: "#9ca3af",
-    fontSize: 13,
-    marginBottom: 12,
-  },
-
-  statValue: {
-    display: "block",
-    color: "#e9c45a",
-    fontSize: 22,
-    fontWeight: 700,
-    overflowWrap: "anywhere",
-  },
-
-  list: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))",
-    gap: 18,
-  },
-
-  card: {
-    background: "#14171d",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    padding: 24,
-  },
-
-  cardHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 24,
-  },
-
-  label: {
-    fontSize: 11,
-    color: "#d4af37",
-    fontWeight: 700,
-    letterSpacing: 1,
-  },
-
-  amount: {
-    color: "#fff",
-    fontSize: 25,
-    margin: "8px 0",
-  },
-
-  date: {
-    color: "#9ca3af",
-    fontSize: 12,
-  },
-
-  badge: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    background: "rgba(34,197,94,0.1)",
-    color: "#4ade80",
-    borderRadius: 20,
-    padding: "7px 11px",
-    fontSize: 12,
-    whiteSpace: "nowrap",
-  },
-
-  details: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 18,
-    marginBottom: 22,
-  },
-
-  detailLabel: {
-    display: "block",
-    color: "#9ca3af",
-    fontSize: 12,
-    marginBottom: 6,
-  },
-
-  detailValue: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 600,
-    overflowWrap: "anywhere",
-  },
-
-  bonusValue: {
-    color: "#e9c45a",
-    fontSize: 15,
-    fontWeight: 700,
-    overflowWrap: "anywhere",
-  },
-
-  total: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 12,
-    padding: 17,
-    background: "rgba(212,175,55,0.07)",
-    border: "1px solid rgba(212,175,55,0.14)",
-    borderRadius: 10,
-  },
-
-  totalLabel: {
-    color: "#c7c9ce",
-    fontSize: 13,
-  },
-
-  totalValue: {
-    color: "#e9c45a",
-    fontSize: 19,
-    fontWeight: 700,
-    overflowWrap: "anywhere",
-  },
-
-  empty: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: "48px 24px",
-    textAlign: "center",
-    background: "#14171d",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    color: "#9ca3af",
-  },
-
-  refreshButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "9px 15px",
-    background: "rgba(212,175,55,0.1)",
-    border: "1px solid rgba(212,175,55,0.3)",
-    borderRadius: 8,
-    color: "#e9c45a",
-    cursor: "pointer",
-  },
-
-  txLink: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 18,
-    color: "#e9c45a",
-    textDecoration: "none",
-    fontSize: 13,
-  },
 };
 
 // =========================================================
@@ -444,7 +248,7 @@ const Presale = () => {
 
     try {
       const active = await publicClient.readContract({
-        address: STAKING_ADDRESS,
+        address: PRESALE_ADDRESS,
         abi: PRESALE_ABI,
         functionName: "isPresaleActive",
       });
@@ -490,7 +294,7 @@ const Presale = () => {
         );
 
         const bonusBps = await publicClient.readContract({
-          address: STAKING_ADDRESS,
+          address: PRESALE_ADDRESS,
           abi: PRESALE_ABI,
           functionName: "getPresaleBonusBps",
           args: [amountWei],
@@ -798,7 +602,7 @@ const Presale = () => {
       }
 
       const active = await publicClient.readContract({
-        address: STAKING_ADDRESS,
+        address: PRESALE_ADDRESS,
         abi: PRESALE_ABI,
         functionName: "isPresaleActive",
       });
@@ -829,7 +633,7 @@ const Presale = () => {
         address: USDT_ADDRESS,
         abi: TOKEN_ABI,
         functionName: "allowance",
-        args: [address, STAKING_ADDRESS],
+        args: [address, PRESALE_ADDRESS],
       });
 
       if (freshAllowance < amountWei) {
@@ -839,7 +643,7 @@ const Presale = () => {
           address: USDT_ADDRESS,
           abi: TOKEN_ABI,
           functionName: "approve",
-          args: [STAKING_ADDRESS, amountWei],
+          args: [PRESALE_ADDRESS, amountWei],
         });
 
         const approvalReceipt =
@@ -863,16 +667,16 @@ const Presale = () => {
 
       if (investmentType === "self") {
         depositHash = await writeContract({
-          address: STAKING_ADDRESS,
-          abi: STAKING_ABI,
+          address: PRESALE_ADDRESS,
+          abi: PRESALE_ABI,
           functionName: "deposit",
           args: [amountWei, minEwcOut],
           gas: 9000000n,
         });
       } else {
         depositHash = await writeContract({
-          address: STAKING_ADDRESS,
-          abi: STAKING_ABI,
+          address: PRESALE_ADDRESS,
+          abi: PRESALE_ABI,
           functionName: "depositFor",
           args: [beneficiary, amountWei, minEwcOut],
           gas: 9000000n,
@@ -1506,7 +1310,7 @@ const Presale = () => {
             PRIVATE SALE HISTORY
         ===================================================== */}
 
-        <section style={historyStyles.section}>
+        <section className={styles.section}>
           <div className={styles.sectionHeading}>
             <span className={styles.eyebrow}>
               YOUR PRIVATE SALE PORTFOLIO
@@ -1520,16 +1324,10 @@ const Presale = () => {
             </p>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginBottom: 18,
-            }}
-          >
+          <div className={styles.historyActions}>
             <button
               type="button"
-              style={historyStyles.refreshButton}
+              className={styles.refreshButton}
               onClick={fetchPresaleHistory}
               disabled={historyLoading}
             >
@@ -1542,34 +1340,34 @@ const Presale = () => {
           </div>
 
           {historyLoading ? (
-            <div style={historyStyles.empty}>
+            <div className={styles.empty}>
               <RefreshCw size={26} />
 
               <p>Loading your Private Sale purchases...</p>
             </div>
           ) : historyError ? (
-            <div style={historyStyles.empty}>
+            <div className={styles.empty}>
               <AlertCircle size={28} />
 
               <p>{historyError}</p>
 
               <button
                 type="button"
-                style={historyStyles.refreshButton}
+                className={styles.refreshButton}
                 onClick={fetchPresaleHistory}
               >
                 Try Again
               </button>
             </div>
           ) : presaleHistory.length === 0 ? (
-            <div style={historyStyles.empty}>
+            <div className={styles.empty}>
               <Coins size={34} />
 
-              <h3 style={{ color: "#fff", margin: 0 }}>
+              <h3 className={styles.emptyTitle}>
                 No Private Sale Purchases Yet
               </h3>
 
-              <p style={{ margin: 0 }}>
+              <p className={styles.emptyDescription}>
                 Your Private Sale purchase history
                 will appear here.
               </p>
@@ -1578,23 +1376,23 @@ const Presale = () => {
             <>
               {/* SUMMARY */}
 
-              <div style={historyStyles.summary}>
-                <div style={historyStyles.statCard}>
-                  <span style={historyStyles.statLabel}>
+              <div className={styles.summary}>
+                <div className={styles.statCard}>
+                  <span className={styles.statLabel}>
                     Total USDT Invested
                   </span>
 
-                  <strong style={historyStyles.statValue}>
+                  <strong className={styles.statValue}>
                     {formatUsd(historySummary.totalInvested)}
                   </strong>
                 </div>
 
-                <div style={historyStyles.statCard}>
-                  <span style={historyStyles.statLabel}>
+                <div className={styles.statCard}>
+                  <span className={styles.statLabel}>
                     Base EWC Allocation
                   </span>
 
-                  <strong style={historyStyles.statValue}>
+                  <strong className={styles.statValue}>
                     {formatNumber(
                       historySummary.baseEwc,
                       2
@@ -1602,12 +1400,12 @@ const Presale = () => {
                   </strong>
                 </div>
 
-                <div style={historyStyles.statCard}>
-                  <span style={historyStyles.statLabel}>
+                <div className={styles.statCard}>
+                  <span className={styles.statLabel}>
                     Total Bonus EWC
                   </span>
 
-                  <strong style={historyStyles.statValue}>
+                  <strong className={styles.statValue}>
                     +{formatNumber(
                       historySummary.bonusEwc,
                       2
@@ -1615,12 +1413,12 @@ const Presale = () => {
                   </strong>
                 </div>
 
-                <div style={historyStyles.statCard}>
-                  <span style={historyStyles.statLabel}>
+                <div className={styles.statCard}>
+                  <span className={styles.statLabel}>
                     Total EWC Allocated
                   </span>
 
-                  <strong style={historyStyles.statValue}>
+                  <strong className={styles.statValue}>
                     {formatNumber(
                       historySummary.totalEwc,
                       2
@@ -1631,28 +1429,28 @@ const Presale = () => {
 
               {/* HISTORY CARDS */}
 
-              <div style={historyStyles.list}>
+              <div className={styles.list}>
                 {presaleHistory.map((purchase) => (
                   <div
                     key={purchase.id}
-                    style={historyStyles.card}
+                    className={styles.card}
                   >
-                    <div style={historyStyles.cardHeader}>
+                    <div className={styles.cardHeader}>
                       <div>
-                        <span style={historyStyles.label}>
+                        <span className={styles.label}>
                           PRIVATE SALE PURCHASE
                         </span>
 
-                        <h3 style={historyStyles.amount}>
+                        <h3 className={styles.amount}>
                           {formatUsd(purchase.amount)}
                         </h3>
 
-                        <small style={historyStyles.date}>
+                        <small className={styles.date}>
                           {formatDate(purchase.createdOn)}
                         </small>
                       </div>
 
-                      <span style={historyStyles.badge}>
+                      <span className={styles.badge}>
                         <CheckCircle2 size={14} />
 
                         {Number(purchase.status) === 1
@@ -1661,23 +1459,23 @@ const Presale = () => {
                       </span>
                     </div>
 
-                    <div style={historyStyles.details}>
+                    <div className={styles.details}>
                       <div>
-                        <span style={historyStyles.detailLabel}>
+                        <span className={styles.detailLabel}>
                           EWC Price
                         </span>
 
-                        <strong style={historyStyles.detailValue}>
+                        <strong className={styles.detailValue}>
                           ${purchase.ewcPrice}
                         </strong>
                       </div>
 
                       <div>
-                        <span style={historyStyles.detailLabel}>
+                        <span className={styles.detailLabel}>
                           Base EWC
                         </span>
 
-                        <strong style={historyStyles.detailValue}>
+                        <strong className={styles.detailValue}>
                           {formatNumber(
                             purchase.baseEwc,
                             2
@@ -1686,11 +1484,11 @@ const Presale = () => {
                       </div>
 
                       <div>
-                        <span style={historyStyles.detailLabel}>
+                        <span className={styles.detailLabel}>
                           Bonus Percentage
                         </span>
 
-                        <strong style={historyStyles.bonusValue}>
+                        <strong className={styles.bonusValue}>
                           +{formatNumber(
                             purchase.bonusPercentage,
                             2
@@ -1699,11 +1497,11 @@ const Presale = () => {
                       </div>
 
                       <div>
-                        <span style={historyStyles.detailLabel}>
+                        <span className={styles.detailLabel}>
                           Bonus EWC
                         </span>
 
-                        <strong style={historyStyles.bonusValue}>
+                        <strong className={styles.bonusValue}>
                           +{formatNumber(
                             purchase.bonusEwc,
                             2
@@ -1712,12 +1510,12 @@ const Presale = () => {
                       </div>
                     </div>
 
-                    <div style={historyStyles.total}>
-                      <span style={historyStyles.totalLabel}>
+                    <div className={styles.total}>
+                      <span className={styles.totalLabel}>
                         Total EWC Allocated
                       </span>
 
-                      <strong style={historyStyles.totalValue}>
+                      <strong className={styles.totalValue}>
                         {formatNumber(
                           purchase.ewcAllocation,
                           2
@@ -1731,7 +1529,7 @@ const Presale = () => {
                         href={`https://testnet.bscscan.com/tx/${purchase.txnId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={historyStyles.txLink}
+                        className={styles.txLink}
                       >
                         View Transaction
                         <ExternalLink size={14} />

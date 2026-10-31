@@ -3,88 +3,52 @@ const pool = require("./db");
 const config = require("./config");
 
 const RPC_URL = config.rpcUrl;
-const PAYOUT_CONTRACT_ADDRESS = config.merkleContract;
+const PRESALE_CONTRACT_ADDRESS = config.presaleContract || process.env.EWC_PRESALE_CONTRACT;
+
+if (!PRESALE_CONTRACT_ADDRESS || !ethers.isAddress(PRESALE_CONTRACT_ADDRESS)) {
+    throw new Error("Configure a valid presaleContract in config.js (or EWC_PRESALE_CONTRACT)");
+}
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 10000;
-const BLOCK_BATCH_SIZE = 500;
-const HEALTHCHECK_INTERVAL_MS =
-    Number(process.env.HEALTHCHECK_INTERVAL_MS) || 60000;
+const BLOCK_BATCH_SIZE = Number(process.env.BLOCK_BATCH_SIZE) || 500;
+const CONFIRMATIONS = Number(process.env.EVENT_CONFIRMATIONS ?? 12);
+const HEALTHCHECK_INTERVAL_MS = Number(process.env.HEALTHCHECK_INTERVAL_MS) || 60000;
 const MAX_CONSECUTIVE_RPC_FAILURES = 5;
-
-/*
-|--------------------------------------------------------------------------
-| EWC CONFIG
-|--------------------------------------------------------------------------
-|
-| Direct income remains USDT.
-| Rank income is calculated on deposit using differential Team Income Ratio.
-| Salary income is handled separately.
-| ROI EWC is handled by daily closing / Merkle.
-|
-*/
-
 const DIRECT_INCOME_PERCENT = 10;
+const PRESALE_PRICE_USDT = 0.01;
 const RANKS = [
-    { rank: 1, directBusiness: 100, teamBusiness: 1000, requiredRank: 0, requiredCount: 0, percent: 1 },
-    { rank: 2, directBusiness: 200, teamBusiness: 3000, requiredRank: 1, requiredCount: 2, percent: 3 },
-    { rank: 3, directBusiness: 300, teamBusiness: 10000, requiredRank: 2, requiredCount: 2, percent: 6 },
-    { rank: 4, directBusiness: 500, teamBusiness: 30000, requiredRank: 3, requiredCount: 2, percent: 9 },
-    { rank: 5, directBusiness: 700, teamBusiness: 100000, requiredRank: 4, requiredCount: 2, percent: 12 },
-    { rank: 6, directBusiness: 1000, teamBusiness: 300000, requiredRank: 5, requiredCount: 2, percent: 15 },
-    { rank: 7, directBusiness: 2000, teamBusiness: 1000000, requiredRank: 6, requiredCount: 2, percent: 18 },
-    { rank: 8, directBusiness: 3000, teamBusiness: 3000000, requiredRank: 7, requiredCount: 2, percent: 21 },
-    { rank: 9, directBusiness: 5000, teamBusiness: 10000000, requiredRank: 8, requiredCount: 2, percent: 24 },
-    { rank: 10, directBusiness: 10000, teamBusiness: 30000000, requiredRank: 9, requiredCount: 2, percent: 26 },
-    { rank: 11, directBusiness: 15000, teamBusiness: 100000000, requiredRank: 10, requiredCount: 2, percent: 28 },
-    { rank: 12, directBusiness: 25000, teamBusiness: 500000000, requiredRank: 11, requiredCount: 2, percent: 30 }
+    // Direct business threshold OR (community volume + two preceding-rank members).
+    { rank: 1, directBusiness: 1000, teamBusiness: 1000, requiredRank: 0, requiredCount: 0, percent: 1 },
+    { rank: 2, directBusiness: 1500, teamBusiness: 3000, requiredRank: 1, requiredCount: 2, percent: 3 },
+    { rank: 3, directBusiness: 5000, teamBusiness: 10000, requiredRank: 2, requiredCount: 2, percent: 6 },
+    { rank: 4, directBusiness: 15000, teamBusiness: 30000, requiredRank: 3, requiredCount: 2, percent: 9 },
+    { rank: 5, directBusiness: 50000, teamBusiness: 100000, requiredRank: 4, requiredCount: 2, percent: 12 },
+    { rank: 6, directBusiness: 150000, teamBusiness: 300000, requiredRank: 5, requiredCount: 2, percent: 15 },
+    { rank: 7, directBusiness: 500000, teamBusiness: 1000000, requiredRank: 6, requiredCount: 2, percent: 18 },
+    { rank: 8, directBusiness: 1500000, teamBusiness: 3000000, requiredRank: 7, requiredCount: 2, percent: 21 },
+    { rank: 9, directBusiness: 5000000, teamBusiness: 10000000, requiredRank: 8, requiredCount: 2, percent: 24 },
+    { rank: 10, directBusiness: 15000000, teamBusiness: 30000000, requiredRank: 9, requiredCount: 2, percent: 26 },
+    { rank: 11, directBusiness: 50000000, teamBusiness: 100000000, requiredRank: 10, requiredCount: 2, percent: 28 },
+    { rank: 12, directBusiness: 250000000, teamBusiness: 500000000, requiredRank: 11, requiredCount: 2, percent: 30 }
 ];
-
-/*
-|--------------------------------------------------------------------------
-| PROVIDER
-|--------------------------------------------------------------------------
-*/
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
-
-/*
-|--------------------------------------------------------------------------
-| EWC INVESTMENT / PAYOUT ABI
-|--------------------------------------------------------------------------
-|
-| These signatures match the current combined Investment + Payout contract.
-|
-*/
-
-const PAYOUT_ABI = [
-    "event Deposited(address indexed payer, address indexed beneficiary, uint256 usdtAmount, uint256 allocationPrice, uint256 allocatedEWC, uint256 marketBuyUSDT, uint256 marketBoughtEWC, uint256 commissionUSDT, uint256 treasuryUSDT, uint256 timestamp)",
-    "event Claimed(address indexed user, uint256 usdtAmount, uint256 roiEwcAmount, uint256 cumulativeUsdtIncome, uint256 cumulativeRoiEwc, uint256 ewcPriceAtClaim, uint256 timestamp)"
+const PRESALE_ABI = [
+    "event Deposited(address indexed payer, address indexed beneficiary, uint256 usdtAmount, uint256 allocatedEWC, uint256 bonusEWC, uint256 timestamp)",
+    "function usdtDecimals() view returns (uint8)"
 ];
+const contract = new ethers.Contract(PRESALE_CONTRACT_ADDRESS, PRESALE_ABI, provider);
+let usdtDecimals = 18;
 
-const contract = new ethers.Contract(
-    PAYOUT_CONTRACT_ADDRESS,
-    PAYOUT_ABI,
-    provider
-);
-
-/*
-|--------------------------------------------------------------------------
-| STATE
-|--------------------------------------------------------------------------
-*/
 
 let isPolling = false;
 let consecutiveFailures = 0;
 let lastSuccessfulPollAt = Date.now();
 
-/*
-|--------------------------------------------------------------------------
-| HELPERS
-|--------------------------------------------------------------------------
-*/
 
 function toHuman(value, decimals = 18) {
-    return Number(ethers.formatUnits(value, decimals));
+    // Database columns use DECIMAL; avoid floating point when storing EWC allocations.
+    return ethers.formatUnits(value, decimals);
 }
 
 function getTransactionHash(event) {
@@ -95,11 +59,6 @@ function getBlockNumber(event) {
     return event?.blockNumber ?? null;
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET LAST PROCESSED BLOCK
-|--------------------------------------------------------------------------
-*/
 
 async function getLastProcessedBlock() {
     await pool.execute(`
@@ -116,7 +75,7 @@ async function getLastProcessedBlock() {
     const [rows] = await pool.execute(`
         SELECT last_block
         FROM blockchain_sync
-        WHERE id = 1
+        WHERE id = 2
         LIMIT 1
     `);
 
@@ -127,40 +86,30 @@ async function getLastProcessedBlock() {
          * you can manually set last_block to deploymentBlock - 1.
          */
 
-        await pool.execute(`
-            INSERT INTO blockchain_sync
-            (id, contract_name, last_block)
-            VALUES (1, 'ewc_investment', 0)
-        `);
-
-        return 0;
+        const initialBlock = Math.max(0, Number(process.env.PRESALE_DEPLOYMENT_BLOCK || 1) - 1);
+        await pool.execute(
+            `INSERT INTO blockchain_sync (id, contract_name, last_block)
+             VALUES (2, 'ewc_presale', ?)`,
+            [initialBlock]
+        );
+        return initialBlock;
     }
 
     return Number(rows[0].last_block);
 }
 
-/*
-|--------------------------------------------------------------------------
-| SAVE LAST PROCESSED BLOCK
-|--------------------------------------------------------------------------
-*/
 
 async function saveLastProcessedBlock(blockNumber) {
     await pool.execute(
         `
         UPDATE blockchain_sync
         SET last_block = ?
-        WHERE id = 1
+        WHERE id = 2
         `,
         [blockNumber]
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| FIND MEMBER BY WALLET
-|--------------------------------------------------------------------------
-*/
 
 async function findMemberByWallet(connection, wallet) {
     const [rows] = await connection.execute(
@@ -183,11 +132,6 @@ async function findMemberByWallet(connection, wallet) {
     return rows.length ? rows[0] : null;
 }
 
-/*
-|--------------------------------------------------------------------------
-| FIND SPONSOR
-|--------------------------------------------------------------------------
-*/
 
 async function findSponsor(connection, sponsorUserId) {
     if (!sponsorUserId) {
@@ -211,212 +155,6 @@ async function findSponsor(connection, sponsorUserId) {
     return rows.length ? rows[0] : null;
 }
 
-/*
-|--------------------------------------------------------------------------
-| PROCESS CLAIM EVENT
-|--------------------------------------------------------------------------
-|
-| USDT claim:
-|   Direct + Rank + Salary
-|
-| EWC claim:
-|   ROI only
-|
-| The blockchain contract already performs cumulative accounting.
-| Therefore withdrawals.amount stores the ACTUAL USDT received in this
-| transaction, while roi_ewc_amount stores actual ROI EWC received.
-|
-|--------------------------------------------------------------------------
-*/
-
-async function processClaimEvent(event) {
-    const connection = await pool.getConnection();
-
-    try {
-        console.log("");
-        console.log("==========================================");
-        console.log("PROCESSING EWC CLAIM");
-        console.log("==========================================");
-
-        let args;
-
-        if (event?.args) {
-            args = event.args;
-        } else {
-            const decoded = contract.interface.parseLog({
-                topics: event.topics,
-                data: event.data
-            });
-
-            args = decoded.args;
-        }
-
-        const user = args.user ?? args[0];
-        const usdtAmount = args.usdtAmount ?? args[1];
-        const roiEwcAmount = args.roiEwcAmount ?? args[2];
-        const cumulativeUsdtIncome =
-            args.cumulativeUsdtIncome ?? args[3];
-        const cumulativeRoiEwc =
-            args.cumulativeRoiEwc ?? args[4];
-        const ewcPriceAtClaim =
-            args.ewcPriceAtClaim ?? args[5];
-        const timestamp =
-            args.timestamp ?? args[6];
-
-        const txHash = getTransactionHash(event);
-        const blockNumber = getBlockNumber(event);
-
-        if (!user) {
-            throw new Error("Claimed event has no user");
-        }
-
-        const usdtHuman = toHuman(usdtAmount);
-        const roiEwcHuman = toHuman(roiEwcAmount);
-        const cumulativeUsdtHuman =
-            toHuman(cumulativeUsdtIncome);
-        const cumulativeRoiEwcHuman =
-            toHuman(cumulativeRoiEwc);
-        const priceHuman =
-            toHuman(ewcPriceAtClaim);
-
-        console.log("Wallet:", user);
-        console.log("USDT received:", usdtHuman);
-        console.log("ROI EWC received:", roiEwcHuman);
-        console.log("Cumulative USDT:", cumulativeUsdtHuman);
-        console.log("Cumulative ROI EWC:", cumulativeRoiEwcHuman);
-        console.log("EWC price:", priceHuman);
-        console.log("TX:", txHash);
-        console.log("Block:", blockNumber);
-
-        const member =
-            await findMemberByWallet(connection, user);
-
-        if (!member) {
-            throw new Error(
-                `No member found for wallet ${user}`
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | IDEMPOTENCY
-        |--------------------------------------------------------------------------
-        */
-
-        if (txHash) {
-            const [existing] = await connection.execute(
-                `
-                SELECT id
-                FROM withdrawals
-                WHERE txn_id = ?
-                LIMIT 1
-                `,
-                [txHash]
-            );
-
-            if (existing.length) {
-                console.log(
-                    "Claim already recorded:",
-                    txHash
-                );
-
-                return;
-            }
-        }
-
-        await connection.beginTransaction();
-
-        /*
-        |--------------------------------------------------------------------------
-        | WITHDRAWALS
-        |--------------------------------------------------------------------------
-        |
-        | amount               = actual USDT received
-        | roi_ewc_amount       = actual EWC ROI received
-        | cumulative_usdt      = cumulative USDT entitlement
-        | cumulative_roi_ewc   = cumulative ROI EWC entitlement
-        | price                = EWC price recorded by contract
-        | pending_balance      = 0 after successful cumulative claim
-        |
-        */
-
-        await connection.execute(
-            `
-            INSERT INTO withdrawals
-            (
-                user_id,
-                amount,
-                roi_ewc_amount,
-                cumulative_usdt,
-                cumulative_roi_ewc,
-                price,
-                pending_balance,
-                status,
-                txn_id,
-                block_number,
-                remarks,
-                date_of_withdrawal,
-                date_of_approved
-            )
-            VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, NOW(), NOW())
-            `,
-            [
-                member.id,
-                usdtHuman,
-                roiEwcHuman,
-                cumulativeUsdtHuman,
-                cumulativeRoiEwcHuman,
-                priceHuman,
-                txHash,
-                blockNumber,
-                "Merkle claim"
-            ]
-        );
-
-        await connection.commit();
-
-        console.log("");
-        console.log("==========================================");
-        console.log("CLAIM SAVED");
-        console.log("==========================================");
-        console.log("User:", member.user_id);
-        console.log("USDT received:", usdtHuman);
-        console.log("ROI EWC received:", roiEwcHuman);
-        console.log("TX:", txHash);
-        console.log("==========================================");
-    } catch (error) {
-        try {
-            await connection.rollback();
-        } catch (_) { }
-
-        console.error(
-            "processClaimEvent failed:",
-            error
-        );
-
-        throw error;
-    } finally {
-        connection.release();
-    }
-}
-
-/*
-|--------------------------------------------------------------------------
-| PROCESS DIRECT INCOME
-|--------------------------------------------------------------------------
-|
-| Direct Income:
-|
-| 10% of actual USDT investment.
-|
-| Stored in trasections as USDT.
-|
-| direction = 1
-|
-| No EWC conversion happens here.
-|
-|--------------------------------------------------------------------------
-*/
 
 async function processDirectIncome(
     connection,
@@ -450,7 +188,7 @@ async function processDirectIncome(
     }
 
     const directIncome =
-        (usdtAmount * DIRECT_INCOME_PERCENT) / 100;
+        (Number(usdtAmount) * DIRECT_INCOME_PERCENT) / 100;
 
     if (directIncome <= 0) {
         return;
@@ -507,30 +245,6 @@ async function processDirectIncome(
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| PROCESS DEPOSIT EVENT
-|--------------------------------------------------------------------------
-|
-| IMPORTANT:
-|
-| beneficiary is the member receiving the investment.
-| payer may be a completely different wallet.
-|
-| Member/database activation therefore uses BENEFICIARY,
-| not payer.
-|
-| Member-visible EWC allocation:
-|
-| allocatedEWC
-|
-| This is calculated from the FULL investment amount.
-|
-| Protocol-side market purchase/routing fields are deliberately not stored
-| as the member's token allocation.
-|
-|--------------------------------------------------------------------------
-*/
 
 async function processDepositEvent(event) {
     const connection = await pool.getConnection();
@@ -538,92 +252,34 @@ async function processDepositEvent(event) {
     try {
         console.log("");
         console.log("==========================================");
-        console.log("PROCESSING EWC DEPOSIT");
+        console.log("PROCESSING EWC PRESALE DEPOSIT");
         console.log("==========================================");
 
-        let args;
+        const args = event.args || contract.interface.parseLog({
+            topics: event.topics,
+            data: event.data
+        }).args;
+        const payer = args.payer ?? args[0];
+        const beneficiary = args.beneficiary ?? args[1];
+        const usdtAmount = args.usdtAmount ?? args[2];
+        const allocatedEWC = args.allocatedEWC ?? args[3];
+        const bonusEWC = args.bonusEWC ?? args[4];
+        const timestamp = args.timestamp ?? args[5];
+        const txHash = getTransactionHash(event);
+        const blockNumber = getBlockNumber(event);
 
-        if (event?.args) {
-            args = event.args;
-        } else {
-            const decoded = contract.interface.parseLog({
-                topics: event.topics,
-                data: event.data
-            });
-
-            args = decoded.args;
+        if (!payer || !beneficiary || !txHash) {
+            throw new Error("Incomplete presale Deposited event");
         }
+        const usdtHuman = toHuman(usdtAmount, usdtDecimals);
+        const allocatedEwcHuman = toHuman(allocatedEWC);
+        const bonusEwcHuman = toHuman(bonusEWC);
+        const allocationPriceHuman = PRESALE_PRICE_USDT;
 
-        const payer =
-            args.payer ?? args[0];
-
-        const beneficiary =
-            args.beneficiary ?? args[1];
-
-        const usdtAmount =
-            args.usdtAmount ?? args[2];
-
-        const allocationPrice =
-            args.allocationPrice ?? args[3];
-
-        const allocatedEWC =
-            args.allocatedEWC ?? args[4];
-
-        const marketBuyUSDT =
-            args.marketBuyUSDT ?? args[5];
-
-        const marketBoughtEWC =
-            args.marketBoughtEWC ?? args[6];
-
-        const commissionUSDT =
-            args.commissionUSDT ?? args[7];
-
-        const treasuryUSDT =
-            args.treasuryUSDT ?? args[8];
-
-        const timestamp =
-            args.timestamp ?? args[9];
-
-        const txHash =
-            getTransactionHash(event);
-
-        const blockNumber =
-            getBlockNumber(event);
-
-        if (!beneficiary) {
-            throw new Error(
-                "Deposited event has no beneficiary"
-            );
-        }
-
-        const usdtHuman =
-            toHuman(usdtAmount);
-
-        const allocationPriceHuman =
-            toHuman(allocationPrice);
-
-        const allocatedEwcHuman =
-            toHuman(allocatedEWC);
-
-        console.log("Payer:", payer);
-        console.log("Beneficiary:", beneficiary);
-        console.log("Investment:", usdtHuman, "USDT");
-        console.log(
-            "Allocation price:",
-            allocationPriceHuman
-        );
-        console.log(
-            "EWC allocation:",
-            allocatedEwcHuman
-        );
-        console.log("TX:", txHash);
-        console.log("Block:", blockNumber);
-
-        /*
-        |--------------------------------------------------------------------------
-        | FIND MEMBER USING BENEFICIARY
-        |--------------------------------------------------------------------------
-        */
+        console.log("Presale deposit", {
+            payer, beneficiary, usdtHuman, allocatedEwcHuman,
+            bonusEwcHuman, timestamp: Number(timestamp), txHash, blockNumber
+        });
 
         const member =
             await findMemberByWallet(
@@ -642,12 +298,6 @@ async function processDepositEvent(event) {
         const refId = member.real_sponsor_id;
         const wasActivated =
             Number(member.package_choose) >= 2;
-
-        /*
-        |--------------------------------------------------------------------------
-        | IDEMPOTENCY
-        |--------------------------------------------------------------------------
-        */
 
         if (txHash) {
             const [existing] =
@@ -671,12 +321,6 @@ async function processDepositEvent(event) {
             }
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | SPONSOR
-        |--------------------------------------------------------------------------
-        */
-
         const sponsor =
             await findSponsor(
                 connection,
@@ -684,19 +328,6 @@ async function processDepositEvent(event) {
             );
 
         await connection.beginTransaction();
-
-        /*
-        |--------------------------------------------------------------------------
-        | 1. BLOCKCHAIN DEPOSIT LEDGER
-        |--------------------------------------------------------------------------
-        |
-        | amount / actual_amount = full USDT investment
-        |
-        | token_amount = FULL member EWC allocation
-        |
-        | price = allocation price before protocol's own market operation
-        |
-        */
 
         await connection.execute(
             `
@@ -710,9 +341,11 @@ async function processDepositEvent(event) {
                 token_amount,
                 price,
                 status,
+                is_presale,
+                bonus_ewc,
                 created_on
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, NOW())
             `,
             [
                 usdtHuman,
@@ -721,30 +354,10 @@ async function processDepositEvent(event) {
                 txHash,
                 beneficiary,
                 allocatedEwcHuman,
-                allocationPriceHuman
+                allocationPriceHuman,
+                bonusEwcHuman
             ]
         );
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2. UPDATE MEMBER
-        |--------------------------------------------------------------------------
-        |
-        | package_amount = lifetime/current aggregate investment according
-        | to the existing member model.
-        |
-        | current_package = latest investment amount.
-        |
-        | No:
-        | - MMT mint
-        | - MMT stake
-        | - burn
-        | - roi_per
-        | - booster
-        | - limit_pending
-        | - 2x/4x cap
-        |
-        */
 
         if (!wasActivated) {
             const [result] =
@@ -801,26 +414,6 @@ async function processDepositEvent(event) {
             }
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | 3. SELECT_PACKAGES
-        |--------------------------------------------------------------------------
-        |
-        | Every blockchain investment gets its own package row.
-        |
-        | pack_amount:
-        |     actual USDT investment
-        |
-        | token_amount:
-        |     user's full EWC allocation
-        |
-        | current_price:
-        |     allocation price at investment
-        |
-        | ROI calculation is NOT performed here.
-        |
-        */
-
         await connection.execute(
             `
             INSERT INTO select_packages
@@ -842,12 +435,6 @@ async function processDepositEvent(event) {
             ]
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | 4. FUND TRANSACTION
-        |--------------------------------------------------------------------------
-        */
-
         await connection.execute(
             `
             INSERT INTO fund_transactions
@@ -865,18 +452,6 @@ async function processDepositEvent(event) {
             ]
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | 5. TOP-UP HISTORY
-        |--------------------------------------------------------------------------
-        |
-        | The beneficiary is being activated/re-invested.
-        |
-        | payer wallet is available on-chain, but this existing table uses
-        | numeric member IDs. Keep the current member-based structure.
-        |
-        */
-
         await connection.execute(
             `
             INSERT INTO user_top_up_by
@@ -893,12 +468,6 @@ async function processDepositEvent(event) {
                 usdtHuman
             ]
         );
-
-        /*
-        |--------------------------------------------------------------------------
-        | 6. UPDATE NETWORK / LEVEL VOLUME
-        |--------------------------------------------------------------------------
-        */
 
         await connection.execute(
             `
@@ -919,25 +488,19 @@ async function processDepositEvent(event) {
         // Recalculate ranks first.
         // This deposit has already been added to select_packages and levels,
         // so qualification sees the new business.
-        await updateUplineRanks(
-            connection,
-            member
+        // The depositing member may now qualify; update before checking uplines.
+        const ownQualification = await calculateQualifiedRank(connection, member.id);
+        const [ownRows] = await connection.execute(
+            "SELECT COALESCE(level_achieved, 0) AS rank FROM member WHERE id = ? FOR UPDATE",
+            [member.id]
         );
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 7. DIRECT INCOME
-        |--------------------------------------------------------------------------
-        |
-        | Direct income = 10% USDT.
-        |
-        | Rank income is intentionally NOT calculated here.
-        | Salary is intentionally NOT calculated here.
-        | ROI is intentionally NOT calculated here.
-        |
-        */
+        if (ownQualification.rank > Number(ownRows[0]?.rank || 0)) {
+            await connection.execute(
+                "UPDATE member SET level_achieved = ? WHERE id = ?",
+                [ownQualification.rank, member.id]
+            );
+        }
+        await updateUplineRanks(connection, member);
 
         await processDirectIncome(
             connection,
@@ -1016,32 +579,27 @@ async function getDirectBusiness(connection, memberId) {
 
 async function getTeamBusiness(connection, memberId) {
     const [rows] = await connection.execute(
-        `SELECT COALESCE(SUM(sp.pack_amount), 0) AS total
+        `SELECT COALESCE(SUM(COALESCE(m.package_amount, 0)), 0) AS total
          FROM levels l
-         INNER JOIN select_packages sp ON sp.u_id = l.from_id
-         WHERE l.to_id = ?
-         AND l.from_id <> ?`,
+         INNER JOIN member m ON m.id = l.from_id
+         WHERE l.to_id = ? AND l.from_id <> ?`,
         [memberId, memberId]
     );
-
     return Number(rows[0]?.total || 0);
 }
 
+// Two independently qualified first-generation members (two distinct branches).
+// Direct-business qualification bypasses this requirement entirely.
 async function getRankedDownlineCount(connection, memberId, requiredRank) {
-    if (requiredRank <= 0) {
-        return 0;
-    }
-
+    if (requiredRank <= 0) return 0;
     const [rows] = await connection.execute(
-        `SELECT COUNT(DISTINCT m.id) AS total
-         FROM levels l
-         INNER JOIN member m ON m.id = l.from_id
-         WHERE l.to_id = ?
-         AND l.from_id <> ?
-         AND COALESCE(m.level_achieved, 0) >= ?`,
-        [memberId, memberId, requiredRank]
+        `SELECT COUNT(DISTINCT child.id) AS total
+         FROM member parent
+         INNER JOIN member child ON child.real_sponsor_id = parent.user_id
+         WHERE parent.id = ?
+           AND COALESCE(child.level_achieved, 0) >= ?`,
+        [memberId, requiredRank]
     );
-
     return Number(rows[0]?.total || 0);
 }
 
@@ -1052,26 +610,15 @@ async function calculateQualifiedRank(connection, memberId) {
     let qualifiedRank = 0;
 
     for (const rank of RANKS) {
-        if (directBusiness < rank.directBusiness) {
-            break;
+        const directRoute = directBusiness >= rank.directBusiness;
+        let communityRoute = false;
+        if (teamBusiness >= rank.teamBusiness) {
+            const rankedCount = rank.requiredCount > 0
+                ? await getRankedDownlineCount(connection, memberId, rank.requiredRank)
+                : 0;
+            communityRoute = rankedCount >= rank.requiredCount;
         }
-
-        if (teamBusiness < rank.teamBusiness) {
-            break;
-        }
-
-        if (rank.requiredCount > 0) {
-            const rankedCount = await getRankedDownlineCount(
-                connection,
-                memberId,
-                rank.requiredRank
-            );
-
-            if (rankedCount < rank.requiredCount) {
-                break;
-            }
-        }
-
+        if (!directRoute && !communityRoute) break;
         qualifiedRank = rank.rank;
     }
 
@@ -1222,19 +769,8 @@ async function processRankIncome(connection, member, usdtAmount, txHash) {
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| POLL NEW EVENTS
-|--------------------------------------------------------------------------
-|
-| Claimed + Deposited are emitted by the same combined contract.
-|
-| One cursor is therefore enough.
-|
-|--------------------------------------------------------------------------
-*/
 
-async function pollForPayoutEvents() {
+async function pollForPresaleEvents() {
     if (isPolling) {
         return;
     }
@@ -1245,13 +781,13 @@ async function pollForPayoutEvents() {
         let lastBlock =
             await getLastProcessedBlock();
 
-        const latestBlock =
-            await provider.getBlockNumber();
+        const latestBlock = Math.max(0, (await provider.getBlockNumber()) - CONFIRMATIONS);
 
         consecutiveFailures = 0;
         lastSuccessfulPollAt = Date.now();
 
         if (lastBlock >= latestBlock) {
+            lastSuccessfulPollAt = Date.now();
             return;
         }
 
@@ -1277,7 +813,7 @@ async function pollForPayoutEvents() {
 
             const events =
                 await contract.queryFilter(
-                    "*",
+                    contract.filters.Deposited(),
                     fromBlock,
                     toBlock
                 );
@@ -1288,29 +824,7 @@ async function pollForPayoutEvents() {
             );
 
             for (const event of events) {
-                const eventName =
-                    event.fragment?.name;
-
-                if (
-                    eventName ===
-                    "Deposited"
-                ) {
-                    await processDepositEvent(
-                        event
-                    );
-                } else if (
-                    eventName ===
-                    "Claimed"
-                ) {
-                    await processClaimEvent(
-                        event
-                    );
-                } else {
-                    console.log(
-                        "Skipping event:",
-                        eventName
-                    );
-                }
+                await processDepositEvent(event);
             }
 
             /*
@@ -1336,11 +850,6 @@ async function pollForPayoutEvents() {
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| HEALTHCHECK
-|--------------------------------------------------------------------------
-*/
 
 function startHealthcheck() {
     setInterval(() => {
@@ -1368,17 +877,12 @@ function startHealthcheck() {
     }, HEALTHCHECK_INTERVAL_MS);
 }
 
-/*
-|--------------------------------------------------------------------------
-| START POLLING
-|--------------------------------------------------------------------------
-*/
 
 function startPolling() {
     console.log("");
     console.log("==========================================");
-    console.log("EWC BLOCKCHAIN EVENT LISTENER STARTED");
-    console.log("Contract:", PAYOUT_CONTRACT_ADDRESS);
+    console.log("EWC PRESALE EVENT LISTENER STARTED");
+    console.log("Contract:", PRESALE_CONTRACT_ADDRESS);
     console.log("RPC:", RPC_URL);
     console.log(
         "Poll interval:",
@@ -1386,25 +890,20 @@ function startPolling() {
         "ms"
     );
     console.log(
-        "Watching: Deposited + Claimed"
+        "Watching: Presale Deposited only"
     );
     console.log("==========================================");
 
-    pollForPayoutEvents();
+    pollForPresaleEvents();
 
     setInterval(
-        pollForPayoutEvents,
+        pollForPresaleEvents,
         POLL_INTERVAL_MS
     );
 
     startHealthcheck();
 }
 
-/*
-|--------------------------------------------------------------------------
-| MAIN
-|--------------------------------------------------------------------------
-*/
 
 async function main() {
     try {
@@ -1422,16 +921,18 @@ async function main() {
 
         const code =
             await provider.getCode(
-                PAYOUT_CONTRACT_ADDRESS
+                PRESALE_CONTRACT_ADDRESS
             );
 
         if (code === "0x") {
             throw new Error(
                 "No contract found at " +
-                PAYOUT_CONTRACT_ADDRESS
+                PRESALE_CONTRACT_ADDRESS
             );
         }
 
+        usdtDecimals = Number(await contract.usdtDecimals());
+        console.log("USDT decimals:", usdtDecimals);
         startPolling();
     } catch (error) {
         console.error(
