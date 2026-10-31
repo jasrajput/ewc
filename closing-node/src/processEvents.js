@@ -1,58 +1,208 @@
+
 const { ethers } = require("ethers");
 const pool = require("./db");
 const config = require("./config");
-const { syncAllowanceRank, } = require("../../backend/services/monthlyAllowanceService");
+const {
+    syncAllowanceRank,
+} = require("../../backend/services/monthlyAllowanceService");
 
 const RPC_URL = config.rpcUrl;
-const PRESALE_CONTRACT_ADDRESS = config.presaleContract || process.env.EWC_PRESALE_CONTRACT;
+const PRESALE_CONTRACT_ADDRESS =
+    config.presaleContract || process.env.EWC_PRESALE_CONTRACT;
+const PAYOUT_CONTRACT_ADDRESS =
+    config.merkleContract || process.env.MERKLE_CONTRACT;
 
-if (!PRESALE_CONTRACT_ADDRESS || !ethers.isAddress(PRESALE_CONTRACT_ADDRESS)) {
-    throw new Error("Configure a valid presaleContract in config.js (or EWC_PRESALE_CONTRACT)");
+const PAYOUT_DEPLOYMENT_BLOCK =
+    Number(process.env.PAYOUT_DEPLOYMENT_BLOCK);
+
+const CLAIM_SYNC_ID = 3;
+
+if (
+    !PRESALE_CONTRACT_ADDRESS ||
+    !ethers.isAddress(PRESALE_CONTRACT_ADDRESS)
+) {
+    throw new Error(
+        "Configure a valid presaleContract or EWC_PRESALE_CONTRACT"
+    );
 }
 
-const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 10000;
-const BLOCK_BATCH_SIZE = Number(process.env.BLOCK_BATCH_SIZE) || 500;
-const CONFIRMATIONS = Number(process.env.EVENT_CONFIRMATIONS ?? 12);
-const HEALTHCHECK_INTERVAL_MS = Number(process.env.HEALTHCHECK_INTERVAL_MS) || 60000;
+if (
+    !PAYOUT_CONTRACT_ADDRESS ||
+    !ethers.isAddress(PAYOUT_CONTRACT_ADDRESS)
+) {
+    throw new Error(
+        "Configure a valid MERKLE_CONTRACT (EWCPayout)"
+    );
+}
+
+const POLL_INTERVAL_MS =
+    Number(process.env.POLL_INTERVAL_MS) || 30000;
+
+const BLOCK_BATCH_SIZE =
+    Number(process.env.BLOCK_BATCH_SIZE) || 500;
+
+const CONFIRMATIONS =
+    Number(process.env.EVENT_CONFIRMATIONS ?? 12);
+
+const HEALTHCHECK_INTERVAL_MS =
+    Number(process.env.HEALTHCHECK_INTERVAL_MS) || 60000;
+
 const MAX_CONSECUTIVE_RPC_FAILURES = 5;
+
 const DIRECT_INCOME_PERCENT = 10;
 const PRESALE_PRICE_USDT = 0.01;
 
 const RANKS = [
-    // Personal investment is mandatory for both qualification paths.
-    // Path 1: Direct business
-    // Path 2: Community business + required ranked direct members.
-    { rank: 1, personalInvestment: 50, directBusiness: 1000, teamBusiness: 1000, requiredRank: 0, requiredCount: 0, percent: 1 },
-    { rank: 2, personalInvestment: 50, directBusiness: 1500, teamBusiness: 3000, requiredRank: 1, requiredCount: 2, percent: 3 },
-    { rank: 3, personalInvestment: 50, directBusiness: 5000, teamBusiness: 10000, requiredRank: 2, requiredCount: 2, percent: 6 },
-    { rank: 4, personalInvestment: 100, directBusiness: 15000, teamBusiness: 30000, requiredRank: 3, requiredCount: 2, percent: 9 },
-    { rank: 5, personalInvestment: 200, directBusiness: 50000, teamBusiness: 100000, requiredRank: 4, requiredCount: 2, percent: 12 },
-    { rank: 6, personalInvestment: 300, directBusiness: 150000, teamBusiness: 300000, requiredRank: 5, requiredCount: 2, percent: 15 },
-    { rank: 7, personalInvestment: 500, directBusiness: 500000, teamBusiness: 1000000, requiredRank: 6, requiredCount: 2, percent: 18 },
-    { rank: 8, personalInvestment: 750, directBusiness: 1500000, teamBusiness: 3000000, requiredRank: 7, requiredCount: 2, percent: 21 },
-    { rank: 9, personalInvestment: 1500, directBusiness: 5000000, teamBusiness: 10000000, requiredRank: 8, requiredCount: 2, percent: 24 },
-    { rank: 10, personalInvestment: 3000, directBusiness: 15000000, teamBusiness: 30000000, requiredRank: 9, requiredCount: 2, percent: 26 },
-    { rank: 11, personalInvestment: 5000, directBusiness: 50000000, teamBusiness: 100000000, requiredRank: 10, requiredCount: 2, percent: 28 },
-    { rank: 12, personalInvestment: 10000, directBusiness: 250000000, teamBusiness: 500000000, requiredRank: 11, requiredCount: 2, percent: 30 }
+    {
+        rank: 1,
+        personalInvestment: 50,
+        directBusiness: 1000,
+        teamBusiness: 1000,
+        requiredRank: 0,
+        requiredCount: 0,
+        percent: 1,
+    },
+    {
+        rank: 2,
+        personalInvestment: 50,
+        directBusiness: 1500,
+        teamBusiness: 3000,
+        requiredRank: 1,
+        requiredCount: 2,
+        percent: 3,
+    },
+    {
+        rank: 3,
+        personalInvestment: 50,
+        directBusiness: 5000,
+        teamBusiness: 10000,
+        requiredRank: 2,
+        requiredCount: 2,
+        percent: 6,
+    },
+    {
+        rank: 4,
+        personalInvestment: 100,
+        directBusiness: 15000,
+        teamBusiness: 30000,
+        requiredRank: 3,
+        requiredCount: 2,
+        percent: 9,
+    },
+    {
+        rank: 5,
+        personalInvestment: 200,
+        directBusiness: 50000,
+        teamBusiness: 100000,
+        requiredRank: 4,
+        requiredCount: 2,
+        percent: 12,
+    },
+    {
+        rank: 6,
+        personalInvestment: 300,
+        directBusiness: 150000,
+        teamBusiness: 300000,
+        requiredRank: 5,
+        requiredCount: 2,
+        percent: 15,
+    },
+    {
+        rank: 7,
+        personalInvestment: 500,
+        directBusiness: 500000,
+        teamBusiness: 1000000,
+        requiredRank: 6,
+        requiredCount: 2,
+        percent: 18,
+    },
+    {
+        rank: 8,
+        personalInvestment: 750,
+        directBusiness: 1500000,
+        teamBusiness: 3000000,
+        requiredRank: 7,
+        requiredCount: 2,
+        percent: 21,
+    },
+    {
+        rank: 9,
+        personalInvestment: 1500,
+        directBusiness: 5000000,
+        teamBusiness: 10000000,
+        requiredRank: 8,
+        requiredCount: 2,
+        percent: 24,
+    },
+    {
+        rank: 10,
+        personalInvestment: 3000,
+        directBusiness: 15000000,
+        teamBusiness: 30000000,
+        requiredRank: 9,
+        requiredCount: 2,
+        percent: 26,
+    },
+    {
+        rank: 11,
+        personalInvestment: 5000,
+        directBusiness: 50000000,
+        teamBusiness: 100000000,
+        requiredRank: 10,
+        requiredCount: 2,
+        percent: 28,
+    },
+    {
+        rank: 12,
+        personalInvestment: 10000,
+        directBusiness: 250000000,
+        teamBusiness: 500000000,
+        requiredRank: 11,
+        requiredCount: 2,
+        percent: 30,
+    },
 ];
 
+// ============================================================
+// BLOCKCHAIN
+// ============================================================
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
+
 const PRESALE_ABI = [
     "event Deposited(address indexed payer, address indexed beneficiary, uint256 usdtAmount, uint256 allocatedEWC, uint256 bonusEWC, uint256 timestamp)",
-    "function usdtDecimals() view returns (uint8)"
+    "function usdtDecimals() view returns (uint8)",
 ];
-const contract = new ethers.Contract(PRESALE_CONTRACT_ADDRESS, PRESALE_ABI, provider);
-let usdtDecimals = 18;
 
+const CLAIM_ABI = [
+    "event Claimed(address indexed user, uint256 usdtAmount, uint256 roiEwcAmount, uint256 cumulativeUsdtIncome, uint256 cumulativeRoiEwc, uint256 timestamp)",
+];
+
+const contract = new ethers.Contract(
+    PRESALE_CONTRACT_ADDRESS,
+    PRESALE_ABI,
+    provider
+);
+
+const claimInterface = new ethers.Interface(CLAIM_ABI);
+
+const depositTopic =
+    contract.interface.getEvent("Deposited").topicHash;
+
+const claimTopic =
+    claimInterface.getEvent("Claimed").topicHash;
+
+let usdtDecimals = 18;
 
 let isPolling = false;
 let consecutiveFailures = 0;
 let lastSuccessfulPollAt = Date.now();
 
+// ============================================================
+// HELPERS
+// ============================================================
 
 function toHuman(value, decimals = 18) {
-    // Database columns use DECIMAL; avoid floating point when storing EWC allocations.
     return ethers.formatUnits(value, decimals);
 }
 
@@ -64,6 +214,9 @@ function getBlockNumber(event) {
     return event?.blockNumber ?? null;
 }
 
+// ============================================================
+// PRESALE BLOCK CHECKPOINT
+// ============================================================
 
 async function getLastProcessedBlock() {
     await pool.execute(`
@@ -85,36 +238,27 @@ async function getLastProcessedBlock() {
     `);
 
     if (!rows.length) {
-        /*
-         * Starting at zero is safe but can be very slow on an established
-         * chain. If this service is being deployed after the contract,
-         * you can manually set last_block to deploymentBlock - 1.
-         */
+        const initialBlock = Math.max(
+            0,
+            Number(process.env.PRESALE_DEPLOYMENT_BLOCK || 1) - 1
+        );
 
-        const initialBlock = Math.max(0, Number(process.env.PRESALE_DEPLOYMENT_BLOCK || 1) - 1);
         await pool.execute(
-            `INSERT INTO blockchain_sync (id, contract_name, last_block)
+            `INSERT INTO blockchain_sync
+             (id, contract_name, last_block)
              VALUES (2, 'ewc_presale', ?)`,
             [initialBlock]
         );
+
         return initialBlock;
     }
 
     return Number(rows[0].last_block);
 }
 
-
-async function saveLastProcessedBlock(blockNumber) {
-    await pool.execute(
-        `
-        UPDATE blockchain_sync
-        SET last_block = ?
-        WHERE id = 2
-        `,
-        [blockNumber]
-    );
-}
-
+// ============================================================
+// MEMBER LOOKUPS
+// ============================================================
 
 async function findMemberByWallet(connection, wallet) {
     const [rows] = await connection.execute(
@@ -136,7 +280,6 @@ async function findMemberByWallet(connection, wallet) {
 
     return rows.length ? rows[0] : null;
 }
-
 
 async function findSponsor(connection, sponsorUserId) {
     if (!sponsorUserId) {
@@ -160,6 +303,9 @@ async function findSponsor(connection, sponsorUserId) {
     return rows.length ? rows[0] : null;
 }
 
+// ============================================================
+// DIRECT INCOME
+// ============================================================
 
 async function processDirectIncome(
     connection,
@@ -169,26 +315,15 @@ async function processDirectIncome(
     txHash
 ) {
     if (!sponsor) {
-        console.log(
-            "No sponsor found. Direct income skipped."
-        );
-
+        console.log("No sponsor found. Direct income skipped.");
         return;
     }
-
-    /*
-     * Sponsor must be activated.
-     *
-     * Existing project convention:
-     * package_choose >= 2 = activated.
-     */
 
     if (Number(sponsor.package_choose) < 2) {
         console.log(
             "Sponsor is not active. Direct income skipped:",
             sponsor.user_id
         );
-
         return;
     }
 
@@ -198,11 +333,6 @@ async function processDirectIncome(
     if (directIncome <= 0) {
         return;
     }
-
-    /*
-     * direction = 1
-     * Existing EWC convention for Direct Income.
-     */
 
     await connection.execute(
         `
@@ -218,28 +348,17 @@ async function processDirectIncome(
         [
             directIncome,
             sponsor.id,
-            `Direct Income from ${member.user_id}`
+            `Direct Income from ${member.user_id}`,
         ]
     );
-
-    /*
-     * Existing wallet accounting.
-     *
-     * Direct income remains USDT.
-     */
 
     await connection.execute(
         `
         UPDATE user_wallet
-        SET
-            balance =
-                COALESCE(balance, 0) + ?
+        SET balance = COALESCE(balance, 0) + ?
         WHERE user_id = ?
         `,
-        [
-            directIncome,
-            sponsor.id
-        ]
+        [directIncome, sponsor.id]
     );
 
     console.log(
@@ -250,9 +369,14 @@ async function processDirectIncome(
     );
 }
 
+// ============================================================
+// DEPOSIT EVENT
+// ============================================================
 
 async function processDepositEvent(event) {
     const connection = await pool.getConnection();
+
+    let transactionOpen = false;
 
     try {
         console.log("");
@@ -260,37 +384,47 @@ async function processDepositEvent(event) {
         console.log("PROCESSING EWC PRESALE DEPOSIT");
         console.log("==========================================");
 
-        const args = event.args || contract.interface.parseLog({
-            topics: event.topics,
-            data: event.data
-        }).args;
+        const args =
+            event.args ||
+            contract.interface.parseLog({
+                topics: event.topics,
+                data: event.data,
+            }).args;
+
         const payer = args.payer ?? args[0];
         const beneficiary = args.beneficiary ?? args[1];
         const usdtAmount = args.usdtAmount ?? args[2];
         const allocatedEWC = args.allocatedEWC ?? args[3];
         const bonusEWC = args.bonusEWC ?? args[4];
         const timestamp = args.timestamp ?? args[5];
+
         const txHash = getTransactionHash(event);
         const blockNumber = getBlockNumber(event);
 
         if (!payer || !beneficiary || !txHash) {
             throw new Error("Incomplete presale Deposited event");
         }
+
         const usdtHuman = toHuman(usdtAmount, usdtDecimals);
         const allocatedEwcHuman = toHuman(allocatedEWC);
         const bonusEwcHuman = toHuman(bonusEWC);
         const allocationPriceHuman = PRESALE_PRICE_USDT;
 
         console.log("Presale deposit", {
-            payer, beneficiary, usdtHuman, allocatedEwcHuman,
-            bonusEwcHuman, timestamp: Number(timestamp), txHash, blockNumber
+            payer,
+            beneficiary,
+            usdtHuman,
+            allocatedEwcHuman,
+            bonusEwcHuman,
+            timestamp: Number(timestamp),
+            txHash,
+            blockNumber,
         });
 
-        const member =
-            await findMemberByWallet(
-                connection,
-                beneficiary
-            );
+        const member = await findMemberByWallet(
+            connection,
+            beneficiary
+        );
 
         if (!member) {
             throw new Error(
@@ -301,38 +435,40 @@ async function processDepositEvent(event) {
         const id = member.id;
         const loginId = member.user_id;
         const refId = member.real_sponsor_id;
+
         const wasActivated =
             Number(member.package_choose) >= 2;
 
-        if (txHash) {
-            const [existing] =
-                await connection.execute(
-                    `
-                    SELECT id
-                    FROM stake_txns
-                    WHERE txn_id = ?
-                    LIMIT 1
-                    `,
-                    [txHash]
-                );
+        // ----------------------------------------------------
+        // DEPOSIT IDEMPOTENCY
+        // ----------------------------------------------------
 
-            if (existing.length) {
-                console.log(
-                    "Deposit already processed:",
-                    txHash
-                );
+        const [existing] = await connection.execute(
+            `
+            SELECT id
+            FROM stake_txns
+            WHERE txn_id = ?
+            LIMIT 1
+            `,
+            [txHash]
+        );
 
-                return;
-            }
+        if (existing.length) {
+            console.log("Deposit already processed:", txHash);
+            return;
         }
 
-        const sponsor =
-            await findSponsor(
-                connection,
-                refId
-            );
+        const sponsor = await findSponsor(
+            connection,
+            refId
+        );
 
         await connection.beginTransaction();
+        transactionOpen = true;
+
+        // ----------------------------------------------------
+        // STAKE TRANSACTION
+        // ----------------------------------------------------
 
         await connection.execute(
             `
@@ -360,29 +496,28 @@ async function processDepositEvent(event) {
                 beneficiary,
                 allocatedEwcHuman,
                 allocationPriceHuman,
-                bonusEwcHuman
+                bonusEwcHuman,
             ]
         );
 
+        // ----------------------------------------------------
+        // MEMBER ACTIVATION / REINVESTMENT
+        // ----------------------------------------------------
+
         if (!wasActivated) {
-            const [result] =
-                await connection.execute(
-                    `
-                    UPDATE member
-                    SET
-                        package_choose = 2,
-                        package_amount =
-                            COALESCE(package_amount, 0) + ?,
-                        current_package = ?,
-                        date_of_activation = NOW()
-                    WHERE id = ?
-                    `,
-                    [
-                        usdtHuman,
-                        usdtHuman,
-                        id
-                    ]
-                );
+            const [result] = await connection.execute(
+                `
+                UPDATE member
+                SET
+                    package_choose = 2,
+                    package_amount =
+                        COALESCE(package_amount, 0) + ?,
+                    current_package = ?,
+                    date_of_activation = NOW()
+                WHERE id = ?
+                `,
+                [usdtHuman, usdtHuman, id]
+            );
 
             if (result.affectedRows <= 0) {
                 throw new Error(
@@ -390,27 +525,22 @@ async function processDepositEvent(event) {
                 );
             }
         } else {
-            const [result] =
-                await connection.execute(
-                    `
-                    UPDATE member
-                    SET
-                        package_choose = 2,
-                        package_amount =
-                            COALESCE(package_amount, 0) + ?,
-                        current_package = ?,
-                        re_top_up_status = 0,
-                        re_top_up_times =
-                            COALESCE(re_top_up_times, 0) + 1,
-                        date_of_re_top = NOW()
-                    WHERE id = ?
-                    `,
-                    [
-                        usdtHuman,
-                        usdtHuman,
-                        id
-                    ]
-                );
+            const [result] = await connection.execute(
+                `
+                UPDATE member
+                SET
+                    package_choose = 2,
+                    package_amount =
+                        COALESCE(package_amount, 0) + ?,
+                    current_package = ?,
+                    re_top_up_status = 0,
+                    re_top_up_times =
+                        COALESCE(re_top_up_times, 0) + 1,
+                    date_of_re_top = NOW()
+                WHERE id = ?
+                `,
+                [usdtHuman, usdtHuman, id]
+            );
 
             if (result.affectedRows <= 0) {
                 throw new Error(
@@ -418,6 +548,10 @@ async function processDepositEvent(event) {
                 );
             }
         }
+
+        // ----------------------------------------------------
+        // INVESTMENT PACKAGE
+        // ----------------------------------------------------
 
         await connection.execute(
             `
@@ -436,9 +570,13 @@ async function processDepositEvent(event) {
                 id,
                 usdtHuman,
                 allocatedEwcHuman,
-                allocationPriceHuman
+                allocationPriceHuman,
             ]
         );
+
+        // ----------------------------------------------------
+        // FUND TRANSACTION
+        // ----------------------------------------------------
 
         await connection.execute(
             `
@@ -453,9 +591,13 @@ async function processDepositEvent(event) {
             [
                 usdtHuman,
                 `Account Activated of ${loginId}`,
-                id
+                id,
             ]
         );
+
+        // ----------------------------------------------------
+        // TOP-UP HISTORY
+        // ----------------------------------------------------
 
         await connection.execute(
             `
@@ -467,12 +609,12 @@ async function processDepositEvent(event) {
             )
             VALUES (?, ?, ?)
             `,
-            [
-                id,
-                id,
-                usdtHuman
-            ]
+            [id, id, usdtHuman]
         );
+
+        // ----------------------------------------------------
+        // NETWORK VOLUME
+        // ----------------------------------------------------
 
         await connection.execute(
             `
@@ -483,25 +625,37 @@ async function processDepositEvent(event) {
                     COALESCE(package_amount, 0) + ?
             WHERE from_id = ?
             `,
-            [
-                usdtHuman,
-                id
-            ]
+            [usdtHuman, id]
         );
 
+        // ----------------------------------------------------
+        // RANK CALCULATIONS
+        // ----------------------------------------------------
 
-        // Recalculate ranks first.
-        // This deposit has already been added to select_packages and levels,
-        // so qualification sees the new business.
-        // The depositing member may now qualify; update before checking uplines.
-        const ownQualification = await calculateQualifiedRank(connection, member.id);
+        const ownQualification =
+            await calculateQualifiedRank(
+                connection,
+                member.id
+            );
+
         const [ownRows] = await connection.execute(
-            "SELECT COALESCE(level_achieved, 0) AS `rank` FROM member WHERE id = ? FOR UPDATE",
+            `SELECT COALESCE(level_achieved, 0) AS \`rank\`
+             FROM member
+             WHERE id = ?
+             FOR UPDATE`,
             [member.id]
         );
-        if (ownQualification.rank > Number(ownRows[0]?.rank || 0)) {
+
+        if (
+            ownQualification.rank >
+            Number(ownRows[0]?.rank || 0)
+        ) {
             await connection.execute(
-                "UPDATE member SET level_achieved = ? WHERE id = ?",
+                `
+                UPDATE member
+                SET level_achieved = ?
+                WHERE id = ?
+                `,
                 [ownQualification.rank, member.id]
             );
 
@@ -512,10 +666,17 @@ async function processDepositEvent(event) {
             );
 
             console.log(
-                `Monthly Allowance initialized/updated for ${member.user_id} at E-${String(ownQualification.rank).padStart(2, "0")}`
+                `Monthly Allowance initialized/updated for ${member.user_id} at E-${String(
+                    ownQualification.rank
+                ).padStart(2, "0")}`
             );
         }
+
         await updateUplineRanks(connection, member);
+
+        // ----------------------------------------------------
+        // DIRECT AND RANK INCOME
+        // ----------------------------------------------------
 
         await processDirectIncome(
             connection,
@@ -525,7 +686,6 @@ async function processDepositEvent(event) {
             txHash
         );
 
-        // Team/Rank Income using differential percentage.
         await processRankIncome(
             connection,
             member,
@@ -534,6 +694,7 @@ async function processDepositEvent(event) {
         );
 
         await connection.commit();
+        transactionOpen = false;
 
         console.log("");
         console.log("==========================================");
@@ -541,51 +702,40 @@ async function processDepositEvent(event) {
         console.log("==========================================");
         console.log("User:", loginId);
         console.log("Investment:", usdtHuman, "USDT");
-        console.log(
-            "EWC allocation:",
-            allocatedEwcHuman,
-            "EWC"
-        );
-        console.log(
-            "Allocation price:",
-            allocationPriceHuman
-        );
+        console.log("EWC allocation:", allocatedEwcHuman, "EWC");
+        console.log("Allocation price:", allocationPriceHuman);
         console.log("TX:", txHash);
         console.log("==========================================");
     } catch (error) {
-        try {
+        if (transactionOpen) {
             await connection.rollback();
-        } catch (_) { }
+        }
 
-        console.error(
-            "processDepositEvent failed:",
-            error
-        );
-
-        /*
-         * Do NOT swallow this.
-         *
-         * The cursor must not advance beyond an event which failed
-         * to save to MySQL.
-         */
-
+        console.error("processDepositEvent failed:", error);
         throw error;
     } finally {
         connection.release();
     }
 }
 
-
+// ============================================================
+// RANK QUALIFICATION
+// ============================================================
 
 async function getDirectBusiness(connection, memberId) {
     const [rows] = await connection.execute(
-        `SELECT COALESCE(SUM(sp.pack_amount), 0) AS total
-         FROM member m
-         INNER JOIN select_packages sp ON sp.u_id = m.id
-         WHERE m.real_sponsor_id = (
-             SELECT user_id FROM member WHERE id = ? LIMIT 1
-         )
-         AND m.package_choose >= 2`,
+        `
+        SELECT COALESCE(SUM(sp.pack_amount), 0) AS total
+        FROM member m
+        INNER JOIN select_packages sp ON sp.u_id = m.id
+        WHERE m.real_sponsor_id = (
+            SELECT user_id
+            FROM member
+            WHERE id = ?
+            LIMIT 1
+        )
+        AND m.package_choose >= 2
+        `,
         [memberId]
     );
 
@@ -594,77 +744,81 @@ async function getDirectBusiness(connection, memberId) {
 
 async function getTeamBusiness(connection, memberId) {
     const [rows] = await connection.execute(
-        `SELECT COALESCE(SUM(COALESCE(m.package_amount, 0)), 0) AS total
-         FROM levels l
-         INNER JOIN member m ON m.id = l.from_id
-         WHERE l.to_id = ? AND l.from_id <> ?`,
+        `
+        SELECT COALESCE(
+            SUM(COALESCE(m.package_amount, 0)),
+            0
+        ) AS total
+        FROM levels l
+        INNER JOIN member m ON m.id = l.from_id
+        WHERE l.to_id = ?
+          AND l.from_id <> ?
+        `,
         [memberId, memberId]
     );
+
     return Number(rows[0]?.total || 0);
 }
 
-// Two independently qualified first-generation members (two distinct branches).
-// Direct-business qualification bypasses this requirement entirely.
-async function getRankedDownlineCount(connection, memberId, requiredRank) {
-    if (requiredRank <= 0) return 0;
+async function getRankedDownlineCount(
+    connection,
+    memberId,
+    requiredRank
+) {
+    if (requiredRank <= 0) {
+        return 0;
+    }
+
     const [rows] = await connection.execute(
-        `SELECT COUNT(DISTINCT child.id) AS total
-         FROM member parent
-         INNER JOIN member child ON child.real_sponsor_id = parent.user_id
-         WHERE parent.id = ?
-           AND COALESCE(child.level_achieved, 0) >= ?`,
+        `
+        SELECT COUNT(DISTINCT child.id) AS total
+        FROM member parent
+        INNER JOIN member child
+            ON child.real_sponsor_id = parent.user_id
+        WHERE parent.id = ?
+          AND COALESCE(child.level_achieved, 0) >= ?
+        `,
         [memberId, requiredRank]
     );
+
     return Number(rows[0]?.total || 0);
 }
-
 
 async function getPersonalInvestment(connection, memberId) {
     const [rows] = await connection.execute(
-        `SELECT COALESCE(package_amount, 0) AS personal_investment
-         FROM member
-         WHERE id = ?
-         LIMIT 1`,
+        `
+        SELECT COALESCE(package_amount, 0)
+            AS personal_investment
+        FROM member
+        WHERE id = ?
+        LIMIT 1
+        `,
         [memberId]
     );
 
     return Number(rows[0]?.personal_investment || 0);
 }
 
-
-
 async function calculateQualifiedRank(connection, memberId) {
-    const personalInvestment = await getPersonalInvestment(
-        connection,
-        memberId
-    );
+    const personalInvestment =
+        await getPersonalInvestment(connection, memberId);
 
-    const directBusiness = await getDirectBusiness(
-        connection,
-        memberId
-    );
+    const directBusiness =
+        await getDirectBusiness(connection, memberId);
 
-    const teamBusiness = await getTeamBusiness(
-        connection,
-        memberId
-    );
+    const teamBusiness =
+        await getTeamBusiness(connection, memberId);
 
     let qualifiedRank = 0;
 
     for (const rank of RANKS) {
-        // Mandatory personal investment for every rank.
-        const personalQualified =
-            personalInvestment >= rank.personalInvestment;
-
-        if (!personalQualified) {
+        if (personalInvestment < rank.personalInvestment) {
             break;
         }
 
-        // Path 1: Direct business alone.
         const directRoute =
             directBusiness >= rank.directBusiness;
 
-        // Path 2: Community business AND ranked direct members.
         let communityRoute = false;
 
         if (teamBusiness >= rank.teamBusiness) {
@@ -681,7 +835,6 @@ async function calculateQualifiedRank(connection, memberId) {
                 rankedCount >= rank.requiredCount;
         }
 
-        // Personal investment AND (Path 1 OR Path 2).
         if (!directRoute && !communityRoute) {
             break;
         }
@@ -693,27 +846,35 @@ async function calculateQualifiedRank(connection, memberId) {
         rank: qualifiedRank,
         personalInvestment,
         directBusiness,
-        teamBusiness
+        teamBusiness,
     };
 }
 
-
 async function updateUplineRanks(connection, member) {
     let parentUserId = member.real_sponsor_id;
+
     const visited = new Set();
 
     while (parentUserId) {
         if (visited.has(parentUserId)) {
-            throw new Error(`Sponsor loop detected at ${parentUserId}`);
+            throw new Error(
+                `Sponsor loop detected at ${parentUserId}`
+            );
         }
 
         visited.add(parentUserId);
 
         const [rows] = await connection.execute(
-            `SELECT id, user_id, real_sponsor_id, level_achieved
-             FROM member
-             WHERE user_id = ?
-             LIMIT 1`,
+            `
+            SELECT
+                id,
+                user_id,
+                real_sponsor_id,
+                level_achieved
+            FROM member
+            WHERE user_id = ?
+            LIMIT 1
+            `,
             [parentUserId]
         );
 
@@ -728,14 +889,16 @@ async function updateUplineRanks(connection, member) {
             parent.id
         );
 
-        const oldRank = Number(parent.level_achieved || 0);
+        const oldRank =
+            Number(parent.level_achieved || 0);
 
-        // Rank never goes backwards.
         if (result.rank > oldRank) {
             await connection.execute(
-                `UPDATE member
-         SET level_achieved = ?
-         WHERE id = ?`,
+                `
+                UPDATE member
+                SET level_achieved = ?
+                WHERE id = ?
+                `,
                 [result.rank, parent.id]
             );
 
@@ -746,15 +909,21 @@ async function updateUplineRanks(connection, member) {
             );
 
             console.log(
-                `Rank upgraded: ${parent.user_id} E-${String(oldRank).padStart(2, "0")} -> E-${String(result.rank).padStart(2, "0")}`
+                `Rank upgraded: ${parent.user_id} ` +
+                `E-${String(oldRank).padStart(2, "0")} -> ` +
+                `E-${String(result.rank).padStart(2, "0")}`
             );
 
             console.log(
-                `Direct Business: ${result.directBusiness} USDT | Team Business: ${result.teamBusiness} USDT`
+                `Direct Business: ${result.directBusiness} USDT | ` +
+                `Team Business: ${result.teamBusiness} USDT`
             );
 
             console.log(
-                `Monthly Allowance initialized/updated for ${parent.user_id} at E-${String(result.rank).padStart(2, "0")}`
+                `Monthly Allowance initialized/updated for ` +
+                `${parent.user_id} at E-${String(
+                    result.rank
+                ).padStart(2, "0")}`
             );
         }
 
@@ -763,33 +932,49 @@ async function updateUplineRanks(connection, member) {
 }
 
 function getRankPercent(rank) {
-    const config = RANKS.find(item => item.rank === Number(rank));
-    return config ? config.percent : 0;
+    const rankConfig = RANKS.find(
+        (item) => item.rank === Number(rank)
+    );
+
+    return rankConfig ? rankConfig.percent : 0;
 }
 
-async function processRankIncome(connection, member, usdtAmount, txHash) {
+// ============================================================
+// DIFFERENTIAL RANK INCOME
+// ============================================================
+
+async function processRankIncome(
+    connection,
+    member,
+    usdtAmount,
+    txHash
+) {
     let parentUserId = member.real_sponsor_id;
     let distributedPercent = 0;
-    let generation = 1;
+
     const visited = new Set();
 
     while (parentUserId && distributedPercent < 30) {
         if (visited.has(parentUserId)) {
-            throw new Error(`Sponsor loop detected at ${parentUserId}`);
+            throw new Error(
+                `Sponsor loop detected at ${parentUserId}`
+            );
         }
 
         visited.add(parentUserId);
 
         const [rows] = await connection.execute(
-            `SELECT
+            `
+            SELECT
                 id,
                 user_id,
                 real_sponsor_id,
                 package_choose,
                 level_achieved
-             FROM member
-             WHERE user_id = ?
-             LIMIT 1`,
+            FROM member
+            WHERE user_id = ?
+            LIMIT 1
+            `,
             [parentUserId]
         );
 
@@ -798,7 +983,10 @@ async function processRankIncome(connection, member, usdtAmount, txHash) {
         }
 
         const parent = rows[0];
-        const rank = Number(parent.level_achieved || 0);
+
+        const rank =
+            Number(parent.level_achieved || 0);
+
         const rankPercent = getRankPercent(rank);
 
         if (
@@ -813,30 +1001,40 @@ async function processRankIncome(connection, member, usdtAmount, txHash) {
 
             if (income > 0) {
                 await connection.execute(
-                    `INSERT INTO trasections
-                     (
+                    `
+                    INSERT INTO trasections
+                    (
                         credit,
                         direction,
                         user_id,
                         description
-                     )
-                     VALUES (?, 5, ?, ?)`,
+                    )
+                    VALUES (?, 5, ?, ?)
+                    `,
                     [
                         income,
                         parent.id,
-                        `E-${String(rank).padStart(2, "0")} Team Income ${differencePercent}% from ${member.user_id}`
+                        `E-${String(rank).padStart(2, "0")} ` +
+                        `Team Income ${differencePercent}% ` +
+                        `from ${member.user_id}`,
                     ]
                 );
 
                 await connection.execute(
-                    `UPDATE user_wallet
-                     SET balance = COALESCE(balance, 0) + ?
-                     WHERE user_id = ?`,
+                    `
+                    UPDATE user_wallet
+                    SET balance =
+                        COALESCE(balance, 0) + ?
+                    WHERE user_id = ?
+                    `,
                     [income, parent.id]
                 );
 
                 console.log(
-                    `Rank Income: ${income} USDT -> ${parent.user_id} | Rank E-${String(rank).padStart(2, "0")} | Differential ${differencePercent}%`
+                    `Rank Income: ${income} USDT -> ` +
+                    `${parent.user_id} | ` +
+                    `Rank E-${String(rank).padStart(2, "0")} | ` +
+                    `Differential ${differencePercent}%`
                 );
             }
 
@@ -844,10 +1042,302 @@ async function processRankIncome(connection, member, usdtAmount, txHash) {
         }
 
         parentUserId = parent.real_sponsor_id;
-        generation++;
     }
 }
 
+// ============================================================
+// CLAIM EVENT — RESTORED
+// ============================================================
+
+async function processClaimEvent(event) {
+    const args = event.args;
+
+    const wallet = args.user ?? args[0];
+    const txHash = getTransactionHash(event);
+
+    if (!ethers.isAddress(wallet) || !txHash) {
+        throw new Error("Invalid Claimed event");
+    }
+
+    const connection = await pool.getConnection();
+
+    let transactionOpen = false;
+
+    try {
+        await connection.beginTransaction();
+        transactionOpen = true;
+
+        const [rows] = await connection.execute(
+            `
+            SELECT id, user_id
+            FROM member
+            WHERE LOWER(trx) = ?
+            LIMIT 1
+            `,
+            [wallet.toLowerCase()]
+        );
+
+        if (rows.length !== 1) {
+            throw new Error(
+                `Claim wallet not registered: ${wallet}`
+            );
+        }
+
+        // ----------------------------------------------------
+        // AVOID DUPLICATE WITHDRAWALS
+        // ----------------------------------------------------
+
+        const [already] = await connection.execute(
+            `
+            SELECT id
+            FROM withdrawals
+            WHERE txn_id = ?
+            LIMIT 1
+            `,
+            [txHash]
+        );
+
+        if (already.length) {
+            await connection.commit();
+            transactionOpen = false;
+
+            console.log(
+                "Claim already recorded:",
+                txHash
+            );
+
+            return;
+        }
+
+        // ----------------------------------------------------
+        // DECODE CURRENT 6-PARAMETER CLAIMED EVENT
+        // ----------------------------------------------------
+
+        const usdtAmount = ethers.formatUnits(
+            args.usdtAmount ?? args[1],
+            18
+        );
+
+        const roiEwcAmount = ethers.formatUnits(
+            args.roiEwcAmount ?? args[2],
+            18
+        );
+
+        const cumulativeUsdt = ethers.formatUnits(
+            args.cumulativeUsdtIncome ?? args[3],
+            18
+        );
+
+        const cumulativeEwc = ethers.formatUnits(
+            args.cumulativeRoiEwc ?? args[4],
+            18
+        );
+
+        const timestamp = Number(
+            args.timestamp ?? args[5]
+        );
+
+        if (
+            !Number.isSafeInteger(timestamp) ||
+            timestamp <= 0
+        ) {
+            throw new Error("Invalid claim timestamp");
+        }
+
+        const date = new Date(timestamp * 1000);
+
+        const utcDate = date
+            .toISOString()
+            .slice(0, 19)
+            .replace("T", " ");
+
+        // ----------------------------------------------------
+        // SAVE INTO EXISTING WITHDRAWALS TABLE
+        // ----------------------------------------------------
+
+        await connection.execute(
+            `
+            INSERT INTO withdrawals
+            (
+                user_id,
+                amount,
+                roi_ewc_amount,
+                cumulative_usdt,
+                cumulative_roi_ewc,
+                price,
+                pending_balance,
+                status,
+                txn_id,
+                block_number,
+                remarks,
+                date_of_withdrawal,
+                date_of_approved
+            )
+            VALUES
+            (
+                ?, ?, ?, ?, ?,
+                0, 0, 1,
+                ?, ?,
+                'Merkle claim',
+                ?, ?
+            )
+            `,
+            [
+                rows[0].id,
+                usdtAmount,
+                roiEwcAmount,
+                cumulativeUsdt,
+                cumulativeEwc,
+                txHash,
+                getBlockNumber(event),
+                utcDate,
+                utcDate,
+            ]
+        );
+
+        await connection.commit();
+        transactionOpen = false;
+
+        console.log(
+            `CLAIM SAVED | ${rows[0].user_id} | ` +
+            `${usdtAmount} USDT | ` +
+            `${roiEwcAmount} EWC | ${txHash}`
+        );
+    } catch (error) {
+        if (transactionOpen) {
+            await connection.rollback();
+        }
+
+        console.error(
+            "processClaimEvent failed:",
+            error
+        );
+
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
+// ============================================================
+// CLAIM CHECKPOINT
+// ============================================================
+
+async function initializeClaimCheckpoint() {
+    const [rows] = await pool.execute(
+        `
+        SELECT contract_name, last_block
+        FROM blockchain_sync
+        WHERE id = ?
+        `,
+        [CLAIM_SYNC_ID]
+    );
+
+    if (rows.length) {
+        if (
+            rows[0].contract_name !==
+            "ewc_payout_claims"
+        ) {
+            throw new Error(
+                `blockchain_sync id=${CLAIM_SYNC_ID} ` +
+                `is already in use: ${rows[0].contract_name}`
+            );
+        }
+
+        return Number(rows[0].last_block);
+    }
+
+    if (
+        !Number.isSafeInteger(PAYOUT_DEPLOYMENT_BLOCK) ||
+        PAYOUT_DEPLOYMENT_BLOCK <= 0
+    ) {
+        throw new Error(
+            "PAYOUT_DEPLOYMENT_BLOCK is required for historical claim backfill"
+        );
+    }
+
+    await pool.execute(
+        `
+        INSERT INTO blockchain_sync
+        (id, contract_name, last_block)
+        VALUES (?, 'ewc_payout_claims', ?)
+        `,
+        [
+            CLAIM_SYNC_ID,
+            PAYOUT_DEPLOYMENT_BLOCK - 1,
+        ]
+    );
+
+    return PAYOUT_DEPLOYMENT_BLOCK - 1;
+}
+
+async function getClaimCheckpoint() {
+    const [rows] = await pool.execute(
+        `
+        SELECT last_block
+        FROM blockchain_sync
+        WHERE id = ?
+        `,
+        [CLAIM_SYNC_ID]
+    );
+
+    if (!rows.length) {
+        throw new Error(
+            "Missing payout claim checkpoint"
+        );
+    }
+
+    return Number(rows[0].last_block);
+}
+
+// ============================================================
+// SAVE BOTH CHECKPOINTS
+// ============================================================
+
+async function saveBothCheckpoints(
+    blockNumber,
+    depositCursor,
+    claimCursor
+) {
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        if (blockNumber > depositCursor) {
+            await connection.execute(
+                `
+                UPDATE blockchain_sync
+                SET last_block = ?
+                WHERE id = 2
+                `,
+                [blockNumber]
+            );
+        }
+
+        if (blockNumber > claimCursor) {
+            await connection.execute(
+                `
+                UPDATE blockchain_sync
+                SET last_block = ?
+                WHERE id = ?
+                `,
+                [blockNumber, CLAIM_SYNC_ID]
+            );
+        }
+
+        await connection.commit();
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
+// ============================================================
+// SINGLE COMBINED POLLING LOOP
+// ============================================================
 
 async function pollForPresaleEvents() {
     if (isPolling) {
@@ -857,90 +1347,139 @@ async function pollForPresaleEvents() {
     isPolling = true;
 
     try {
-        let lastBlock =
+        let depositCursor =
             await getLastProcessedBlock();
 
-        const latestBlock = Math.max(0, (await provider.getBlockNumber()) - CONFIRMATIONS);
+        let claimCursor =
+            await getClaimCheckpoint();
 
-        consecutiveFailures = 0;
-        lastSuccessfulPollAt = Date.now();
+        const latestBlock = Math.max(
+            0,
+            (await provider.getBlockNumber()) - CONFIRMATIONS
+        );
 
-        if (lastBlock >= latestBlock) {
-            lastSuccessfulPollAt = Date.now();
-            return;
-        }
-
-        console.log(
-            `New blocks detected: ${lastBlock + 1} -> ${latestBlock}`
+        let lastBlock = Math.min(
+            depositCursor,
+            claimCursor
         );
 
         while (lastBlock < latestBlock) {
-            const fromBlock =
-                lastBlock + 1;
+            const fromBlock = lastBlock + 1;
 
-            const toBlock =
-                Math.min(
-                    fromBlock +
-                    BLOCK_BATCH_SIZE -
-                    1,
-                    latestBlock
-                );
-
-            console.log(
-                `Scanning blocks ${fromBlock} -> ${toBlock}`
+            const toBlock = Math.min(
+                fromBlock + BLOCK_BATCH_SIZE - 1,
+                latestBlock
             );
 
-            const events =
-                await contract.queryFilter(
-                    contract.filters.Deposited(),
-                    fromBlock,
-                    toBlock
-                );
+            // One RPC log query for both contract addresses.
+            const logs = await provider.getLogs({
+                address: [
+                    PRESALE_CONTRACT_ADDRESS,
+                    PAYOUT_CONTRACT_ADDRESS,
+                ],
+                topics: [[depositTopic, claimTopic]],
+                fromBlock,
+                toBlock,
+            });
 
-            console.log(
-                "Total events found:",
-                events.length
+            // Process events in blockchain order.
+            logs.sort(
+                (a, b) =>
+                    a.blockNumber - b.blockNumber ||
+                    a.index - b.index
             );
 
-            for (const event of events) {
-                await processDepositEvent(event);
+            console.log(
+                `Scanning ${fromBlock}-${toBlock}: ` +
+                `${logs.length} events`
+            );
+
+            for (const log of logs) {
+                const fromPresale =
+                    log.address.toLowerCase() ===
+                    PRESALE_CONTRACT_ADDRESS.toLowerCase();
+
+                const fromPayout =
+                    log.address.toLowerCase() ===
+                    PAYOUT_CONTRACT_ADDRESS.toLowerCase();
+
+                if (
+                    fromPresale &&
+                    log.topics[0] === depositTopic &&
+                    log.blockNumber > depositCursor
+                ) {
+                    const parsed =
+                        contract.interface.parseLog(log);
+
+                    await processDepositEvent({
+                        ...log,
+                        args: parsed.args,
+                    });
+                } else if (
+                    fromPayout &&
+                    log.topics[0] === claimTopic &&
+                    log.blockNumber > claimCursor
+                ) {
+                    const parsed =
+                        claimInterface.parseLog(log);
+
+                    await processClaimEvent({
+                        ...log,
+                        args: parsed.args,
+                    });
+                }
             }
 
-            /*
-             * Only move the cursor after every relevant event in this
-             * block range has been processed successfully.
-             */
-
-            await saveLastProcessedBlock(
-                toBlock
+            // Only advance after every event in the batch
+            // has been saved successfully.
+            await saveBothCheckpoints(
+                toBlock,
+                depositCursor,
+                claimCursor
             );
 
-            lastBlock = toBlock;
+            if (toBlock > depositCursor) {
+                depositCursor = toBlock;
+            }
+
+            if (toBlock > claimCursor) {
+                claimCursor = toBlock;
+            }
+
+            lastBlock = Math.min(
+                depositCursor,
+                claimCursor
+            );
         }
+
+        consecutiveFailures = 0;
+        lastSuccessfulPollAt = Date.now();
     } catch (error) {
         consecutiveFailures++;
 
         console.error(
-            `Poll cycle failed (failure #${consecutiveFailures}):`,
-            error?.message || error
+            `Event poll failed (#${consecutiveFailures}):`,
+            error
         );
     } finally {
         isPolling = false;
     }
 }
 
+// ============================================================
+// HEALTHCHECK
+// ============================================================
 
 function startHealthcheck() {
     setInterval(() => {
         const secondsSinceSuccess =
-            (Date.now() -
-                lastSuccessfulPollAt) /
+            (Date.now() - lastSuccessfulPollAt) /
             1000;
 
         console.log(
-            `Healthcheck: last successful poll ${secondsSinceSuccess.toFixed(
-                0
-            )}s ago, consecutive failures = ${consecutiveFailures}`
+            `Healthcheck: last successful poll ` +
+            `${secondsSinceSuccess.toFixed(0)}s ago, ` +
+            `consecutive failures = ${consecutiveFailures}`
         );
 
         if (
@@ -948,7 +1487,8 @@ function startHealthcheck() {
             MAX_CONSECUTIVE_RPC_FAILURES
         ) {
             console.error(
-                "Too many consecutive RPC failures. Exiting so PM2 can restart the process."
+                "Too many consecutive RPC failures. " +
+                "Exiting so PM2 can restart the process."
             );
 
             process.exit(1);
@@ -956,20 +1496,21 @@ function startHealthcheck() {
     }, HEALTHCHECK_INTERVAL_MS);
 }
 
+// ============================================================
+// START POLLING
+// ============================================================
 
 function startPolling() {
     console.log("");
     console.log("==========================================");
-    console.log("EWC PRESALE EVENT LISTENER STARTED");
-    console.log("Contract:", PRESALE_CONTRACT_ADDRESS);
+    console.log("EWC EVENT LISTENER STARTED");
+    console.log("Presale:", PRESALE_CONTRACT_ADDRESS);
+    console.log("Payout:", PAYOUT_CONTRACT_ADDRESS);
     console.log("RPC:", RPC_URL);
+    console.log("Poll interval:", POLL_INTERVAL_MS, "ms");
+    console.log("Confirmations:", CONFIRMATIONS);
     console.log(
-        "Poll interval:",
-        POLL_INTERVAL_MS,
-        "ms"
-    );
-    console.log(
-        "Watching: Presale Deposited only"
+        "Watching: Presale Deposited + EWCPayout Claimed"
     );
     console.log("==========================================");
 
@@ -983,6 +1524,9 @@ function startPolling() {
     startHealthcheck();
 }
 
+// ============================================================
+// MAIN
+// ============================================================
 
 async function main() {
     try {
@@ -990,35 +1534,56 @@ async function main() {
             "Starting EWC blockchain event service..."
         );
 
-        const network =
-            await provider.getNetwork();
+        const network = await provider.getNetwork();
 
         console.log(
             "Connected to chain:",
             network.chainId.toString()
         );
 
-        const code =
-            await provider.getCode(
-                PRESALE_CONTRACT_ADDRESS
-            );
+        const presaleCode = await provider.getCode(
+            PRESALE_CONTRACT_ADDRESS
+        );
 
-        if (code === "0x") {
+        if (presaleCode === "0x") {
             throw new Error(
-                "No contract found at " +
+                "Presale contract not found at " +
                 PRESALE_CONTRACT_ADDRESS
             );
         }
 
-        usdtDecimals = Number(await contract.usdtDecimals());
-        console.log("USDT decimals:", usdtDecimals);
+        const payoutCode = await provider.getCode(
+            PAYOUT_CONTRACT_ADDRESS
+        );
+
+        if (payoutCode === "0x") {
+            throw new Error(
+                "EWCPayout contract is not deployed at " +
+                PAYOUT_CONTRACT_ADDRESS
+            );
+        }
+
+        usdtDecimals = Number(
+            await contract.usdtDecimals()
+        );
+
+        console.log(
+            "USDT decimals:",
+            usdtDecimals
+        );
+
+        // Preserve existing presale checkpoint.
+        await getLastProcessedBlock();
+
+        // Initialize separate claim checkpoint.
+        await initializeClaimCheckpoint();
+
         startPolling();
     } catch (error) {
         console.error(
-            "EWC EVENT SERVICE FAILED:"
+            "EWC EVENT SERVICE FAILED:",
+            error
         );
-
-        console.error(error);
 
         process.exit(1);
     }
