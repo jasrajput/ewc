@@ -19,6 +19,7 @@ import Community from "./pages/Network/Community";
 import LevelGenealogy from "./pages/Network/LevelGenealogy";
 import NetworkTree from "./pages/Network/NetworkTree";
 import Rank from "./pages/Rank/Rank";
+import MonthlyAllowance from "./pages/Rank/MonthlyAllowance";
 
 import Withdrawal from "./pages/Withdrawal/Withdrawal";
 import WithdrawalHistory from "./pages/Withdrawal/WithdrawalHistory";
@@ -79,6 +80,10 @@ function App() {
           <Route path="/network/levels" element={<LevelGenealogy />} />
           <Route path="/network/tree" element={<NetworkTree />} />
           <Route path="/rank" element={<Rank />} />
+          <Route
+            path="/monthly-allowance"
+            element={<MonthlyAllowance />}
+          />
 
           <Route path="/withdrawal" element={<Withdrawal />} />
           <Route path="/withdrawal/history" element={<WithdrawalHistory />} />

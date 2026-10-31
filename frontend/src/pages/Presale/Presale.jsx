@@ -1279,6 +1279,7 @@ const Presale = () => {
               {historyLoading ? "Refreshing..." : "Refresh History"}
             </button>
           </div>
+          <br />
 
           {historyLoading ? (
             <div className={styles.empty}>

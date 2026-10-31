@@ -16,10 +16,11 @@ import {
   Lock,
   LifeBuoy,
   Bell,
-  Gift
+  Gift,
+  CalendarClock
 } from "lucide-react";
 
-import {  useDisconnect } from "wagmi";
+import { useDisconnect } from "wagmi";
 
 import styles from "./Sidebar.module.css";
 
@@ -217,7 +218,7 @@ const Sidebar = ({ user, open, onClose }) => {
           <span>Stake</span>
         </button>
 
-         <button
+        <button
           className={`${styles.navItem} ${
             isActive("/presale") ? styles.activeNav : ""
           }`}
@@ -309,6 +310,18 @@ const Sidebar = ({ user, open, onClose }) => {
         >
           <Trophy size={19} />
           <span>Rank & Progress</span>
+        </button>
+
+        {/* Monthly Performance Allowance */}
+
+        <button
+          className={`${styles.navItem} ${
+            isActive("/monthly-allowance") ? styles.activeNav : ""
+          }`}
+          onClick={() => goTo("/monthly-allowance")}
+        >
+          <CalendarClock size={19} />
+          <span>Monthly Performance Allowance</span>
         </button>
 
         {/* NETWORK */}
