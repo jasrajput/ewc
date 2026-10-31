@@ -8,32 +8,117 @@ import {
   Target,
   Trophy,
   UsersRound,
+  Wallet,
 } from "lucide-react";
 
 import api from "../../services/api";
 import UserLayout from "../../components/layout/UserLayout";
 import styles from "./Rank.module.css";
 
-// Updated EWC rank requirements.
-// Qualification:
-// Path 1: Direct Business
-// OR
-// Path 2: Community Business + required E-rank direct members.
-
 const RANK_REQUIREMENTS = [
-  { level: 1, directBusiness: 1000, teamBusiness: 1000, requiredRank: 0, requiredCount: 0 },
-  { level: 2, directBusiness: 1500, teamBusiness: 3000, requiredRank: 1, requiredCount: 2 },
-  { level: 3, directBusiness: 5000, teamBusiness: 10000, requiredRank: 2, requiredCount: 2 },
-  { level: 4, directBusiness: 15000, teamBusiness: 30000, requiredRank: 3, requiredCount: 2 },
-  { level: 5, directBusiness: 50000, teamBusiness: 100000, requiredRank: 4, requiredCount: 2 },
-  { level: 6, directBusiness: 150000, teamBusiness: 300000, requiredRank: 5, requiredCount: 2 },
-  { level: 7, directBusiness: 500000, teamBusiness: 1000000, requiredRank: 6, requiredCount: 2 },
-  { level: 8, directBusiness: 1500000, teamBusiness: 3000000, requiredRank: 7, requiredCount: 2 },
-  { level: 9, directBusiness: 5000000, teamBusiness: 10000000, requiredRank: 8, requiredCount: 2 },
-  { level: 10, directBusiness: 15000000, teamBusiness: 30000000, requiredRank: 9, requiredCount: 2 },
-  { level: 11, directBusiness: 50000000, teamBusiness: 100000000, requiredRank: 10, requiredCount: 2 },
-  { level: 12, directBusiness: 250000000, teamBusiness: 500000000, requiredRank: 11, requiredCount: 2 },
+  { level: 1, personal: 50, direct: 1000, team: 1000, requiredRank: 0, count: 0 },
+  { level: 2, personal: 50, direct: 1500, team: 3000, requiredRank: 1, count: 2 },
+  { level: 3, personal: 50, direct: 5000, team: 10000, requiredRank: 2, count: 2 },
+  { level: 4, personal: 100, direct: 15000, team: 30000, requiredRank: 3, count: 2 },
+  { level: 5, personal: 200, direct: 50000, team: 100000, requiredRank: 4, count: 2 },
+  { level: 6, personal: 300, direct: 150000, team: 300000, requiredRank: 5, count: 2 },
+  { level: 7, personal: 500, direct: 500000, team: 1000000, requiredRank: 6, count: 2 },
+  { level: 8, personal: 750, direct: 1500000, team: 3000000, requiredRank: 7, count: 2 },
+  { level: 9, personal: 1500, direct: 5000000, team: 10000000, requiredRank: 8, count: 2 },
+  { level: 10, personal: 3000, direct: 15000000, team: 30000000, requiredRank: 9, count: 2 },
+  { level: 11, personal: 5000, direct: 50000000, team: 100000000, requiredRank: 10, count: 2 },
+  { level: 12, personal: 10000, direct: 250000000, team: 500000000, requiredRank: 11, count: 2 },
 ];
+
+const formatUsd = (value) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+
+const percentage = (current, required) => {
+  if (!required) return 100;
+  return Math.min(
+    100,
+    Math.max(0, (Number(current || 0) / Number(required)) * 100)
+  );
+};
+
+const ProgressRow = ({
+  label,
+  current,
+  required,
+  completed,
+  isMoney = true,
+}) => (
+  <div className={styles.requirement} style={{ marginTop: 12 }}>
+    <div className={styles.requirementTop}>
+      <span>{label}</span>
+      <strong>
+        {isMoney ? formatUsd(current) : current}
+        {" / "}
+        {isMoney ? formatUsd(required) : required}
+      </strong>
+    </div>
+
+    <div className={styles.progressTrack}>
+      <div
+        className={styles.progressFill}
+        style={{
+          width: `${percentage(current, required)}%`,
+          ...(completed ? { background: "#e9c45a" } : {}),
+        }}
+      />
+    </div>
+  </div>
+);
+
+const PathCard = ({ title, qualified, children }) => (
+  <div
+    style={{
+      padding: 14,
+      borderRadius: 10,
+      border: qualified
+        ? "1px solid rgba(233,196,90,0.55)"
+        : "1px solid rgba(255,255,255,0.10)",
+      background: qualified
+        ? "rgba(233,196,90,0.07)"
+        : "rgba(255,255,255,0.02)",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 8,
+      }}
+    >
+      <strong style={{ color: "#e9c45a", fontSize: 13 }}>
+        {title}
+      </strong>
+
+      {qualified && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            color: "#e9c45a",
+            fontSize: 12,
+          }}
+        >
+          <Check size={14} />
+          Complete
+        </span>
+      )}
+    </div>
+
+    {children}
+  </div>
+);
 
 const Rank = () => {
   const [data, setData] = useState(null);
@@ -47,11 +132,9 @@ const Rank = () => {
         setError("");
 
         const response = await api.get("/rank/progress");
-
         setData(response.data.data);
       } catch (err) {
         console.error("Rank progress error:", err);
-
         setError(
           err.response?.data?.message ||
           "Unable to load rank progress."
@@ -63,22 +146,6 @@ const Rank = () => {
 
     fetchRankProgress();
   }, []);
-
-  const formatUsd = (value) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(Number(value || 0));
-
-  const percentage = (current, required) => {
-    if (!required) return 100;
-
-    return Math.min(
-      100,
-      Math.round((Number(current || 0) / Number(required)) * 100)
-    );
-  };
 
   if (loading) {
     return (
@@ -93,15 +160,18 @@ const Rank = () => {
     );
   }
 
+  const personalInvestment =
+    data?.personalInvestment ??
+    data?.packageAmount ??
+    null;
+
   return (
     <UserLayout
       title="Rank & Progress"
       subtitle="Track your EWC rank progression"
     >
       {error && (
-        <div className={styles.errorBox}>
-          {error}
-        </div>
+        <div className={styles.errorBox}>{error}</div>
       )}
 
       {data && (
@@ -111,7 +181,6 @@ const Rank = () => {
               <div className={styles.summaryIcon}>
                 <Trophy size={21} />
               </div>
-
               <div>
                 <span>Current Rank</span>
                 <strong>
@@ -124,7 +193,6 @@ const Rank = () => {
               <div className={styles.summaryIcon}>
                 <Target size={21} />
               </div>
-
               <div>
                 <span>Next Rank</span>
                 <strong>
@@ -135,14 +203,25 @@ const Rank = () => {
 
             <div className={styles.summaryCard}>
               <div className={styles.summaryIcon}>
+                <Wallet size={21} />
+              </div>
+              <div>
+                <span>Personal Investment</span>
+                <strong>
+                  {personalInvestment === null
+                    ? "Unavailable"
+                    : formatUsd(personalInvestment)}
+                </strong>
+              </div>
+            </div>
+
+            <div className={styles.summaryCard}>
+              <div className={styles.summaryIcon}>
                 <CircleDollarSign size={21} />
               </div>
-
               <div>
                 <span>Direct Business</span>
-                <strong>
-                  {formatUsd(data.directBusiness)}
-                </strong>
+                <strong>{formatUsd(data.directBusiness)}</strong>
               </div>
             </div>
 
@@ -150,12 +229,9 @@ const Rank = () => {
               <div className={styles.summaryIcon}>
                 <UsersRound size={21} />
               </div>
-
               <div>
                 <span>Community Business</span>
-                <strong>
-                  {formatUsd(data.teamBusiness)}
-                </strong>
+                <strong>{formatUsd(data.teamBusiness)}</strong>
               </div>
             </div>
           </div>
@@ -165,20 +241,20 @@ const Rank = () => {
               <span>ELEVATOR RANKS</span>
               <h2>Rank Requirements</h2>
             </div>
-
             <p>
-              Qualify through Direct Business OR Community Business
-              with the required E-rank members.
+              Personal investment is mandatory. Then qualify
+              through Direct Business OR Community Business
+              with the required E-rank direct members.
             </p>
           </div>
 
           <div className={styles.rankGrid}>
-            {data.ranks.map((rank) => {
-              const requirements = RANK_REQUIREMENTS.find(
-                (item) => item.level === Number(rank.level)
+            {(data.ranks || []).map((rank) => {
+              const req = RANK_REQUIREMENTS.find(
+                (r) => r.level === Number(rank.level)
               );
 
-              if (!requirements) return null;
+              if (!req) return null;
 
               const directCurrent = Number(
                 rank.progress?.directBusiness?.current ??
@@ -196,44 +272,25 @@ const Rank = () => {
                 rank.progress?.rankMembers?.current ?? 0
               );
 
-              const {
-                directBusiness: directRequired,
-                teamBusiness: teamRequired,
-                requiredRank,
-                requiredCount,
-              } = requirements;
+              const personalCurrent =
+                personalInvestment === null
+                  ? null
+                  : Number(personalInvestment);
 
-              const directPercent = percentage(
-                directCurrent,
-                directRequired
-              );
-
-              const teamPercent = percentage(
-                teamCurrent,
-                teamRequired
-              );
-
-              const membersPercent = percentage(
-                membersCurrent,
-                requiredCount
-              );
+              const personalQualified =
+                personalCurrent !== null &&
+                personalCurrent >= req.personal;
 
               const directQualified =
-                directCurrent >= directRequired;
+                directCurrent >= req.direct;
 
               const communityQualified =
-                teamCurrent >= teamRequired &&
-                membersCurrent >= requiredCount;
+                teamCurrent >= req.team &&
+                membersCurrent >= req.count;
 
-              const qualified =
-                directQualified || communityQualified;
-
-              const progressBar = (value, completed) => ({
-                width: `${value}%`,
-                ...(completed
-                  ? { background: "#e9c45a" }
-                  : {}),
-              });
+              const requirementsMet =
+                personalQualified &&
+                (directQualified || communityQualified);
 
               return (
                 <div
@@ -251,7 +308,6 @@ const Rank = () => {
                           <Award size={21} />
                         )}
                       </div>
-
                       <div>
                         <span>Elevator Rank</span>
                         <h3>{rank.name}</h3>
@@ -259,9 +315,7 @@ const Rank = () => {
                     </div>
 
                     <div className={styles.rankRight}>
-                      <strong>
-                        {rank.teamPercentage}%
-                      </strong>
+                      <strong>{rank.teamPercentage}%</strong>
                       <span>Team Income</span>
                     </div>
                   </div>
@@ -273,86 +327,57 @@ const Rank = () => {
                     </div>
                   )}
 
-                  {/* PATH 1: DIRECT BUSINESS */}
+                  <div style={{ marginTop: 18 }}>
+                    <PathCard
+                      title="Mandatory — Personal Investment"
+                      qualified={personalQualified}
+                    >
+                      {personalCurrent === null ? (
+                        <p style={{ fontSize: 12, color: "#f5b971" }}>
+                          Personal investment data is not available
+                          from the rank API.
+                        </p>
+                      ) : (
+                        <ProgressRow
+                          label="Your Investment"
+                          current={personalCurrent}
+                          required={req.personal}
+                          completed={personalQualified}
+                        />
+                      )}
+                    </PathCard>
+                  </div>
 
                   <div
                     style={{
-                      marginTop: 18,
-                      padding: 14,
-                      border: directQualified
-                        ? "1px solid rgba(233,196,90,0.55)"
-                        : "1px solid rgba(255,255,255,0.09)",
-                      borderRadius: 10,
-                      background: directQualified
-                        ? "rgba(233,196,90,0.07)"
-                        : "rgba(255,255,255,0.02)",
+                      textAlign: "center",
+                      color: "#9ca3af",
+                      fontSize: 12,
+                      margin: "14px 0",
+                      fontWeight: 600,
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <strong
-                        style={{
-                          color: "#e9c45a",
-                          fontSize: 13,
-                        }}
-                      >
-                        Path 1 — Direct Business
-                      </strong>
-
-                      {directQualified && (
-                        <span
-                          style={{
-                            color: "#e9c45a",
-                            fontSize: 12,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                          }}
-                        >
-                          <Check size={14} />
-                          Qualified
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={styles.requirement}>
-                      <div className={styles.requirementTop}>
-                        <span>Direct Business</span>
-
-                        <strong>
-                          {formatUsd(directCurrent)}
-                          {" / "}
-                          {formatUsd(directRequired)}
-                        </strong>
-                      </div>
-
-                      <div className={styles.progressTrack}>
-                        <div
-                          className={styles.progressFill}
-                          style={progressBar(
-                            directPercent,
-                            directQualified
-                          )}
-                        />
-                      </div>
-                    </div>
+                    AND COMPLETE ONE OF THESE PATHS
                   </div>
 
-                  {/* OR SEPARATOR */}
+                  <PathCard
+                    title="Path 1 — Direct Business"
+                    qualified={directQualified}
+                  >
+                    <ProgressRow
+                      label="Direct Business"
+                      current={directCurrent}
+                      required={req.direct}
+                      completed={directQualified}
+                    />
+                  </PathCard>
 
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
-                      margin: "16px 0",
+                      margin: "14px 0",
                     }}
                   >
                     <div
@@ -362,18 +387,15 @@ const Rank = () => {
                         background: "rgba(255,255,255,0.1)",
                       }}
                     />
-
-                    <span
+                    <strong
                       style={{
-                        fontSize: 12,
-                        fontWeight: 800,
                         color: "#e9c45a",
-                        letterSpacing: 1.5,
+                        fontSize: 12,
+                        letterSpacing: 2,
                       }}
                     >
                       OR
-                    </span>
-
+                    </strong>
                     <div
                       style={{
                         height: 1,
@@ -383,121 +405,43 @@ const Rank = () => {
                     />
                   </div>
 
-                  {/* PATH 2: COMMUNITY + E-MEMBERS */}
-
-                  <div
-                    style={{
-                      padding: 14,
-                      border: communityQualified
-                        ? "1px solid rgba(233,196,90,0.55)"
-                        : "1px solid rgba(255,255,255,0.09)",
-                      borderRadius: 10,
-                      background: communityQualified
-                        ? "rgba(233,196,90,0.07)"
-                        : "rgba(255,255,255,0.02)",
-                    }}
+                  <PathCard
+                    title="Path 2 — Community Business + E-Members"
+                    qualified={communityQualified}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <strong
-                        style={{
-                          color: "#e9c45a",
-                          fontSize: 13,
-                        }}
-                      >
-                        Path 2 — Community Business
-                      </strong>
+                    <ProgressRow
+                      label="Community Business"
+                      current={teamCurrent}
+                      required={req.team}
+                      completed={teamCurrent >= req.team}
+                    />
 
-                      {communityQualified && (
-                        <span
-                          style={{
-                            color: "#e9c45a",
-                            fontSize: 12,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                          }}
-                        >
-                          <Check size={14} />
-                          Qualified
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={styles.requirement}>
-                      <div className={styles.requirementTop}>
-                        <span>Community Business</span>
-
-                        <strong>
-                          {formatUsd(teamCurrent)}
-                          {" / "}
-                          {formatUsd(teamRequired)}
-                        </strong>
-                      </div>
-
-                      <div className={styles.progressTrack}>
-                        <div
-                          className={styles.progressFill}
-                          style={progressBar(
-                            teamPercent,
-                            teamCurrent >= teamRequired
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    {requiredCount > 0 ? (
-                      <div
-                        className={styles.requirement}
-                        style={{ marginTop: 14 }}
-                      >
-                        <div className={styles.requirementTop}>
-                          <span>
-                            E-{String(requiredRank).padStart(2, "0")}+
-                            {" "}Direct Members
-                          </span>
-
-                          <strong>
-                            {membersCurrent}
-                            {" / "}
-                            {requiredCount}
-                          </strong>
-                        </div>
-
-                        <div className={styles.progressTrack}>
-                          <div
-                            className={styles.progressFill}
-                            style={progressBar(
-                              membersPercent,
-                              membersCurrent >= requiredCount
-                            )}
-                          />
-                        </div>
-                      </div>
+                    {req.count > 0 ? (
+                      <ProgressRow
+                        label={`E-${String(req.requiredRank).padStart(2, "0")}+ Direct Members`}
+                        current={membersCurrent}
+                        required={req.count}
+                        completed={membersCurrent >= req.count}
+                        isMoney={false}
+                      />
                     ) : (
                       <div className={styles.firstRankNote}>
                         No ranked direct members required
                       </div>
                     )}
-                  </div>
+                  </PathCard>
 
-                  {qualified && !rank.achieved && (
+                  {requirementsMet && !rank.achieved && (
                     <div
                       style={{
-                        marginTop: 12,
+                        marginTop: 14,
                         color: "#e9c45a",
-                        fontSize: 12,
                         textAlign: "center",
+                        fontSize: 12,
+                        fontWeight: 600,
                       }}
                     >
-                      Qualification requirements met
+                      All qualification requirements met
                     </div>
                   )}
                 </div>
