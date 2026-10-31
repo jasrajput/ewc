@@ -36,7 +36,7 @@ jobs:
 
       - name: Deploy backend
         run: |
-          rsync -az \
+          rsync -az --omit-dir-times \
             -e "ssh -o BatchMode=yes" \
             --exclude='.env' \
             --exclude='.env.*' \
@@ -47,7 +47,7 @@ jobs:
 
       - name: Deploy closing-node
         run: |
-          rsync -az \
+          rsync -az --omit-dir-times \
             -e "ssh -o BatchMode=yes" \
             --exclude='.env' \
             --exclude='.env.*' \
