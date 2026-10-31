@@ -341,11 +341,11 @@ const getNetworkTree = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Community Structure error:", error);
+    console.error("Network tree error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Unable to load Community structure.",
+      message: "Unable to load network tree.",
     });
   }
 };
