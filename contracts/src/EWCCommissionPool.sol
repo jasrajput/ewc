@@ -2,22 +2,30 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {
+    ReentrancyGuard
+} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract EWCCommissionPool is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable usdt;
-    IERC20 public immutable ewc;
+    IERC20 public ewc;
 
     address public payoutContract;
 
     uint256 public totalUsdtPaid;
     uint256 public totalEwcPaid;
 
-    event PayoutContractUpdated(address indexed oldContract, address indexed newContract);
+    event EWCTokenUpdated(address indexed oldToken, address indexed newToken);
+    event PayoutContractUpdated(
+        address indexed oldContract,
+        address indexed newContract
+    );
     event USDTIncomePaid(address indexed user, uint256 amount);
     event EWCRoiPaid(address indexed user, uint256 amount);
 
@@ -31,11 +39,21 @@ contract EWCCommissionPool is Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address _usdt, address _ewc) Ownable(msg.sender) {
-        if (_usdt == address(0) || _ewc == address(0)) revert ZeroAddress();
+    constructor(address _usdt) Ownable(msg.sender) {
+        if (_usdt == address(0)) revert ZeroAddress();
 
         usdt = IERC20(_usdt);
+    }
+
+    function setEWCToken(address _ewc) external onlyOwner {
+        if (_ewc == address(0)) revert ZeroAddress();
+        if (address(ewc) != address(0)) revert("EWC already configured");
+        if (_ewc.code.length == 0) revert("EWC must be a contract");
+
+        address oldToken = address(ewc);
         ewc = IERC20(_ewc);
+
+        emit EWCTokenUpdated(oldToken, _ewc);
     }
 
     function setPayoutContract(address _payoutContract) external onlyOwner {
@@ -47,7 +65,10 @@ contract EWCCommissionPool is Ownable, ReentrancyGuard {
         emit PayoutContractUpdated(oldContract, _payoutContract);
     }
 
-    function payUSDT(address to, uint256 amount) external onlyPayoutContract nonReentrant {
+    function payUSDT(
+        address to,
+        uint256 amount
+    ) external onlyPayoutContract nonReentrant {
         if (to == address(0)) revert ZeroAddress();
         if (usdt.balanceOf(address(this)) < amount) revert InsufficientUSDT();
 
@@ -57,7 +78,10 @@ contract EWCCommissionPool is Ownable, ReentrancyGuard {
         emit USDTIncomePaid(to, amount);
     }
 
-    function payEWC(address to, uint256 amount) external onlyPayoutContract nonReentrant {
+    function payEWC(
+        address to,
+        uint256 amount
+    ) external onlyPayoutContract nonReentrant {
         if (to == address(0)) revert ZeroAddress();
         if (ewc.balanceOf(address(this)) < amount) revert InsufficientEWC();
 
@@ -67,11 +91,12 @@ contract EWCCommissionPool is Ownable, ReentrancyGuard {
         emit EWCRoiPaid(to, amount);
     }
 
-    function getBalances() external view returns (uint256 usdtBalance, uint256 ewcBalance) {
-        return (
-            usdt.balanceOf(address(this)),
-            ewc.balanceOf(address(this))
-        );
+    function getBalances()
+        external
+        view
+        returns (uint256 usdtBalance, uint256 ewcBalance)
+    {
+        return (usdt.balanceOf(address(this)), ewc.balanceOf(address(this)));
     }
 
     function usdtReserve() external view returns (uint256) {
