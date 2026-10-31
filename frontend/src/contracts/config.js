@@ -1,6 +1,7 @@
 import STAKING_ABI from './stakingAbi.json';
 import TOKEN_ABI from './tokenAbi.json';
 import PRESALE_ABI from './presaleAbi.json';
+import EWC_PAYOUT_ABI from './payoutAbi.json';
 
 export const STAKING_ADDRESS = '0x943a8BAa700FFd6Fb03117AD8f1a5e1fC3f6247c';
 export const TOKEN_ADDRESS = '0x0E7dF9075735994e0c585492aC666eA684E00804';
@@ -12,4 +13,8 @@ export const COMMISSION_POOL = '0x970Ef10F686727364771b07b3feD6A50C3F054E1';
 export const TREASURY = '0xc7af10162d2b8a9dCDF3942a2Ca9b589485aDfCc'
 export const PRESALE_ADDRESS = '0xe094a081102199f653cbd89eC13681271E001E93';
 
-export { STAKING_ABI, TOKEN_ABI, PRESALE_ABI };
+export const EWC_PAYOUT_ADDRESS = '0xe094a081102199f653cbd89eC13681271E001E93';
+
+
+
+export { STAKING_ABI, TOKEN_ABI, PRESALE_ABI, EWC_PAYOUT_ABI };

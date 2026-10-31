@@ -1,31 +1,24 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useConnection, usePublicClient, useWriteContract } from "wagmi";
+import { formatUnits, parseUnits } from "viem";
 import {
-  useConnection,
-  usePublicClient,
-  useWriteContract,
-} from "wagmi";
-import {
-  parseEther,
-  formatEther,
-  formatUnits,
-} from "viem";
-import {
-  BanknoteArrowDown,
+  AlertCircle,
+  ArrowDownToLine,
+  CheckCircle2,
   CircleDollarSign,
   Coins,
+  RefreshCw,
   ShieldCheck,
   Wallet,
-  AlertCircle,
-  CheckCircle2,
 } from "lucide-react";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 
 import api from "../../services/api";
 import UserLayout from "../../components/layout/UserLayout";
-
 import {
-  STAKING_ADDRESS,
-  STAKING_ABI as PAYOUT_ABI,
+  EWC_PAYOUT_ADDRESS,
+  EWC_PAYOUT_ABI,
   USDT_ADDRESS,
   TOKEN_ADDRESS as EWC_ADDRESS,
 } from "../../contracts/config";
@@ -39,39 +32,46 @@ const TOKEN_ABI = [
     type: "function",
     name: "balanceOf",
     stateMutability: "view",
-    inputs: [
-      {
-        name: "account",
-        type: "address",
-      },
-    ],
-    outputs: [
-      {
-        name: "",
-        type: "uint256",
-      },
-    ],
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
   },
   {
     type: "function",
     name: "decimals",
     stateMutability: "view",
     inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "uint8",
-      },
-    ],
+    outputs: [{ name: "", type: "uint8" }],
   },
 ];
 
+const formatAmount = (value, maxDecimals = 4) => {
+  const number = Number(value ?? 0);
+  if (!Number.isFinite(number)) return "0.00";
+
+  return number.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: maxDecimals,
+  });
+};
+
+const formatUsd = (value) => `$${formatAmount(value, 2)}`;
+
+const shortAddress = (value) =>
+  value ? `${value.slice(0, 6)}...${value.slice(-4)}` : "Not available";
+
+const parseAmount = (value, decimals) => {
+  try {
+    return parseUnits(String(value ?? "0"), decimals);
+  } catch {
+    return 0n;
+  }
+};
+
 const Withdrawal = () => {
   const [info, setInfo] = useState(null);
-
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [balanceLoading, setBalanceLoading] = useState(false);
-
   const [claiming, setClaiming] = useState(false);
 
   const [error, setError] = useState("");
@@ -80,1031 +80,415 @@ const Withdrawal = () => {
 
   const [usdtBalance, setUsdtBalance] = useState("0");
   const [ewcBalance, setEwcBalance] = useState("0");
+  const [usdtDecimals, setUsdtDecimals] = useState(null);
+  const [ewcDecimals, setEwcDecimals] = useState(null);
 
   const connection = useConnection();
-
   const address = connection.address;
   const chainId = connection.chainId;
-  const isConnected =
-    connection.status === "connected";
+  const isConnected = connection.status === "connected";
 
   const publicClient = usePublicClient();
-
   const { open } = useWeb3Modal();
+  const { mutateAsync: writeContract } = useWriteContract();
 
-  const {
-    mutateAsync: writeContract,
-  } = useWriteContract();
-
-  const registeredWallet =
-    info?.wallet || "";
-
+  const registeredWallet = info?.wallet || "";
   const walletMatches =
     !!address &&
     !!registeredWallet &&
-    address.toLowerCase() ===
-      registeredWallet.toLowerCase();
+    address.toLowerCase() === registeredWallet.toLowerCase();
 
-  /* =========================================================
-   * WITHDRAWAL INFO
-   * ========================================================= */
+  const loadWithdrawalInfo = useCallback(async (showLoading = false) => {
+    try {
+      if (showLoading) setLoading(true);
 
-  const loadWithdrawalInfo =
-    useCallback(async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const response =
-          await api.get(
-            "/withdrawal/info",
-          );
-
-        setInfo(
-          response.data.data,
-        );
-      } catch (err) {
-        console.error(
-          "Withdrawal info error:",
-          err,
-        );
-
-        setError(
-          err.response?.data
-            ?.message ||
-            "Unable to load withdrawal information.",
-        );
-      } finally {
-        setLoading(false);
+      const response = await api.get("/withdrawal/info");
+      if (!response.data?.success || !response.data?.data) {
+        throw new Error("Invalid withdrawal information response.");
       }
-    }, []);
+
+      setInfo(response.data.data);
+      setError("");
+    } catch (err) {
+      console.error("Withdrawal info error:", err);
+      setError(err.response?.data?.message || err.message || "Unable to load withdrawal information.");
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, []);
+
+  const loadWalletBalances = useCallback(async () => {
+    if (!isConnected || !address || !publicClient) {
+      setUsdtBalance("0");
+      setEwcBalance("0");
+      return;
+    }
+
+    try {
+      setBalanceLoading(true);
+
+      const [usdtDec, ewcDec] = await Promise.all([
+        publicClient.readContract({
+          address: USDT_ADDRESS,
+          abi: TOKEN_ABI,
+          functionName: "decimals",
+        }),
+        publicClient.readContract({
+          address: EWC_ADDRESS,
+          abi: TOKEN_ABI,
+          functionName: "decimals",
+        }),
+      ]);
+
+      const [rawUsdt, rawEwc] = await Promise.all([
+        publicClient.readContract({
+          address: USDT_ADDRESS,
+          abi: TOKEN_ABI,
+          functionName: "balanceOf",
+          args: [address],
+        }),
+        publicClient.readContract({
+          address: EWC_ADDRESS,
+          abi: TOKEN_ABI,
+          functionName: "balanceOf",
+          args: [address],
+        }),
+      ]);
+
+      setUsdtDecimals(Number(usdtDec));
+      setEwcDecimals(Number(ewcDec));
+      setUsdtBalance(formatUnits(rawUsdt, Number(usdtDec)));
+      setEwcBalance(formatUnits(rawEwc, Number(ewcDec)));
+    } catch (err) {
+      console.error("Wallet balance error:", err);
+      setError("Unable to read wallet token balances.");
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [isConnected, address, publicClient]);
 
   useEffect(() => {
-    loadWithdrawalInfo();
+    loadWithdrawalInfo(true);
   }, [loadWithdrawalInfo]);
-
-  /* =========================================================
-   * CONNECTED WALLET TOKEN BALANCES
-   * ========================================================= */
-
-  const loadWalletBalances =
-    useCallback(async () => {
-      if (
-        !isConnected ||
-        !address ||
-        !publicClient
-      ) {
-        setUsdtBalance("0");
-        setEwcBalance("0");
-        return;
-      }
-
-      try {
-        setBalanceLoading(true);
-
-        /*
-         * Read token decimals instead of assuming
-         * both tokens use the same decimals.
-         */
-
-        const [
-          usdtDecimals,
-          ewcDecimals,
-        ] = await Promise.all([
-          publicClient.readContract({
-            address: USDT_ADDRESS,
-            abi: TOKEN_ABI,
-            functionName: "decimals",
-          }),
-
-          publicClient.readContract({
-            address: EWC_ADDRESS,
-            abi: TOKEN_ABI,
-            functionName: "decimals",
-          }),
-        ]);
-
-        const [
-          rawUsdtBalance,
-          rawEwcBalance,
-        ] = await Promise.all([
-          publicClient.readContract({
-            address: USDT_ADDRESS,
-            abi: TOKEN_ABI,
-            functionName: "balanceOf",
-            args: [address],
-          }),
-
-          publicClient.readContract({
-            address: EWC_ADDRESS,
-            abi: TOKEN_ABI,
-            functionName: "balanceOf",
-            args: [address],
-          }),
-        ]);
-
-        setUsdtBalance(
-          formatUnits(
-            rawUsdtBalance,
-            Number(usdtDecimals),
-          ),
-        );
-
-        setEwcBalance(
-          formatUnits(
-            rawEwcBalance,
-            Number(ewcDecimals),
-          ),
-        );
-      } catch (err) {
-        console.error(
-          "Wallet balance error:",
-          err,
-        );
-
-        setUsdtBalance("0");
-        setEwcBalance("0");
-      } finally {
-        setBalanceLoading(false);
-      }
-    }, [
-      isConnected,
-      address,
-      publicClient,
-    ]);
 
   useEffect(() => {
     loadWalletBalances();
   }, [loadWalletBalances]);
 
-  /* =========================================================
-   * CUMULATIVE VALUES
-   * ========================================================= */
+  const amounts = useMemo(() => {
+    if (usdtDecimals === null || ewcDecimals === null) return null;
 
-  const toWei = (value) => {
-    try {
-      return parseEther(
-        String(value || 0),
-      );
-    } catch {
-      return 0n;
-    }
-  };
+    const cumulativeUsdt = parseAmount(info?.cumulativeUsdtIncome, usdtDecimals);
+    const cumulativeEwc = parseAmount(info?.cumulativeRoiEwc, ewcDecimals);
+    const claimedUsdt = parseAmount(info?.usdtClaimed, usdtDecimals);
+    const claimedEwc = parseAmount(info?.roiEwcClaimed, ewcDecimals);
 
-  const cumulativeUsdtWei =
-    useMemo(
-      () =>
-        toWei(
-          info?.cumulativeUsdtIncome,
-        ),
-      [
-        info?.cumulativeUsdtIncome,
-      ],
-    );
+    const claimableUsdt = cumulativeUsdt > claimedUsdt ? cumulativeUsdt - claimedUsdt : 0n;
+    const claimableEwc = cumulativeEwc > claimedEwc ? cumulativeEwc - claimedEwc : 0n;
 
-  const cumulativeRoiEwcWei =
-    useMemo(
-      () =>
-        toWei(
-          info?.cumulativeRoiEwc,
-        ),
-      [
-        info?.cumulativeRoiEwc,
-      ],
-    );
-
-  const usdtClaimedWei =
-    useMemo(
-      () =>
-        toWei(
-          info?.usdtClaimed,
-        ),
-      [info?.usdtClaimed],
-    );
-
-  const roiEwcClaimedWei =
-    useMemo(
-      () =>
-        toWei(
-          info?.roiEwcClaimed,
-        ),
-      [info?.roiEwcClaimed],
-    );
-
-  /* =========================================================
-   * CLAIMABLE
-   * ========================================================= */
-
-  const claimableUsdtWei =
-    cumulativeUsdtWei >
-    usdtClaimedWei
-      ? cumulativeUsdtWei -
-        usdtClaimedWei
-      : 0n;
-
-  const claimableRoiEwcWei =
-    cumulativeRoiEwcWei >
-    roiEwcClaimedWei
-      ? cumulativeRoiEwcWei -
-        roiEwcClaimedWei
-      : 0n;
-
-  const claimableUsdt =
-    Number(
-      formatEther(
-        claimableUsdtWei,
-      ),
-    );
-
-  const claimableRoiEwc =
-    Number(
-      formatEther(
-        claimableRoiEwcWei,
-      ),
-    );
-
-  const usdtClaimed =
-    Number(
-      formatEther(
-        usdtClaimedWei,
-      ),
-    );
-
-  const roiEwcClaimed =
-    Number(
-      formatEther(
-        roiEwcClaimedWei,
-      ),
-    );
-
-  const hasClaimable =
-    claimableUsdtWei > 0n ||
-    claimableRoiEwcWei > 0n;
-
-  /* =========================================================
-   * FORMATTERS
-   * ========================================================= */
-
-  const formatUsd = (value) =>
-    new Intl.NumberFormat(
-      "en-US",
-      {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      },
-    ).format(
-      Number(value || 0),
-    );
-
-  const formatEwc = (value) =>
-    Number(
-      value || 0,
-    ).toLocaleString(
-      "en-US",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 6,
-      },
-    );
-
-  const formatToken = (value) =>
-    Number(
-      value || 0,
-    ).toLocaleString(
-      "en-US",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 6,
-      },
-    );
-
-  const shortAddress = (
-    wallet,
-  ) => {
-    if (!wallet) {
-      return "Not available";
-    }
-
-    return `${wallet.slice(
-      0,
-      6,
-    )}...${wallet.slice(-4)}`;
-  };
-
-  /* =========================================================
-   * CLAIM
-   * ========================================================= */
-
-  const handleClaim =
-    async () => {
-      try {
-        setError("");
-        setStatus("");
-        setTxHash("");
-
-        if (!isConnected) {
-          open();
-          return;
-        }
-
-        if (!registeredWallet) {
-          throw new Error(
-            "Wallet address is not registered with this account.",
-          );
-        }
-
-        if (!walletMatches) {
-          throw new Error(
-            "Connected wallet does not match your registered wallet.",
-          );
-        }
-
-        if (
-          chainId !==
-          BSC_CHAIN_ID
-        ) {
-          open({
-            view: "Networks",
-          });
-
-          return;
-        }
-
-        if (
-          !info?.merkleAvailable
-        ) {
-          throw new Error(
-            info?.merkleError ||
-              "No earnings are currently available to claim.",
-          );
-        }
-
-        if (
-          !Array.isArray(
-            info?.proof,
-          )
-        ) {
-          throw new Error(
-            "Unable to verify your withdrawal.",
-          );
-        }
-
-        if (!hasClaimable) {
-          throw new Error(
-            "There is nothing new to claim.",
-          );
-        }
-
-        if (!publicClient) {
-          throw new Error(
-            "Blockchain connection is not ready.",
-          );
-        }
-
-        setClaiming(true);
-
-        setStatus(
-          "Please approve the transaction in your wallet.",
-        );
-
-        const hash =
-          await writeContract({
-            address:
-              STAKING_ADDRESS,
-
-            abi:
-              PAYOUT_ABI,
-
-            functionName:
-              "claim",
-
-            args: [
-              cumulativeUsdtWei,
-              cumulativeRoiEwcWei,
-              info.proof,
-            ],
-          });
-
-        setTxHash(hash);
-
-        setStatus(
-          "Transaction submitted. Waiting for blockchain confirmation.",
-        );
-
-        const receipt =
-          await publicClient.waitForTransactionReceipt(
-            {
-              hash,
-            },
-          );
-
-        if (
-          receipt.status !==
-          "success"
-        ) {
-          throw new Error(
-            "Transaction failed on BNB Smart Chain.",
-          );
-        }
-
-        const claimedParts =
-          [];
-
-        if (
-          claimableUsdtWei >
-          0n
-        ) {
-          claimedParts.push(
-            `${formatUsd(
-              claimableUsdt,
-            )} USDT`,
-          );
-        }
-
-        if (
-          claimableRoiEwcWei >
-          0n
-        ) {
-          claimedParts.push(
-            `${formatEwc(
-              claimableRoiEwc,
-            )} EWC`,
-          );
-        }
-
-        setStatus(
-          `Claim successful: ${claimedParts.join(
-            " + ",
-          )}`,
-        );
-
-        /*
-         * Refresh backend claim information
-         * and actual connected wallet balances.
-         */
-
-        await Promise.all([
-          loadWithdrawalInfo(),
-          loadWalletBalances(),
-        ]);
-      } catch (err) {
-        console.error(
-          "Claim error:",
-          err,
-        );
-
-        let message =
-          "Claim failed.";
-
-        if (
-          err?.code === 4001
-        ) {
-          message =
-            "Transaction rejected in wallet.";
-        } else if (
-          err?.shortMessage
-        ) {
-          message =
-            err.shortMessage;
-        } else if (
-          err?.message
-        ) {
-          message =
-            err.message;
-        }
-
-        setError(message);
-      } finally {
-        setClaiming(false);
-      }
+    return {
+      cumulativeUsdt,
+      cumulativeEwc,
+      claimableUsdt,
+      claimableEwc,
+      claimedUsdt,
+      claimedEwc,
+      hasClaimable: claimableUsdt > 0n || claimableEwc > 0n,
+      claimableUsdtDisplay: formatUnits(claimableUsdt, usdtDecimals),
+      claimableEwcDisplay: formatUnits(claimableEwc, ewcDecimals),
+      claimedUsdtDisplay: formatUnits(claimedUsdt, usdtDecimals),
+      claimedEwcDisplay: formatUnits(claimedEwc, ewcDecimals),
     };
+  }, [info, usdtDecimals, ewcDecimals]);
 
-  /* =========================================================
-   * LOADING
-   * ========================================================= */
+  const incomeBalance = info?.incomeBalance;
+  const hasIncomeBalance = incomeBalance !== undefined && incomeBalance !== null;
+
+  const proofAvailable =
+    info?.merkleAvailable === true &&
+    Array.isArray(info?.proof) &&
+    amounts?.hasClaimable === true;
+
+  const canClaim =
+    isConnected &&
+    walletMatches &&
+    chainId === BSC_CHAIN_ID &&
+    proofAvailable &&
+    !claiming &&
+    !loading &&
+    !balanceLoading;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadWithdrawalInfo(), loadWalletBalances()]);
+    setRefreshing(false);
+  };
+
+  const handleClaim = async () => {
+    try {
+      setError("");
+      setStatus("");
+      setTxHash("");
+
+      if (!isConnected) {
+        open();
+        return;
+      }
+
+      if (!walletMatches) {
+        throw new Error("Connected wallet does not match your registered wallet.");
+      }
+
+      if (chainId !== BSC_CHAIN_ID) {
+        open({ view: "Networks" });
+        return;
+      }
+
+      if (!amounts || usdtDecimals === null || ewcDecimals === null) {
+        throw new Error("Token information is still loading.");
+      }
+
+      if (!proofAvailable) {
+        throw new Error(info?.merkleError || "No earnings are currently authorized for claiming.");
+      }
+
+      setClaiming(true);
+      setStatus("Please approve the transaction in your wallet.");
+
+      // Read the current published root to avoid submitting a stale proof.
+      const currentRoot = await publicClient.readContract({
+        address: EWC_PAYOUT_ADDRESS,
+        abi: EWC_PAYOUT_ABI,
+        functionName: "merkleRoot",
+      });
+
+      if (!info?.merkleRoot || currentRoot.toLowerCase() !== info.merkleRoot.toLowerCase()) {
+        throw new Error("The payout snapshot has changed. Refresh and try again.");
+      }
+
+      const hash = await writeContract({
+        address: EWC_PAYOUT_ADDRESS,
+        abi: EWC_PAYOUT_ABI,
+        functionName: "claim",
+        args: [amounts.cumulativeUsdt, amounts.cumulativeEwc, info.proof],
+        chainId: BSC_CHAIN_ID,
+      });
+
+      setTxHash(hash);
+      setStatus("Transaction submitted. Waiting for blockchain confirmation.");
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success") {
+        throw new Error("Claim transaction failed on BNB Smart Chain.");
+      }
+
+      setStatus("Claim successful. Your tokens have been transferred to your wallet.");
+
+      await Promise.all([loadWithdrawalInfo(), loadWalletBalances()]);
+    } catch (err) {
+      console.error("Claim error:", err);
+
+      if (err?.code === 4001 || err?.code === "ACTION_REJECTED") {
+        setError("Transaction rejected in wallet.");
+      } else {
+        setError(err?.shortMessage || err?.message || "Claim failed.");
+      }
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const getClaimButtonLabel = () => {
+    if (claiming) return "Processing Claim...";
+    if (!isConnected) return "Connect Wallet";
+    if (!walletMatches) return "Wallet Mismatch";
+    if (chainId !== BSC_CHAIN_ID) return "Switch to BNB Smart Chain";
+    if (balanceLoading || !amounts) return "Loading Token Information...";
+    if (!amounts.hasClaimable) return "Nothing to Claim";
+    if (!info?.merkleAvailable) return "Awaiting Payout Snapshot";
+    if (!Array.isArray(info?.proof)) return "Proof Unavailable";
+    return "Claim Earnings";
+  };
 
   if (loading) {
     return (
-      <UserLayout
-        title="Withdrawal"
-        subtitle="Claim your available earnings"
-      >
-        <div
-          className={
-            styles.loadingState
-          }
-        >
-          Loading withdrawal
-          information...
-        </div>
+      <UserLayout title="Withdrawal" subtitle="Claim your available earnings">
+        <div className={styles.loadingState}>Loading withdrawal information...</div>
       </UserLayout>
     );
   }
 
-  /* =========================================================
-   * UI
-   * ========================================================= */
-
   return (
-    <UserLayout
-      title="Withdrawal"
-      subtitle="Claim your available earnings"
-    >
-      <section
-        className={
-          styles.withdrawCard
-        }
-      >
-        <div
-          className={
-            styles.cardHeader
-          }
-        >
+    <UserLayout title="Withdrawal" subtitle="Claim your available earnings">
+      <section className={styles.withdrawCard}>
+        <div className={styles.cardHeader}>
           <div>
-            <span
-              className={
-                styles.eyebrow
-              }
-            >
-              AVAILABLE EARNINGS
-            </span>
-
-            <h2>
-              Withdraw Earnings
-            </h2>
-
-            <p>
-              Claim your available
-              USDT earnings and EWC
-              rewards directly to your
-              registered wallet.
-            </p>
+            <span className={styles.eyebrow}>EWC WITHDRAWAL CENTER</span>
+            <h2>Withdraw Earnings</h2>
+            <p>View your earnings and claim authorized USDT income and EWC rewards.</p>
           </div>
 
-          <div
-            className={
-              styles.priceBox
-            }
-          >
-            <span>
-              Total Available
-            </span>
+          <button type="button" className={styles.refreshButton} onClick={handleRefresh} disabled={refreshing || claiming}>
+            <RefreshCw size={15} className={refreshing ? styles.spinning : ""} />
+            {refreshing ? "Refreshing" : "Refresh"}
+          </button>
+        </div>
 
-            <strong>
-              {formatUsd(
-                claimableUsdt,
-              )}
+        <div className={styles.balanceGrid}>
+          <div className={`${styles.balanceCard} ${styles.primaryBalance}`}>
+            <div className={styles.balanceHeading}>
+              <CircleDollarSign size={18} />
+              <span>Income Balance</span>
+            </div>
+            <strong className={styles.balanceAmount}>
+              {hasIncomeBalance ? formatUsd(incomeBalance) : "—"}
             </strong>
+            <small>Live earnings recorded in your account</small>
+          </div>
 
-            <small>
-              {formatEwc(
-                claimableRoiEwc,
-              )}{" "}
-              EWC
-            </small>
+          <div className={styles.balanceCard}>
+            <div className={styles.balanceHeading}>
+              <ArrowDownToLine size={18} />
+              <span>Ready to Claim</span>
+            </div>
+            <strong className={styles.balanceAmount}>
+              {amounts ? formatUsd(amounts.claimableUsdtDisplay) : "—"}
+            </strong>
+            <small>USDT authorized by the latest payout snapshot</small>
           </div>
         </div>
 
-        {/* AVAILABLE TO CLAIM */}
+        <div className={styles.sectionHeading}>
+          <h3>Claimable Rewards</h3>
+          <span>Latest published payout snapshot</span>
+        </div>
 
-        <div
-          className={
-            styles.claimHero
-          }
-        >
-          <div
-            className={
-              styles.claimIcon
-            }
-          >
-            <CircleDollarSign
-              size={25}
-            />
+        <div className={styles.statsGrid}>
+          <div className={styles.stat}>
+            <CircleDollarSign size={19} />
+            <div>
+              <span>USDT Income</span>
+              <strong>{amounts ? formatUsd(amounts.claimableUsdtDisplay) : "—"}</strong>
+            </div>
           </div>
 
+          <div className={styles.stat}>
+            <Coins size={19} />
+            <div>
+              <span>EWC ROI</span>
+              <strong>{amounts ? formatAmount(amounts.claimableEwcDisplay, 4) : "—"} EWC</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.sectionHeading}>
+          <h3>Claim Summary</h3>
+          <span>Cumulative payouts</span>
+        </div>
+
+        <div className={styles.statsGrid}>
+          <div className={styles.stat}>
+            <ShieldCheck size={19} />
+            <div>
+              <span>Already Claimed USDT</span>
+              <strong>{amounts ? formatUsd(amounts.claimedUsdtDisplay) : "—"}</strong>
+            </div>
+          </div>
+
+          <div className={styles.stat}>
+            <Coins size={19} />
+            <div>
+              <span>Already Claimed EWC</span>
+              <strong>{amounts ? formatAmount(amounts.claimedEwcDisplay, 4) : "—"} EWC</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.sectionHeading}>
+          <h3>Connected Wallet</h3>
+          <span>BNB Smart Chain</span>
+        </div>
+
+        <div className={styles.statsGrid}>
+          <div className={styles.stat}>
+            <Wallet size={19} />
+            <div>
+              <span>USDT in Wallet</span>
+              <strong>{!isConnected ? "—" : balanceLoading ? "Loading..." : `${formatAmount(usdtBalance)} USDT`}</strong>
+            </div>
+          </div>
+
+          <div className={styles.stat}>
+            <Coins size={19} />
+            <div>
+              <span>EWC in Wallet</span>
+              <strong>{!isConnected ? "—" : balanceLoading ? "Loading..." : `${formatAmount(ewcBalance)} EWC`}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.walletSection}>
           <div>
-            <span>
-              Available to Claim
-            </span>
-
-            <strong>
-              {formatUsd(
-                claimableUsdt,
-              )}{" "}
-              USDT
-            </strong>
-
-            <small>
-              {formatEwc(
-                claimableRoiEwc,
-              )}{" "}
-              EWC
-            </small>
+            <span>Registered Wallet</span>
+            <strong>{shortAddress(registeredWallet)}</strong>
           </div>
-        </div>
-
-        {/* CLAIMABLE BREAKDOWN */}
-
-        <div
-          className={
-            styles.statsGrid
-          }
-        >
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <CircleDollarSign
-              size={18}
-            />
-
-            <div>
-              <span>
-                USDT Earnings
-              </span>
-
-              <strong>
-                {formatUsd(
-                  claimableUsdt,
-                )}
-              </strong>
-            </div>
-          </div>
-
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <Coins size={18} />
-
-            <div>
-              <span>
-                EWC ROI
-              </span>
-
-              <strong>
-                {formatEwc(
-                  claimableRoiEwc,
-                )}{" "}
-                EWC
-              </strong>
-            </div>
-          </div>
-
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <ShieldCheck
-              size={18}
-            />
-
-            <div>
-              <span>
-                Network
-              </span>
-
-              <strong>
-                BNB Smart Chain
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        {/* WALLET BALANCES */}
-
-        <div
-          className={
-            styles.statsGrid
-          }
-        >
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <CircleDollarSign
-              size={18}
-            />
-
-            <div>
-              <span>
-                USDT Balance
-              </span>
-
-              <strong>
-                {!isConnected
-                  ? "—"
-                  : balanceLoading
-                    ? "Loading..."
-                    : `${formatToken(
-                        usdtBalance,
-                      )} USDT`}
-              </strong>
-            </div>
-          </div>
-
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <Coins size={18} />
-
-            <div>
-              <span>
-                EWC Balance
-              </span>
-
-              <strong>
-                {!isConnected
-                  ? "—"
-                  : balanceLoading
-                    ? "Loading..."
-                    : `${formatToken(
-                        ewcBalance,
-                      )} EWC`}
-              </strong>
-            </div>
-          </div>
-
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <Wallet size={18} />
-
-            <div>
-              <span>
-                Wallet Status
-              </span>
-
-              <strong>
-                {!isConnected
-                  ? "Not Connected"
-                  : walletMatches
-                    ? "Verified"
-                    : "Wallet Mismatch"}
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        {/* WALLET ADDRESSES */}
-
-        <div
-          className={
-            styles.walletSection
-          }
-        >
           <div>
-            <span>
-              Registered Wallet
-            </span>
-
-            <strong>
-              {shortAddress(
-                registeredWallet,
-              )}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Connected Wallet
-            </span>
-
-            <strong>
-              {isConnected
-                ? shortAddress(
-                    address,
-                  )
-                : "Not connected"}
-            </strong>
+            <span>Connected Wallet</span>
+            <strong>{isConnected ? shortAddress(address) : "Not connected"}</strong>
           </div>
         </div>
 
-        {/* CLAIM HISTORY TOTALS */}
-
-        <div
-          className={
-            styles.statsGrid
-          }
-        >
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <BanknoteArrowDown
-              size={18}
-            />
-
-            <div>
-              <span>
-                Claimed USDT
-              </span>
-
-              <strong>
-                {formatUsd(
-                  usdtClaimed,
-                )}
-              </strong>
-            </div>
-          </div>
-
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <Coins size={18} />
-
-            <div>
-              <span>
-                Claimed EWC
-              </span>
-
-              <strong>
-                {formatEwc(
-                  roiEwcClaimed,
-                )}{" "}
-                EWC
-              </strong>
-            </div>
-          </div>
-
-          <div
-            className={
-              styles.stat
-            }
-          >
-            <ShieldCheck
-              size={18}
-            />
-
-            <div>
-              <span>
-                Claim Status
-              </span>
-
-              <strong>
-                {hasClaimable
-                  ? "Available"
-                  : "Up to Date"}
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        {/* WALLET WARNING */}
-
-        {isConnected &&
-          !walletMatches && (
-            <div
-              className={
-                styles.warningBox
-              }
-            >
-              Connected wallet does
-              not match the wallet
-              registered with this
-              account.
-            </div>
-          )}
-
-        {/* ERROR */}
-
-        {error && (
-          <div
-            className={
-              styles.errorBox
-            }
-          >
-            <AlertCircle
-              size={15}
-            />
-
-            <span>
-              {error}
-            </span>
+        {isConnected && !walletMatches && (
+          <div className={styles.warningBox}>
+            <AlertCircle size={16} />
+            Connected wallet does not match your registered wallet.
           </div>
         )}
 
-        {/* TRANSACTION STATUS */}
+        {hasIncomeBalance && amounts && Number(incomeBalance) > Number(amounts.claimableUsdtDisplay) && (
+          <div className={styles.infoBox}>
+            <ShieldCheck size={17} />
+            Some earnings may be awaiting the next payout snapshot before they can be claimed.
+          </div>
+        )}
+
+        {error && (
+          <div className={styles.errorBox}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
 
         {status && (
-          <div
-            className={`${styles.txStatus} ${
-              status.startsWith(
-                "Claim successful",
-              )
-                ? styles.txSuccess
-                : styles.txPending
-            }`}
-          >
-            <div
-              className={
-                styles.txStatusIcon
-              }
-            >
-              {status.startsWith(
-                "Claim successful",
-              ) ? (
-                <CheckCircle2
-                  size={20}
-                />
-              ) : (
-                <div
-                  className={
-                    styles.txSpinner
-                  }
-                />
-              )}
+          <div className={`${styles.txStatus} ${status.startsWith("Claim successful") ? styles.txSuccess : styles.txPending}`}>
+            <div className={styles.txStatusIcon}>
+              {status.startsWith("Claim successful") ? <CheckCircle2 size={20} /> : <div className={styles.txSpinner} />}
             </div>
-
-            <div
-              className={
-                styles.txStatusContent
-              }
-            >
-              <strong>
-                {status.startsWith(
-                  "Claim successful",
-                )
-                  ? "Claim Successful"
-                  : status.includes(
-                        "approve",
-                      )
-                    ? "Wallet Confirmation Required"
-                    : "Transaction Processing"}
-              </strong>
-
-              <span>
-                {status}
-              </span>
+            <div className={styles.txStatusContent}>
+              <strong>{status.startsWith("Claim successful") ? "Claim Successful" : "Transaction Processing"}</strong>
+              <span>{status}</span>
             </div>
-
             {txHash && (
-              <a
-                className={
-                  styles.txLink
-                }
-                href={`https://bscscan.com/tx/${txHash}`}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a className={styles.txLink} href={`https://bscscan.com/tx/${txHash}`} target="_blank" rel="noreferrer">
                 View Transaction
-                <span>↗</span>
               </a>
             )}
           </div>
         )}
 
-        {/* CLAIM BUTTON */}
-
         <button
-          className={
-            styles.claimButton
-          }
-          onClick={
-            handleClaim
-          }
-          disabled={
-            claiming ||
-            (isConnected &&
-              (!walletMatches ||
-                !info?.merkleAvailable ||
-                !hasClaimable))
-          }
+          type="button"
+          className={styles.claimButton}
+          onClick={handleClaim}
+          disabled={claiming || (isConnected && !canClaim && chainId === BSC_CHAIN_ID)}
         >
-          <BanknoteArrowDown
-            size={18}
-          />
-
-          {claiming
-            ? "Processing..."
-            : !isConnected
-              ? "Connect Wallet & Claim"
-              : hasClaimable
-                ? "Claim Earnings"
-                : "Nothing to Claim"}
+          <ArrowDownToLine size={18} />
+          {getClaimButtonLabel()}
         </button>
 
-        <p
-          className={
-            styles.claimNote
-          }
-        >
-          Direct, Rank and Salary
-          earnings are paid in USDT.
-          ROI rewards are paid in EWC.
+        <p className={styles.claimNote}>
+          USDT earnings and EWC ROI are transferred directly to your registered wallet.
+          Withdrawal history is available on the separate history page.
         </p>
       </section>
     </UserLayout>
