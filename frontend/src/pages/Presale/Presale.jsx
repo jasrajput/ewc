@@ -190,8 +190,7 @@ const Presale = () => {
 
   const phase = getPresalePhase(now);
 
-  const countdownTarget =
-    phase === "upcoming" ? PRESALE_START : PRESALE_END;
+  const countdownTarget = phase === "upcoming" ? PRESALE_START : PRESALE_END;
 
   const countdown = getCountdown(now, countdownTarget);
 
@@ -214,14 +213,11 @@ const Presale = () => {
 
   const hasEnoughBalance = amountNum <= balance;
 
-  const needsApproval =
-    validAmount && allowanceAmount < amountNum;
+  const needsApproval = validAmount && allowanceAmount < amountNum;
 
-  const transactionBusy =
-    txStatus === "approving" || txStatus === "investing";
+  const transactionBusy = txStatus === "approving" || txStatus === "investing";
 
-  const canPurchase =
-    phase === "live" && contractPresaleActive;
+  const canPurchase = phase === "live" && contractPresaleActive;
 
   // =========================================================
   // CLOCK
@@ -276,11 +272,7 @@ const Presale = () => {
 
   const fetchQuote = useCallback(
     async (value) => {
-      if (
-        !publicClient ||
-        value < MIN_DEPOSIT ||
-        value > MAX_DEPOSIT
-      ) {
+      if (!publicClient || value < MIN_DEPOSIT || value > MAX_DEPOSIT) {
         setQuote(null);
         return;
       }
@@ -288,10 +280,7 @@ const Presale = () => {
       setQuoteLoading(true);
 
       try {
-        const amountWei = parseUnits(
-          String(value),
-          USDT_DECIMALS
-        );
+        const amountWei = parseUnits(String(value), USDT_DECIMALS);
 
         const bonusBps = await publicClient.readContract({
           address: PRESALE_ADDRESS,
@@ -300,29 +289,20 @@ const Presale = () => {
           args: [amountWei],
         });
 
-        const baseEwcWei =
-          (amountWei * 10n ** 18n) / PRESALE_PRICE_WEI;
+        const baseEwcWei = (amountWei * 10n ** 18n) / PRESALE_PRICE_WEI;
 
-        const bonusEwcWei =
-          (baseEwcWei * bonusBps) / BPS;
+        const bonusEwcWei = (baseEwcWei * bonusBps) / BPS;
 
-        const totalEwcWei =
-          baseEwcWei + bonusEwcWei;
+        const totalEwcWei = baseEwcWei + bonusEwcWei;
 
         setQuote({
           price: PRESALE_PRICE,
 
-          baseEwc: Number(
-            formatUnits(baseEwcWei, EWC_DECIMALS)
-          ),
+          baseEwc: Number(formatUnits(baseEwcWei, EWC_DECIMALS)),
 
-          bonusEwc: Number(
-            formatUnits(bonusEwcWei, EWC_DECIMALS)
-          ),
+          bonusEwc: Number(formatUnits(bonusEwcWei, EWC_DECIMALS)),
 
-          totalEwc: Number(
-            formatUnits(totalEwcWei, EWC_DECIMALS)
-          ),
+          totalEwc: Number(formatUnits(totalEwcWei, EWC_DECIMALS)),
 
           bonusPercent: Number(bonusBps) / 100,
         });
@@ -333,7 +313,7 @@ const Presale = () => {
         setQuoteLoading(false);
       }
     },
-    [publicClient]
+    [publicClient],
   );
 
   useEffect(() => {
@@ -348,49 +328,47 @@ const Presale = () => {
   // VERIFY MEMBER
   // =========================================================
 
-  const verifyInvestmentAccount = useCallback(
-    async (walletAddress) => {
-      if (!walletAddress) {
-        setBeneficiaryMember(null);
-        setAccountError("Wallet address is required.");
-        return null;
-      }
-
-      setAccountChecking(true);
-      setAccountError("");
+  const verifyInvestmentAccount = useCallback(async (walletAddress) => {
+    if (!walletAddress) {
       setBeneficiaryMember(null);
+      setAccountError("Wallet address is required.");
+      return null;
+    }
 
-      try {
-        const response = await api.post(
-          "/auth/check-investment-account",
-          {
-            address: walletAddress,
-          }
-        );
+    setAccountChecking(true);
+    setAccountError("");
+    setBeneficiaryMember(null);
 
-        if (
-          response.data?.success &&
-          response.data?.member
-        ) {
-          setBeneficiaryMember(response.data.member);
-          return response.data.member;
-        }
+    try {
+      const response = await api.post("/auth/check-investment-account", {
+        address: walletAddress,
+      });
 
-        setAccountError("Unable to verify this account.");
-        return null;
-      } catch (error) {
-        const message =
-          error?.response?.data?.message ||
-          "Unable to verify this wallet address.";
-
-        setAccountError(message);
-        return null;
-      } finally {
-        setAccountChecking(false);
+      if (response.data?.success && response.data?.member) {
+        setBeneficiaryMember(response.data.member);
+        return response.data.member;
       }
-    },
-    []
-  );
+
+      setAccountError("Unable to verify this account.");
+      return null;
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message || "";
+
+      const walletNotRegistered =
+        backendMessage.toLowerCase().includes("no account is registered") ||
+        backendMessage.toLowerCase().includes("wallet address not registered");
+
+      setAccountError(
+        walletNotRegistered
+          ? "This wallet address is not linked to an EWC account. Please visit the Wallet page to link your wallet before purchasing EWC."
+          : backendMessage || "Unable to verify this wallet address.",
+      );
+
+      return null;
+    } finally {
+      setAccountChecking(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isConnected || !address) {
@@ -406,12 +384,7 @@ const Presale = () => {
       setBeneficiaryMember(null);
       setAccountError("");
     }
-  }, [
-    investmentType,
-    address,
-    isConnected,
-    verifyInvestmentAccount,
-  ]);
+  }, [investmentType, address, isConnected, verifyInvestmentAccount]);
 
   const handleVerifyOtherAccount = async () => {
     const cleanAddress = beneficiaryAddress.trim();
@@ -442,7 +415,7 @@ const Presale = () => {
       const investments = response.data.investments || [];
 
       const filtered = investments.filter(
-        (investment) => investment.isPresale === true
+        (investment) => investment.isPresale === true,
       );
 
       setPresaleHistory(filtered);
@@ -452,7 +425,7 @@ const Presale = () => {
       setHistoryError(
         error?.response?.data?.message ||
           error?.message ||
-          "Unable to load Private Sale history."
+          "Unable to load Private Sale history.",
       );
     } finally {
       setHistoryLoading(false);
@@ -469,7 +442,7 @@ const Presale = () => {
 
   const historySummary = useMemo(() => {
     const confirmed = presaleHistory.filter(
-      (item) => Number(item.status) === 1
+      (item) => Number(item.status) === 1,
     );
 
     return confirmed.reduce(
@@ -486,7 +459,7 @@ const Presale = () => {
         baseEwc: 0,
         bonusEwc: 0,
         totalEwc: 0,
-      }
+      },
     );
   }, [presaleHistory]);
 
@@ -529,9 +502,7 @@ const Presale = () => {
     const available = Math.min(balance, MAX_DEPOSIT);
 
     if (available < MIN_DEPOSIT) {
-      setTxError(
-        `Minimum private sale investment is $${MIN_DEPOSIT}.`
-      );
+      setTxError(`Minimum private sale investment is $${MIN_DEPOSIT}.`);
       return;
     }
 
@@ -566,7 +537,7 @@ const Presale = () => {
 
     if (!validAmount) {
       setTxError(
-        `Enter an amount between $${MIN_DEPOSIT} and $${MAX_DEPOSIT}.`
+        `Enter an amount between $${MIN_DEPOSIT} and $${MAX_DEPOSIT}.`,
       );
       return;
     }
@@ -593,8 +564,7 @@ const Presale = () => {
     }
 
     try {
-      const verifiedMember =
-        await verifyInvestmentAccount(beneficiary);
+      const verifiedMember = await verifyInvestmentAccount(beneficiary);
 
       if (!verifiedMember) {
         setTxError("Beneficiary verification failed.");
@@ -612,10 +582,7 @@ const Presale = () => {
         return;
       }
 
-      const amountWei = parseUnits(
-        amount,
-        USDT_DECIMALS
-      );
+      const amountWei = parseUnits(amount, USDT_DECIMALS);
 
       const freshBalance = await publicClient.readContract({
         address: USDT_ADDRESS,
@@ -646,10 +613,9 @@ const Presale = () => {
           args: [PRESALE_ADDRESS, amountWei],
         });
 
-        const approvalReceipt =
-          await publicClient.waitForTransactionReceipt({
-            hash: approvalHash,
-          });
+        const approvalReceipt = await publicClient.waitForTransactionReceipt({
+          hash: approvalHash,
+        });
 
         if (approvalReceipt.status !== "success") {
           throw new Error("USDT approval failed.");
@@ -683,10 +649,9 @@ const Presale = () => {
         });
       }
 
-      const receipt =
-        await publicClient.waitForTransactionReceipt({
-          hash: depositHash,
-        });
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: depositHash,
+      });
 
       if (receipt.status !== "success") {
         throw new Error("Private Sale transaction failed.");
@@ -696,10 +661,7 @@ const Presale = () => {
       setAmount("");
       setQuote(null);
 
-      await Promise.all([
-        refetchBalance?.(),
-        refetchAllowance?.(),
-      ]);
+      await Promise.all([refetchBalance?.(), refetchAllowance?.()]);
 
       // The database may need time to index the event.
       fetchPresaleHistory();
@@ -715,9 +677,7 @@ const Presale = () => {
       console.error("Private Sale purchase error:", error);
 
       const message =
-        error?.shortMessage ||
-        error?.message ||
-        "Transaction failed.";
+        error?.shortMessage || error?.message || "Transaction failed.";
 
       setTxStatus("");
 
@@ -737,8 +697,7 @@ const Presale = () => {
 
   try {
     const raw =
-      localStorage.getItem("ewc_user") ||
-      sessionStorage.getItem("ewc_user");
+      localStorage.getItem("ewc_user") || sessionStorage.getItem("ewc_user");
 
     if (raw) storedUser = JSON.parse(raw);
   } catch (error) {
@@ -780,10 +739,7 @@ const Presale = () => {
     !contractPresaleActive ||
     contractChecking ||
     (isConnected &&
-      (!validAmount ||
-        !hasEnoughBalance ||
-        !quote ||
-        quoteLoading));
+      (!validAmount || !hasEnoughBalance || !quote || quoteLoading));
 
   // =========================================================
   // PAGE
@@ -796,7 +752,6 @@ const Presale = () => {
       subtitle="Exclusive Token Launch"
     >
       <div className={styles.page}>
-
         {/* =====================================================
             HERO
         ===================================================== */}
@@ -811,8 +766,8 @@ const Presale = () => {
               {phase === "upcoming"
                 ? "PRIVATE SALE COMING SOON"
                 : phase === "live"
-                ? "PRIVATE SALE IS LIVE"
-                : "PRIVATE SALE ENDED"}
+                  ? "PRIVATE SALE IS LIVE"
+                  : "PRIVATE SALE ENDED"}
             </div>
 
             <h1>
@@ -822,10 +777,9 @@ const Presale = () => {
             </h1>
 
             <p className={styles.heroDescription}>
-              Join the Elevate World Community token private
-              sale. Secure your EWC allocation at a fixed
-              launch price and unlock exclusive private sale
-              bonuses.
+              Join the Elevate World Community token private sale. Secure your
+              EWC allocation at a fixed launch price and unlock exclusive
+              private sale bonuses.
             </p>
 
             <div className={styles.heroStats}>
@@ -857,8 +811,8 @@ const Presale = () => {
                 {phase === "upcoming"
                   ? "PRIVATE SALE STARTS IN"
                   : phase === "live"
-                  ? "PRIVATE SALE ENDS IN"
-                  : "PRIVATE SALE COMPLETED"}
+                    ? "PRIVATE SALE ENDS IN"
+                    : "PRIVATE SALE COMPLETED"}
               </span>
             </div>
 
@@ -870,10 +824,7 @@ const Presale = () => {
                   ["MINUTES", countdown.minutes],
                   ["SECONDS", countdown.seconds],
                 ].map(([label, value]) => (
-                  <div
-                    className={styles.countdownUnit}
-                    key={label}
-                  >
+                  <div className={styles.countdownUnit} key={label}>
                     <strong>{pad(value)}</strong>
                     <span>{label}</span>
                   </div>
@@ -898,16 +849,16 @@ const Presale = () => {
                     phase === "upcoming"
                       ? 0
                       : phase === "ended"
-                      ? 100
-                      : Math.min(
-                          100,
-                          Math.max(
-                            0,
-                            ((now - PRESALE_START) /
-                              (PRESALE_END - PRESALE_START)) *
-                              100
+                        ? 100
+                        : Math.min(
+                            100,
+                            Math.max(
+                              0,
+                              ((now - PRESALE_START) /
+                                (PRESALE_END - PRESALE_START)) *
+                                100,
+                            ),
                           )
-                        )
                   }%`,
                 }}
               />
@@ -924,22 +875,18 @@ const Presale = () => {
         ===================================================== */}
 
         <section className={styles.purchaseGrid}>
-
           {/* PURCHASE CARD */}
 
           <div className={styles.purchaseCard}>
             <div className={styles.cardHeading}>
               <div>
-                <span className={styles.eyebrow}>
-                  EXCLUSIVE PRIVATE SALE
-                </span>
+                <span className={styles.eyebrow}>EXCLUSIVE PRIVATE SALE</span>
 
                 <h2>Purchase EWC Tokens</h2>
 
                 <p>
-                  Choose how much USDT you'd like to spend.
-                  Your EWC allocation and private sale bonus
-                  will be calculated instantly.
+                  Choose how much USDT you'd like to spend. Your EWC allocation
+                  and private sale bonus will be calculated instantly.
                 </p>
               </div>
 
@@ -957,11 +904,7 @@ const Presale = () => {
               <div className={styles.accountTabs}>
                 <button
                   type="button"
-                  className={
-                    investmentType === "self"
-                      ? styles.activeTab
-                      : ""
-                  }
+                  className={investmentType === "self" ? styles.activeTab : ""}
                   onClick={() => setInvestmentType("self")}
                   disabled={transactionBusy}
                 >
@@ -970,11 +913,7 @@ const Presale = () => {
 
                 <button
                   type="button"
-                  className={
-                    investmentType === "other"
-                      ? styles.activeTab
-                      : ""
-                  }
+                  className={investmentType === "other" ? styles.activeTab : ""}
                   onClick={() => setInvestmentType("other")}
                   disabled={transactionBusy}
                 >
@@ -1009,24 +948,41 @@ const Presale = () => {
                       !beneficiaryAddress.trim()
                     }
                   >
-                    {accountChecking
-                      ? "Checking..."
-                      : "Verify"}
+                    {accountChecking ? "Checking..." : "Verify"}
                   </button>
                 </div>
               </div>
             )}
 
             {accountChecking && (
-              <div className={styles.infoMessage}>
-                Verifying account...
-              </div>
+              <div className={styles.infoMessage}>Verifying account...</div>
             )}
 
             {accountError && (
               <div className={styles.errorMessage}>
-                <AlertCircle size={15} />
-                {accountError}
+                <AlertCircle size={17} />
+
+                <div>
+                  <p>{accountError}</p>
+
+                  {investmentType === "self" &&
+                    accountError.includes("not linked to an EWC account") && (
+                      <a
+                        href="/wallet"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          marginTop: "10px",
+                          fontWeight: 600,
+                          textDecoration: "underline",
+                        }}
+                      >
+                        Go to Wallet Page
+                        <ArrowRight size={15} />
+                      </a>
+                    )}
+                </div>
               </div>
             )}
 
@@ -1037,10 +993,7 @@ const Presale = () => {
                 <div>
                   <strong>{beneficiaryMember.name}</strong>
 
-                  <span>
-                    {beneficiaryMember.user_id} ·
-                    Verified Account
-                  </span>
+                  <span>{beneficiaryMember.user_id} · Verified Account</span>
                 </div>
               </div>
             )}
@@ -1080,29 +1033,21 @@ const Presale = () => {
               <div className={styles.amountLimits}>
                 <span>Min: ${MIN_DEPOSIT}</span>
 
-                <span>
-                  Max: ${MAX_DEPOSIT.toLocaleString()}
-                </span>
+                <span>Max: ${MAX_DEPOSIT.toLocaleString()}</span>
               </div>
 
               <div className={styles.amountPresets}>
-                {[10, 100, 1000, 10000, 50000, 100000].map(
-                  (value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => selectPreset(value)}
-                      className={
-                        amountNum === value
-                          ? styles.selectedPreset
-                          : ""
-                      }
-                      disabled={transactionBusy}
-                    >
-                      ${value.toLocaleString()}
-                    </button>
-                  )
-                )}
+                {[10, 100, 1000, 10000, 50000, 100000].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => selectPreset(value)}
+                    className={amountNum === value ? styles.selectedPreset : ""}
+                    disabled={transactionBusy}
+                  >
+                    ${value.toLocaleString()}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1118,8 +1063,8 @@ const Presale = () => {
                 {quoteLoading
                   ? "Calculating..."
                   : quote
-                  ? formatNumber(quote.totalEwc, 4)
-                  : "0"}
+                    ? formatNumber(quote.totalEwc, 4)
+                    : "0"}
 
                 {!quoteLoading && <small> EWC</small>}
               </div>
@@ -1129,9 +1074,7 @@ const Presale = () => {
                   <span>Base Allocation</span>
 
                   <strong>
-                    {quote
-                      ? `${formatNumber(quote.baseEwc)} EWC`
-                      : "—"}
+                    {quote ? `${formatNumber(quote.baseEwc)} EWC` : "—"}
                   </strong>
                 </div>
 
@@ -1139,9 +1082,7 @@ const Presale = () => {
                   <span>Private Sale Bonus</span>
 
                   <strong className={styles.bonusText}>
-                    {quote
-                      ? `+${formatNumber(quote.bonusEwc)} EWC`
-                      : "—"}
+                    {quote ? `+${formatNumber(quote.bonusEwc)} EWC` : "—"}
                   </strong>
                 </div>
 
@@ -1149,9 +1090,7 @@ const Presale = () => {
                   <span>Bonus Percentage</span>
 
                   <strong className={styles.bonusText}>
-                    {quote
-                      ? `+${quote.bonusPercent}%`
-                      : "—"}
+                    {quote ? `+${quote.bonusPercent}%` : "—"}
                   </strong>
                 </div>
               </div>
@@ -1181,8 +1120,8 @@ const Presale = () => {
             {txStatus === "success" && (
               <div className={styles.successMessage}>
                 <CheckCircle2 size={16} />
-                EWC purchase completed successfully.
-                Your purchase history will update shortly.
+                EWC purchase completed successfully. Your purchase history will
+                update shortly.
               </div>
             )}
 
@@ -1195,8 +1134,8 @@ const Presale = () => {
               {txStatus === "approving"
                 ? "Approving USDT..."
                 : txStatus === "investing"
-                ? "Confirming Purchase..."
-                : buttonText}
+                  ? "Confirming Purchase..."
+                  : buttonText}
 
               {!transactionBusy && <ArrowRight size={18} />}
             </button>
@@ -1215,9 +1154,7 @@ const Presale = () => {
                 <Gift size={23} />
               </div>
 
-              <span className={styles.eyebrow}>
-                PRIVATE SALE EXCLUSIVE
-              </span>
+              <span className={styles.eyebrow}>PRIVATE SALE EXCLUSIVE</span>
 
               <h3>
                 More EWC.
@@ -1226,9 +1163,8 @@ const Presale = () => {
               </h3>
 
               <p>
-                Receive additional EWC tokens based on
-                your investment tier during the limited
-                private sale.
+                Receive additional EWC tokens based on your investment tier
+                during the limited private sale.
               </p>
 
               <div className={styles.highlightStat}>
@@ -1249,8 +1185,8 @@ const Presale = () => {
                   <strong>Fixed Private Sale Price</strong>
 
                   <p>
-                    EWC is allocated at $0.01 per token
-                    throughout the private sale.
+                    EWC is allocated at $0.01 per token throughout the private
+                    sale.
                   </p>
                 </div>
               </div>
@@ -1263,10 +1199,7 @@ const Presale = () => {
                 <div>
                   <strong>Exclusive Bonus Allocation</strong>
 
-                  <p>
-                    Earn additional EWC based on your
-                    investment amount.
-                  </p>
+                  <p>Earn additional EWC based on your investment amount.</p>
                 </div>
               </div>
 
@@ -1279,8 +1212,8 @@ const Presale = () => {
                   <strong>Five-Year Token Lock</strong>
 
                   <p>
-                    Purchased EWC is locked immediately
-                    under the platform's locking mechanism.
+                    Purchased EWC is locked immediately under the platform's
+                    locking mechanism.
                   </p>
                 </div>
               </div>
@@ -1291,14 +1224,11 @@ const Presale = () => {
                 </div>
 
                 <div>
-                  <strong>
-                    Staking Rewards Waiting Period
-                  </strong>
+                  <strong>Staking Rewards Waiting Period</strong>
 
                   <p>
-                    The 100-day waiting period for staking
-                    rewards begins December 1, 2026 for
-                    all Private Sale purchases.
+                    The 100-day waiting period for staking rewards begins
+                    December 1, 2026 for all Private Sale purchases.
                   </p>
                 </div>
               </div>
@@ -1312,15 +1242,12 @@ const Presale = () => {
 
         <section className={styles.section}>
           <div className={styles.sectionHeading}>
-            <span className={styles.eyebrow}>
-              YOUR PRIVATE SALE PORTFOLIO
-            </span>
+            <span className={styles.eyebrow}>YOUR PRIVATE SALE PORTFOLIO</span>
 
             <h2>My Private Sale Purchases</h2>
 
             <p>
-              Track your investments, bonus EWC, and
-              total token allocation.
+              Track your investments, bonus EWC, and total token allocation.
             </p>
           </div>
 
@@ -1333,9 +1260,7 @@ const Presale = () => {
             >
               <RefreshCw size={15} />
 
-              {historyLoading
-                ? "Refreshing..."
-                : "Refresh History"}
+              {historyLoading ? "Refreshing..." : "Refresh History"}
             </button>
           </div>
 
@@ -1368,8 +1293,7 @@ const Presale = () => {
               </h3>
 
               <p className={styles.emptyDescription}>
-                Your Private Sale purchase history
-                will appear here.
+                Your Private Sale purchase history will appear here.
               </p>
             </div>
           ) : (
@@ -1378,9 +1302,7 @@ const Presale = () => {
 
               <div className={styles.summary}>
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>
-                    Total USDT Invested
-                  </span>
+                  <span className={styles.statLabel}>Total USDT Invested</span>
 
                   <strong className={styles.statValue}>
                     {formatUsd(historySummary.totalInvested)}
@@ -1388,41 +1310,26 @@ const Presale = () => {
                 </div>
 
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>
-                    Base EWC Allocation
-                  </span>
+                  <span className={styles.statLabel}>Base EWC Allocation</span>
 
                   <strong className={styles.statValue}>
-                    {formatNumber(
-                      historySummary.baseEwc,
-                      2
-                    )}
+                    {formatNumber(historySummary.baseEwc, 2)}
                   </strong>
                 </div>
 
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>
-                    Total Bonus EWC
-                  </span>
+                  <span className={styles.statLabel}>Total Bonus EWC</span>
 
                   <strong className={styles.statValue}>
-                    +{formatNumber(
-                      historySummary.bonusEwc,
-                      2
-                    )}
+                    +{formatNumber(historySummary.bonusEwc, 2)}
                   </strong>
                 </div>
 
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>
-                    Total EWC Allocated
-                  </span>
+                  <span className={styles.statLabel}>Total EWC Allocated</span>
 
                   <strong className={styles.statValue}>
-                    {formatNumber(
-                      historySummary.totalEwc,
-                      2
-                    )}
+                    {formatNumber(historySummary.totalEwc, 2)}
                   </strong>
                 </div>
               </div>
@@ -1431,10 +1338,7 @@ const Presale = () => {
 
               <div className={styles.list}>
                 {presaleHistory.map((purchase) => (
-                  <div
-                    key={purchase.id}
-                    className={styles.card}
-                  >
+                  <div key={purchase.id} className={styles.card}>
                     <div className={styles.cardHeader}>
                       <div>
                         <span className={styles.label}>
@@ -1461,9 +1365,7 @@ const Presale = () => {
 
                     <div className={styles.details}>
                       <div>
-                        <span className={styles.detailLabel}>
-                          EWC Price
-                        </span>
+                        <span className={styles.detailLabel}>EWC Price</span>
 
                         <strong className={styles.detailValue}>
                           ${purchase.ewcPrice}
@@ -1471,15 +1373,10 @@ const Presale = () => {
                       </div>
 
                       <div>
-                        <span className={styles.detailLabel}>
-                          Base EWC
-                        </span>
+                        <span className={styles.detailLabel}>Base EWC</span>
 
                         <strong className={styles.detailValue}>
-                          {formatNumber(
-                            purchase.baseEwc,
-                            2
-                          )}
+                          {formatNumber(purchase.baseEwc, 2)}
                         </strong>
                       </div>
 
@@ -1489,23 +1386,15 @@ const Presale = () => {
                         </span>
 
                         <strong className={styles.bonusValue}>
-                          +{formatNumber(
-                            purchase.bonusPercentage,
-                            2
-                          )}%
+                          +{formatNumber(purchase.bonusPercentage, 2)}%
                         </strong>
                       </div>
 
                       <div>
-                        <span className={styles.detailLabel}>
-                          Bonus EWC
-                        </span>
+                        <span className={styles.detailLabel}>Bonus EWC</span>
 
                         <strong className={styles.bonusValue}>
-                          +{formatNumber(
-                            purchase.bonusEwc,
-                            2
-                          )}
+                          +{formatNumber(purchase.bonusEwc, 2)}
                         </strong>
                       </div>
                     </div>
@@ -1516,11 +1405,7 @@ const Presale = () => {
                       </span>
 
                       <strong className={styles.totalValue}>
-                        {formatNumber(
-                          purchase.ewcAllocation,
-                          2
-                        )}{" "}
-                        EWC
+                        {formatNumber(purchase.ewcAllocation, 2)} EWC
                       </strong>
                     </div>
 
@@ -1548,16 +1433,13 @@ const Presale = () => {
 
         <section className={styles.tiersSection}>
           <div className={styles.sectionHeading}>
-            <span className={styles.eyebrow}>
-              EXCLUSIVE REWARDS
-            </span>
+            <span className={styles.eyebrow}>EXCLUSIVE REWARDS</span>
 
             <h2>Unlock Your Private Sale Bonus</h2>
 
             <p>
-              Higher investment tiers unlock additional
-              EWC allocation at the same fixed private
-              sale price.
+              Higher investment tiers unlock additional EWC allocation at the
+              same fixed private sale price.
             </p>
           </div>
 
@@ -1577,14 +1459,10 @@ const Presale = () => {
                   key={tier.min}
                 >
                   <div className={styles.tierTop}>
-                    <span>
-                      ${tier.min.toLocaleString()}+
-                    </span>
+                    <span>${tier.min.toLocaleString()}+</span>
 
                     {active && (
-                      <span className={styles.currentTier}>
-                        YOUR TIER
-                      </span>
+                      <span className={styles.currentTier}>YOUR TIER</span>
                     )}
                   </div>
 
@@ -1603,9 +1481,7 @@ const Presale = () => {
 
         <section className={styles.timelineSection}>
           <div className={styles.sectionHeading}>
-            <span className={styles.eyebrow}>
-              IMPORTANT DATES
-            </span>
+            <span className={styles.eyebrow}>IMPORTANT DATES</span>
 
             <h2>Your EWC Journey</h2>
           </div>
@@ -1619,8 +1495,8 @@ const Presale = () => {
               <strong>Private Sale Begins</strong>
 
               <p>
-                Purchase EWC at the fixed private sale
-                price and receive your bonus allocation.
+                Purchase EWC at the fixed private sale price and receive your
+                bonus allocation.
               </p>
             </div>
 
@@ -1632,8 +1508,7 @@ const Presale = () => {
               <strong>Private Sale Ends</strong>
 
               <p>
-                The limited-time private sale closes
-                and exclusive bonuses end.
+                The limited-time private sale closes and exclusive bonuses end.
               </p>
             </div>
 
@@ -1642,13 +1517,11 @@ const Presale = () => {
 
               <h3>December 1, 2026</h3>
 
-              <strong>
-                Staking Rewards Waiting Period Starts
-              </strong>
+              <strong>Staking Rewards Waiting Period Starts</strong>
 
               <p>
-                All November private sale investments
-                begin their 100-day waiting period.
+                All November private sale investments begin their 100-day
+                waiting period.
               </p>
             </div>
 
@@ -1657,14 +1530,11 @@ const Presale = () => {
 
               <h3>March 11, 2027</h3>
 
-              <strong>
-                First Staking Rewards Eligibility
-              </strong>
+              <strong>First Staking Rewards Eligibility</strong>
 
               <p>
-                Private Sale investments reach day 101
-                under the platform's Staking Rewards
-                schedule.
+                Private Sale investments reach day 101 under the platform's
+                Staking Rewards schedule.
               </p>
             </div>
           </div>
@@ -1678,11 +1548,10 @@ const Presale = () => {
           <ShieldCheck size={19} />
 
           <p>
-            EWC private sale allocations are calculated
-            using the fixed private sale price and
-            applicable bonus tier. All transactions are
-            executed on BNB Smart Chain. Review the
-            smart contract terms before purchasing.
+            EWC private sale allocations are calculated using the fixed private
+            sale price and applicable bonus tier. All transactions are executed
+            on BNB Smart Chain. Review the smart contract terms before
+            purchasing.
           </p>
         </div>
       </div>
