@@ -1,3 +1,4 @@
+
 name: Deploy EWC to AWS Lightsail
 
 on:
@@ -6,9 +7,12 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ewc-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    name: Deploy EWC Backend and Closing
     runs-on: ubuntu-24.04
 
     steps:
@@ -20,6 +24,7 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
         run: |
+          set -e
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
@@ -29,9 +34,10 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Test EWC backend deployment
+      - name: Deploy backend
         run: |
-          rsync -avzn --itemize-changes \
+          rsync -az \
+            -e "ssh -o BatchMode=yes" \
             --exclude='.env' \
             --exclude='.env.*' \
             --exclude='node_modules/' \
@@ -39,9 +45,10 @@ jobs:
             --exclude='*.log' \
             ./backend/ ubuntu@13.206.187.201:/var/www/ewc/backend/
 
-      - name: Test EWC closing-node deployment
+      - name: Deploy closing-node
         run: |
-          rsync -avzn --itemize-changes \
+          rsync -az \
+            -e "ssh -o BatchMode=yes" \
             --exclude='.env' \
             --exclude='.env.*' \
             --exclude='node_modules/' \
@@ -49,8 +56,20 @@ jobs:
             --exclude='*.log' \
             ./closing-node/ ubuntu@13.206.187.201:/var/www/ewc/closing-node/
 
-      - name: Deployment test completed
+      - name: Install dependencies and restart applications
         run: |
-          echo "EWC deployment dry run completed."
-          echo "No files were uploaded."
-          echo "No PM2 processes were restarted."
+          ssh -o BatchMode=yes ubuntu@13.206.187.201 'bash -se' <<'EOF'
+            set -e
+
+            cd /var/www/ewc/backend
+            npm ci --omit=dev
+
+            cd /var/www/ewc/closing-node
+            npm ci --omit=dev
+
+            pm2 restart server --update-env
+            pm2 restart processEvents --update-env
+
+            sleep 5
+            pm2 list
+          EOF
