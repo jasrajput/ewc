@@ -6,9 +6,8 @@ const {
   getMonthlyAllowance,
 } = require("../controllers/monthlyAllowanceController");
 
-// Use the same authentication middleware as /rank/progress.
-const { authenticate } = require("../middleware/auth");
+const authMiddleware = require("../middleware/authMiddleware");
 
-router.get("/", authenticate, getMonthlyAllowance);
+router.get("/", authMiddleware, getMonthlyAllowance);
 
 module.exports = router;

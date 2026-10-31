@@ -1,6 +1,7 @@
 const { ethers } = require("ethers");
 const pool = require("./db");
 const config = require("./config");
+const { syncAllowanceRank, } = require("../../backend/services/monthlyAllowanceService");
 
 const RPC_URL = config.rpcUrl;
 const PRESALE_CONTRACT_ADDRESS = config.presaleContract || process.env.EWC_PRESALE_CONTRACT;
@@ -503,6 +504,16 @@ async function processDepositEvent(event) {
                 "UPDATE member SET level_achieved = ? WHERE id = ?",
                 [ownQualification.rank, member.id]
             );
+
+            await syncAllowanceRank(
+                connection,
+                member.id,
+                ownQualification.rank
+            );
+
+            console.log(
+                `Monthly Allowance initialized/updated for ${member.user_id} at E-${String(ownQualification.rank).padStart(2, "0")}`
+            );
         }
         await updateUplineRanks(connection, member);
 
@@ -723,9 +734,15 @@ async function updateUplineRanks(connection, member) {
         if (result.rank > oldRank) {
             await connection.execute(
                 `UPDATE member
-                 SET level_achieved = ?
-                 WHERE id = ?`,
+         SET level_achieved = ?
+         WHERE id = ?`,
                 [result.rank, parent.id]
+            );
+
+            await syncAllowanceRank(
+                connection,
+                parent.id,
+                result.rank
             );
 
             console.log(
@@ -734,6 +751,10 @@ async function updateUplineRanks(connection, member) {
 
             console.log(
                 `Direct Business: ${result.directBusiness} USDT | Team Business: ${result.teamBusiness} USDT`
+            );
+
+            console.log(
+                `Monthly Allowance initialized/updated for ${parent.user_id} at E-${String(result.rank).padStart(2, "0")}`
             );
         }
 
