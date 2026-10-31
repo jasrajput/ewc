@@ -12,6 +12,12 @@ async function processMonthlyAllowances() {
      WHERE next_payment_at IS NOT NULL
        AND next_payment_at <= UTC_TIMESTAMP()
        AND rank_level >= 2
+       AND payments_at_rank <
+         CASE
+           WHEN rank_level BETWEEN 2 AND 6 THEN 3
+           WHEN rank_level BETWEEN 7 AND 12 THEN 6
+           ELSE 0
+         END
      ORDER BY next_payment_at ASC
      LIMIT 500`
   );

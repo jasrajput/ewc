@@ -35,6 +35,14 @@ function toSqlDate(date) {
   return new Date(date).toISOString().slice(0, 19).replace("T", " ");
 }
 
+function fromSqlDate(value) {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  return new Date(value.replace(" ", "T") + "Z");
+}
+
 /**
  * Call inside the same DB transaction that changes
  * member.level_achieved.
@@ -81,9 +89,36 @@ async function syncAllowanceRank(
 
   if (rank <= Number(existing.rank_level)) return;
 
-  const nextPayment =
-    existing.next_payment_at ||
-    (rank >= 2 ? toSqlDate(addMonth(achievedAt)) : null);
+  // const nextPayment =
+  //   existing.next_payment_at ||
+  //   (rank >= 2 ? toSqlDate(addMonth(achievedAt)) : null);
+
+  let nextPayment;
+
+  if (rank < 2) {
+    nextPayment = null;
+  } else if (!existing.next_payment_at) {
+    nextPayment = toSqlDate(addMonth(achievedAt));
+  } else {
+    // const scheduledDate = new Date(existing.next_payment_at);
+    const scheduledDate = fromSqlDate(existing.next_payment_at);
+    const promotionDate = new Date(achievedAt);
+
+    const previousLimit = maxPayments(Number(existing.rank_level));
+    const previousCount = Number(existing.payments_at_rank || 0);
+
+    const previousRankExhausted =
+      previousLimit > 0 && previousCount >= previousLimit;
+
+    if (previousRankExhausted && promotionDate > scheduledDate) {
+      // User missed the next scheduled payment because
+      // their previous rank had reached its payment limit.
+      nextPayment = toSqlDate(addMonth(promotionDate));
+    } else {
+      // No missed payment: preserve existing monthly schedule.
+      nextPayment = toSqlDate(scheduledDate);
+    }
+  }
 
   await connection.execute(
     `UPDATE monthly_allowance_state
@@ -137,7 +172,8 @@ async function processMemberAllowance(connection, memberId) {
   if (!state.next_payment_at) return false;
 
   const now = new Date();
-  const due = new Date(state.next_payment_at);
+  // const due = new Date(state.next_payment_at);
+  const due = fromSqlDate(state.next_payment_at);
 
   if (due > now) return false;
 
@@ -166,9 +202,21 @@ async function processMemberAllowance(connection, memberId) {
     );
   }
 
+  await connection.execute(
+    `INSERT INTO trasections
+   (credit, direction, user_id, description)
+   VALUES (?, 6, ?, ?)`,
+    [
+      amount,
+      memberId,
+      `Monthly Performance Allowance - E-${String(rank).padStart(2, "0")} - Payment ${paidCount + 1}/${limit}`,
+    ]
+  );
+
   const nextCount = paidCount + 1;
-  const nextPayment =
-    nextCount >= limit ? null : toSqlDate(addMonth(due));
+  // const nextPayment =
+  //   nextCount >= limit ? null : toSqlDate(addMonth(due));
+  const nextPayment = toSqlDate(addMonth(due));
 
   await connection.execute(
     `UPDATE monthly_allowance_state
