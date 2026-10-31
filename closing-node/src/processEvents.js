@@ -491,7 +491,7 @@ async function processDepositEvent(event) {
         // The depositing member may now qualify; update before checking uplines.
         const ownQualification = await calculateQualifiedRank(connection, member.id);
         const [ownRows] = await connection.execute(
-            "SELECT COALESCE(level_achieved, 0) AS rank FROM member WHERE id = ? FOR UPDATE",
+            "SELECT COALESCE(level_achieved, 0) AS `rank` FROM member WHERE id = ? FOR UPDATE",
             [member.id]
         );
         if (ownQualification.rank > Number(ownRows[0]?.rank || 0)) {
