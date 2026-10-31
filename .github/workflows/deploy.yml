@@ -34,9 +34,10 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      
       - name: Deploy backend
         run: |
-          rsync -az --omit-dir-times \
+          rsync -rz \
             -e "ssh -o BatchMode=yes" \
             --exclude='.env' \
             --exclude='.env.*' \
@@ -47,7 +48,7 @@ jobs:
 
       - name: Deploy closing-node
         run: |
-          rsync -az --omit-dir-times \
+          rsync -rz \
             -e "ssh -o BatchMode=yes" \
             --exclude='.env' \
             --exclude='.env.*' \
