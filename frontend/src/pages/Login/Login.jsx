@@ -79,14 +79,18 @@ const Login = () => {
       <div className={styles.pageContent}>
         {/* Brand */}
         <Link to="/" className={styles.brand}>
-          <div className={styles.logoMark}>
-            <span>E</span>
+          <div>
+            <img
+              src="/logo.png"
+              alt="EWC Logo"
+              style={{ width: 140, height: 100, objectFit: "cover" }}
+            />
           </div>
 
-          <div className={styles.brandText}>
+          {/* <div className={styles.brandText}>
             <strong>EWC</strong>
             <span>ELEVATE WORLD COMMUNITY</span>
-          </div>
+          </div> */}
         </Link>
 
         {/* Login Card */}

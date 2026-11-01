@@ -486,13 +486,22 @@ const Register = () => {
         ================================================= */}
 
         <div className={styles.brand}>
-          <div className={styles.logoMark}>E</div>
-
+          {/* <div className={styles.logoMark}>E</div> */}
           <div>
+            
+              <img
+                src="/logo.png"
+                alt="EWC Logo"
+                style={{ width: 140, height: 100, objectFit: "cover" }}
+              />
+            
+          </div>
+
+          {/* <div>
             <div className={styles.brandName}>EWC</div>
 
             <div className={styles.brandSub}>ELEVATE WORLD COMMUNITY</div>
-          </div>
+          </div> */}
         </div>
 
         {/* =================================================

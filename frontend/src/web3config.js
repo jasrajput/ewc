@@ -42,10 +42,10 @@ const projectId =
   '54b039af03e2ba235845ce4ddffeb618'
 
 const metadata = {
-  name: 'EWC',
+  name: 'ELEVATE WORLD COMMUNITY',
   description: 'EWC Presale',
   url: 'https://www.ewctoken.com',
-  icons: ['logo.png'],
+  icons: ['https://www.ewctoken.com/logo.png'],
 }
 
 const chains = [bscMainnet]

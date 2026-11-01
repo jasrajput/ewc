@@ -121,12 +121,19 @@ const Sidebar = ({ user, open, onClose }) => {
     <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ""}`}>
       <div className={styles.sidebarHeader}>
         <div className={styles.brand}>
-          <div className={styles.logoMark}>E</div>
-
+          {/* <div className={styles.logoMark}>E</div> */}
           <div>
+            <img
+              src="/logo.png"
+              alt="EWC Logo"
+              style={{ width: 120, height: 80, objectFit: "contain", marginTop: 10 }}
+            />
+          </div>
+
+          {/* <div>
             <strong>EWC</strong>
             <span>Elevate World Community</span>
-          </div>
+          </div> */}
         </div>
 
         <button className={styles.mobileClose} onClick={onClose}>
