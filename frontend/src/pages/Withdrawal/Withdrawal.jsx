@@ -1,3 +1,4 @@
+/* global BigInt */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConnection, usePublicClient, useWriteContract } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
