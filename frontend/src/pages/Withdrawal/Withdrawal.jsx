@@ -285,7 +285,7 @@ const Withdrawal = () => {
         setClaimedData(null);
 
         setClaimedError(
-          "Unable to verify claimed amounts from EWCPayout."
+          "Unable to verify claimed amounts."
         );
 
         return null;
