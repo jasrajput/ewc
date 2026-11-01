@@ -44,8 +44,8 @@ const projectId =
 const metadata = {
   name: 'EWC',
   description: 'EWC Presale',
-  url: 'https://ewctoken.com',
-  icons: ['/logo.png'],
+  url: 'https://www.ewctoken.com',
+  icons: ['logo.png'],
 }
 
 const chains = [bscMainnet]
