@@ -86,11 +86,6 @@ const Login = () => {
               style={{ width: 140, height: 100, objectFit: "cover" }}
             />
           </div>
-
-          {/* <div className={styles.brandText}>
-            <strong>EWC</strong>
-            <span>ELEVATE WORLD COMMUNITY</span>
-          </div> */}
         </Link>
 
         {/* Login Card */}
