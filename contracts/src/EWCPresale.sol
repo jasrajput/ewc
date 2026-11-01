@@ -19,11 +19,8 @@ contract EWCPresale is Ownable, ReentrancyGuard {
 
     uint256 public constant BPS = 10_000;
     uint256 public constant DEPOSIT_COOLDOWN = 3 seconds;
-    // uint256 public constant PRESALE_START = 1793491200; // Nov 1, 2026 00:00 UTC
-    // uint256 public constant PRESALE_END = 1796083200;   // Dec 1, 2026 00:00 UTC (exclusive)
-
-    uint256 public constant PRESALE_START = 0;
-    uint256 public constant PRESALE_END = type(uint256).max;
+    uint256 public constant PRESALE_START = 0; // Nov 1, 2026 00:00 UTC(Deployed Time)
+    uint256 public constant PRESALE_END = 1796083200;   // Dec 1, 2026 00:00 UTC (exclusive)
     
     uint256 public constant PRESALE_PRICE = 1e16;      // $0.01, 18-decimal price
 
@@ -70,8 +67,7 @@ contract EWCPresale is Ownable, ReentrancyGuard {
         uint256 bonusEWC,
         uint256 timestamp
     );
-    event TreasuryChanged(address indexed previousTreasury, address indexed newTreasury);
-
+    
     error ZeroAddress();
     error InvalidToken();
     error InvalidTokenDecimals();
@@ -228,12 +224,5 @@ contract EWCPresale is Ownable, ReentrancyGuard {
 
     function getUserSummary(address beneficiary) external view returns (User memory) {
         return users[beneficiary];
-    }
-
-    function setTreasury(address newTreasury) external onlyOwner {
-        if (newTreasury == address(0)) revert ZeroAddress();
-        address previousTreasury = treasury;
-        treasury = newTreasury;
-        emit TreasuryChanged(previousTreasury, newTreasury);
     }
 }

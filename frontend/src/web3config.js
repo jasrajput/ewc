@@ -1,35 +1,40 @@
+
 import { createWeb3Modal } from '@web3modal/wagmi/react'
 import { createConfig, http } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 import { defineChain } from 'viem'
 
 // =========================================================
-// BSC MAINNET
+// BSC MAINNET - EWC
 // =========================================================
 
 export const bscMainnet = defineChain({
-  id: 97,
-  name: 'Binance Smart Chain Testnet',
+  id: 56,
+  name: 'BNB Smart Chain Mainnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'tBNB',
-    symbol: 'tBNB',
+    name: 'BNB',
+    symbol: 'BNB',
   },
   rpcUrls: {
     default: {
-      http: ['https://bsc-testnet-dataseed.bnbchain.org'],
+      http: ['https://bsc-dataseed.binance.org'],
+    },
+    public: {
+      http: ['https://bsc-dataseed.binance.org'],
     },
   },
   blockExplorers: {
     default: {
       name: 'BscScan',
-      url: 'https://testnet.bscscan.com',
+      url: 'https://bscscan.com',
     },
   },
+  testnet: false,
 })
 
 // =========================================================
-// WALLETCONNECT
+// WALLETCONNECT - EWC
 // =========================================================
 
 const projectId =
@@ -37,9 +42,9 @@ const projectId =
   'a6df3ca820bb159b11b7d328faa24af0'
 
 const metadata = {
-  name: 'MADA GOLD COIN',
-  description: 'MADA GOLD COIN',
-  url: 'https://eonxb.online',
+  name: 'EWC',
+  description: 'EWC Presale',
+  url: 'https://ewctoken.com',
   icons: ['/logo.png'],
 }
 

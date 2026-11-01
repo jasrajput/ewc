@@ -131,8 +131,8 @@ contract DeployEWC is Script {
 
         EWCCommissionPool commissionPool =
             new EWCCommissionPool(
-                address(usdt),
-                address(ewc)
+                address(usdt)
+                // address(ewc)
             );
 
         console2.log("");

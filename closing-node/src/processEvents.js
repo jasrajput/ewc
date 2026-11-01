@@ -553,26 +553,30 @@ async function processDepositEvent(event) {
         // INVESTMENT PACKAGE
         // ----------------------------------------------------
 
-        await connection.execute(
-            `
-            INSERT INTO select_packages
-            (
-                u_id,
-                pack_amount,
-                token_amount,
-                current_price,
-                status,
-                created_on
-            )
-            VALUES (?, ?, ?, ?, 0, NOW())
-            `,
-            [
-                id,
-                usdtHuman,
-                allocatedEwcHuman,
-                allocationPriceHuman,
-            ]
-        );
+       await connection.execute(
+        `
+        INSERT INTO select_packages
+        (
+            u_id,
+            pack_amount,
+            token_amount,
+            current_price,
+            status,
+            is_presale,
+            bonus_ewc,
+            vault_status,
+            created_on
+        )
+        VALUES (?, ?, ?, ?, 0, 1, ?, 'pending', NOW())
+        `,
+        [
+            id,
+            usdtHuman,
+            allocatedEwcHuman,
+            allocationPriceHuman,
+            bonusEwcHuman,
+        ]
+    );
 
         // ----------------------------------------------------
         // FUND TRANSACTION
