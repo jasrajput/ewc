@@ -54,36 +54,21 @@ const AdminLogin = () => {
     setError("");
 
     try {
-      const response = await adminApi.post(
-        "/admin/auth/login",
-        {
-          admin,
-          password,
-        }
-      );
+      const response = await adminApi.post("/admin/auth/login", {
+        admin,
+        password,
+      });
 
       const { token, admin: adminUser } = response.data;
 
       if (formData.remember) {
-        localStorage.setItem(
-          "ewc_admin_token",
-          token
-        );
+        localStorage.setItem("ewc_admin_token", token);
 
-        localStorage.setItem(
-          "ewc_admin_user",
-          JSON.stringify(adminUser)
-        );
+        localStorage.setItem("ewc_admin_user", JSON.stringify(adminUser));
       } else {
-        sessionStorage.setItem(
-          "ewc_admin_token",
-          token
-        );
+        sessionStorage.setItem("ewc_admin_token", token);
 
-        sessionStorage.setItem(
-          "ewc_admin_user",
-          JSON.stringify(adminUser)
-        );
+        sessionStorage.setItem("ewc_admin_user", JSON.stringify(adminUser));
       }
 
       navigate("/admin/dashboard", {
@@ -91,8 +76,7 @@ const AdminLogin = () => {
       });
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Unable to sign in. Please try again."
+        err.response?.data?.message || "Unable to sign in. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -107,13 +91,20 @@ const AdminLogin = () => {
 
       <div className={styles.pageContent}>
         <div className={styles.brand}>
-          <div className={styles.logoMark}>
+          {/* <div className={styles.logoMark}>
             <span>E</span>
-          </div>
+          </div> */}
 
-          <div className={styles.brandText}>
+          {/* <div className={styles.brandText}>
             <strong>EWC</strong>
             <span>ELEVATE WORLD COMMUNITY</span>
+          </div> */}
+          <div>
+            <img
+              src="/logo.png"
+              alt="EWC Logo"
+              style={{ width: 140, height: 100, objectFit: "cover" }}
+            />
           </div>
         </div>
 
@@ -132,29 +123,18 @@ const AdminLogin = () => {
 
             <h1>Admin Portal</h1>
 
-            <p>
-              Secure access to EWC platform
-              administration.
-            </p>
+            <p>Secure access to EWC platform administration.</p>
           </div>
 
-          <form
-            className={styles.form}
-            onSubmit={handleSubmit}
-          >
+          <form className={styles.form} onSubmit={handleSubmit}>
             {error && (
-              <div
-                className={styles.errorMessage}
-                role="alert"
-              >
+              <div className={styles.errorMessage} role="alert">
                 {error}
               </div>
             )}
 
             <div className={styles.formGroup}>
-              <label htmlFor="admin">
-                Administrator
-              </label>
+              <label htmlFor="admin">Administrator</label>
 
               <div className={styles.inputWrapper}>
                 <UserRound
@@ -176,9 +156,7 @@ const AdminLogin = () => {
             </div>
 
             <div className={styles.formGroup}>
-              <label htmlFor="adminPassword">
-                Password
-              </label>
+              <label htmlFor="adminPassword">Password</label>
 
               <div className={styles.inputWrapper}>
                 <LockKeyhole
@@ -189,11 +167,7 @@ const AdminLogin = () => {
 
                 <input
                   id="adminPassword"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
@@ -204,20 +178,10 @@ const AdminLogin = () => {
                 <button
                   type="button"
                   className={styles.passwordToggle}
-                  onClick={() =>
-                    setShowPassword((prev) => !prev)
-                  }
-                  aria-label={
-                    showPassword
-                      ? "Hide password"
-                      : "Show password"
-                  }
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? (
-                    <EyeOff size={19} />
-                  ) : (
-                    <Eye size={19} />
-                  )}
+                  {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                 </button>
               </div>
             </div>
@@ -231,9 +195,7 @@ const AdminLogin = () => {
                   onChange={handleChange}
                 />
 
-                <span
-                  className={styles.customCheckbox}
-                />
+                <span className={styles.customCheckbox} />
 
                 <span>Remember this device</span>
               </label>
@@ -245,30 +207,22 @@ const AdminLogin = () => {
               disabled={loading}
             >
               <span>
-                {loading
-                  ? "Authenticating..."
-                  : "Access Admin Panel"}
+                {loading ? "Authenticating..." : "Access Admin Panel"}
               </span>
 
-              {!loading && (
-                <ArrowRight
-                  size={19}
-                  strokeWidth={2.2}
-                />
-              )}
+              {!loading && <ArrowRight size={19} strokeWidth={2.2} />}
             </button>
           </form>
 
           <div className={styles.securityNote}>
             <ShieldCheck size={13} />
-
             Authorized EWC administrators only
           </div>
         </section>
 
         <p className={styles.footer}>
-          © {new Date().getFullYear()} Elevate World
-          Community. Administration System.
+          © {new Date().getFullYear()} Elevate World Community. Administration
+          System.
         </p>
       </div>
     </main>
