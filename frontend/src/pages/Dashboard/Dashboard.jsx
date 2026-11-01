@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PRESALE_ADDRESS } from "../../contracts/config";
 import {
   Wallet,
   Coins,
@@ -40,7 +41,6 @@ const Dashboard = () => {
 
   const token =
     localStorage.getItem("ewc_token") || sessionStorage.getItem("ewc_token");
-
   // =========================================================
   // FETCH DASHBOARD
   // =========================================================
@@ -475,7 +475,7 @@ const Dashboard = () => {
                   <h3>Blockchain Verification</h3>
 
                   <a
-                    href="https://testnet.bscscan.com/address/0x7997dF07c925776152de13dcF6db3c6CA260FD01"
+                    href={`https://bscscan.com/address/${PRESALE_ADDRESS}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={styles.vaultExplorerLink}
@@ -486,18 +486,22 @@ const Dashboard = () => {
                 </div>
 
                 <p>
-                  Vault Contract: <span>0x7997...60FD01</span>
+                  Vault Contract:{" "}
+                  <span>
+                    {PRESALE_ADDRESS
+                      ? `${PRESALE_ADDRESS.slice(0, 6)}...${PRESALE_ADDRESS.slice(-6)}`
+                      : "Not configured"}
+                  </span>
                 </p>
-
-                <p>
+                {/* <p>
                   Allocation ID:{" "}
                   <span>
                     {stats.activeInvestment.allocationId ?? "Not available"}
                   </span>
-                </p>
+                </p> */}
 
                 <p>
-                  Network: <span>BNB Smart Chain Testnet</span>
+                  Network: <span>BNB Smart Chain</span>
                 </p>
               </div>
 

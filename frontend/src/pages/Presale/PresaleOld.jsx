@@ -1728,7 +1728,7 @@ const Presale = () => {
 
                     {purchase.txnId && (
                       <a
-                        href={`https://testnet.bscscan.com/tx/${purchase.txnId}`}
+                        href={`https://bscscan.com/tx/${purchase.txnId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={historyStyles.txLink}

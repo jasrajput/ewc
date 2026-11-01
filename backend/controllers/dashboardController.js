@@ -16,8 +16,8 @@ const EWC_TOKEN = {
   symbol: "EWC",
   network: "BNB Smart Chain",
   decimals: 18,
-  totalSupply: 0,
-  contractAddress: process.env.EWC_TOKEN_ADDRESS || "",
+  totalSupply: 10000000000,
+  contractAddress: process.env.TOKEN_ADDRESS || "",
 };
 
 // =========================================================
@@ -650,7 +650,7 @@ const getDashboard = async (req, res) => {
 
     if (EWC_TOKEN.contractAddress) {
       explorerUrl =
-        `https://testnet.bscscan.com/token/` +
+        `https://bscscan.com/token/` +
         EWC_TOKEN.contractAddress;
     }
 

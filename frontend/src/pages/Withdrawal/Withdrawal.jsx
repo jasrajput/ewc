@@ -32,7 +32,7 @@ import styles from "./Withdrawal.module.css";
 // CONFIGURATION
 // ============================================================
 
-const BSC_CHAIN_ID = 97;
+const BSC_CHAIN_ID = 56;
 
 // Closing.js and EWCPayout use 18-decimal cumulative amounts.
 const TOKEN_DECIMALS = 18;
@@ -1134,7 +1134,7 @@ const Withdrawal = () => {
           <div className={styles.warningBox}>
             <AlertCircle size={16} />
 
-            Please switch to BNB Smart Chain testnet.
+            Please switch to BNB Smart Chain Mainnet.
           </div>
         )}
 
@@ -1218,7 +1218,7 @@ const Withdrawal = () => {
             {txHash && (
               <a
                 className={styles.txLink}
-                href={`https://testnet.bscscan.com/tx/${txHash}`}
+                href={`https://bscscan.com/tx/${txHash}`}
                 target="_blank"
                 rel="noreferrer"
               >
