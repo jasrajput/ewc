@@ -26,9 +26,13 @@ if (
     );
 }
 
+const PAYOUT_ENABLED = process.env.PAYOUT_ENABLED === "true";
 if (
-    !PAYOUT_CONTRACT_ADDRESS ||
-    !ethers.isAddress(PAYOUT_CONTRACT_ADDRESS)
+    PAYOUT_ENABLED &&
+    (
+        !PAYOUT_CONTRACT_ADDRESS ||
+        !ethers.isAddress(PAYOUT_CONTRACT_ADDRESS)
+    )
 ) {
     throw new Error(
         "Configure a valid MERKLE_CONTRACT (EWCPayout)"
@@ -1298,6 +1302,7 @@ async function getClaimCheckpoint() {
 // SAVE BOTH CHECKPOINTS
 // ============================================================
 
+
 async function saveBothCheckpoints(
     blockNumber,
     depositCursor,
@@ -1310,27 +1315,27 @@ async function saveBothCheckpoints(
 
         if (blockNumber > depositCursor) {
             await connection.execute(
-                `
-                UPDATE blockchain_sync
-                SET last_block = ?
-                WHERE id = 2
-                `,
+                `UPDATE blockchain_sync
+                 SET last_block = ?
+                 WHERE id = 2`,
                 [blockNumber]
             );
         }
 
-        if (blockNumber > claimCursor) {
+        if (
+            PAYOUT_ENABLED &&
+            blockNumber > claimCursor
+        ) {
             await connection.execute(
-                `
-                UPDATE blockchain_sync
-                SET last_block = ?
-                WHERE id = ?
-                `,
+                `UPDATE blockchain_sync
+                 SET last_block = ?
+                 WHERE id = ?`,
                 [blockNumber, CLAIM_SYNC_ID]
             );
         }
 
         await connection.commit();
+
     } catch (error) {
         await connection.rollback();
         throw error;
@@ -1339,33 +1344,32 @@ async function saveBothCheckpoints(
     }
 }
 
+
 // ============================================================
 // SINGLE COMBINED POLLING LOOP
 // ============================================================
 
+
 async function pollForPresaleEvents() {
-    if (isPolling) {
-        return;
-    }
+    if (isPolling) return;
 
     isPolling = true;
 
     try {
-        let depositCursor =
-            await getLastProcessedBlock();
+        let depositCursor = await getLastProcessedBlock();
 
-        let claimCursor =
-            await getClaimCheckpoint();
+        let claimCursor = PAYOUT_ENABLED
+            ? await getClaimCheckpoint()
+            : depositCursor;
 
         const latestBlock = Math.max(
             0,
             (await provider.getBlockNumber()) - CONFIRMATIONS
         );
 
-        let lastBlock = Math.min(
-            depositCursor,
-            claimCursor
-        );
+        let lastBlock = PAYOUT_ENABLED
+            ? Math.min(depositCursor, claimCursor)
+            : depositCursor;
 
         while (lastBlock < latestBlock) {
             const fromBlock = lastBlock + 1;
@@ -1375,18 +1379,24 @@ async function pollForPresaleEvents() {
                 latestBlock
             );
 
-            // One RPC log query for both contract addresses.
-            const logs = await provider.getLogs({
-                address: [
+            const addresses = PAYOUT_ENABLED
+                ? [
                     PRESALE_CONTRACT_ADDRESS,
-                    PAYOUT_CONTRACT_ADDRESS,
-                ],
-                topics: [[depositTopic, claimTopic]],
+                    PAYOUT_CONTRACT_ADDRESS
+                ]
+                : PRESALE_CONTRACT_ADDRESS;
+
+            const topics = PAYOUT_ENABLED
+                ? [[depositTopic, claimTopic]]
+                : [depositTopic];
+
+            const logs = await provider.getLogs({
+                address: addresses,
+                topics,
                 fromBlock,
                 toBlock,
             });
 
-            // Process events in blockchain order.
             logs.sort(
                 (a, b) =>
                     a.blockNumber - b.blockNumber ||
@@ -1404,6 +1414,7 @@ async function pollForPresaleEvents() {
                     PRESALE_CONTRACT_ADDRESS.toLowerCase();
 
                 const fromPayout =
+                    PAYOUT_ENABLED &&
                     log.address.toLowerCase() ===
                     PAYOUT_CONTRACT_ADDRESS.toLowerCase();
 
@@ -1420,6 +1431,7 @@ async function pollForPresaleEvents() {
                         args: parsed.args,
                     });
                 } else if (
+                    PAYOUT_ENABLED &&
                     fromPayout &&
                     log.topics[0] === claimTopic &&
                     log.blockNumber > claimCursor
@@ -1434,8 +1446,6 @@ async function pollForPresaleEvents() {
                 }
             }
 
-            // Only advance after every event in the batch
-            // has been saved successfully.
             await saveBothCheckpoints(
                 toBlock,
                 depositCursor,
@@ -1446,18 +1456,18 @@ async function pollForPresaleEvents() {
                 depositCursor = toBlock;
             }
 
-            if (toBlock > claimCursor) {
+            if (PAYOUT_ENABLED && toBlock > claimCursor) {
                 claimCursor = toBlock;
             }
 
-            lastBlock = Math.min(
-                depositCursor,
-                claimCursor
-            );
+            lastBlock = PAYOUT_ENABLED
+                ? Math.min(depositCursor, claimCursor)
+                : depositCursor;
         }
 
         consecutiveFailures = 0;
         lastSuccessfulPollAt = Date.now();
+
     } catch (error) {
         consecutiveFailures++;
 
@@ -1469,6 +1479,7 @@ async function pollForPresaleEvents() {
         isPolling = false;
     }
 }
+
 
 // ============================================================
 // HEALTHCHECK
@@ -1532,6 +1543,7 @@ function startPolling() {
 // MAIN
 // ============================================================
 
+
 async function main() {
     try {
         console.log(
@@ -1545,6 +1557,13 @@ async function main() {
             network.chainId.toString()
         );
 
+        if (network.chainId !== 56n) {
+            throw new Error(
+                "Expected BSC Mainnet (56), got " +
+                network.chainId.toString()
+            );
+        }
+
         const presaleCode = await provider.getCode(
             PRESALE_CONTRACT_ADDRESS
         );
@@ -1556,31 +1575,32 @@ async function main() {
             );
         }
 
-        const payoutCode = await provider.getCode(
-            PAYOUT_CONTRACT_ADDRESS
-        );
-
-        if (payoutCode === "0x") {
-            throw new Error(
-                "EWCPayout contract is not deployed at " +
+        // Only validate payout when enabled.
+        if (PAYOUT_ENABLED) {
+            const payoutCode = await provider.getCode(
                 PAYOUT_CONTRACT_ADDRESS
             );
+
+            if (payoutCode === "0x") {
+                throw new Error(
+                    "EWCPayout contract not deployed at " +
+                    PAYOUT_CONTRACT_ADDRESS
+                );
+            }
         }
 
         usdtDecimals = Number(
             await contract.usdtDecimals()
         );
 
-        console.log(
-            "USDT decimals:",
-            usdtDecimals
-        );
+        console.log("USDT decimals:", usdtDecimals);
+        console.log("Payout enabled:", PAYOUT_ENABLED);
 
-        // Preserve existing presale checkpoint.
         await getLastProcessedBlock();
 
-        // Initialize separate claim checkpoint.
-        await initializeClaimCheckpoint();
+        if (PAYOUT_ENABLED) {
+            await initializeClaimCheckpoint();
+        }
 
         startPolling();
     } catch (error) {
