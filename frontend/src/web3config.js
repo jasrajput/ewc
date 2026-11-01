@@ -39,7 +39,7 @@ export const bscMainnet = defineChain({
 
 const projectId =
   process.env.REACT_APP_WALLETCONNECT_PROJECT_ID ||
-  'a6df3ca820bb159b11b7d328faa24af0'
+  '54b039af03e2ba235845ce4ddffeb618'
 
 const metadata = {
   name: 'EWC',
