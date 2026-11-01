@@ -29,3 +29,16 @@ body,
 body {
   overflow-x: hidden;
 }
+
+/* WalletConnect / Web3Modal mobile viewport fix */
+
+@media (max-width: 768px) {
+  w3m-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    z-index: 999999 !important;
+  }
+}
