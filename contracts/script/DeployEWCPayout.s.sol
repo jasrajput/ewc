@@ -7,12 +7,12 @@ import {Script, console2} from "forge-std/Script.sol";
 import {EWCCommissionPool} from "../src/EWCCommissionPool.sol";
 import {EWCPayout} from "../src/EWCPayout.sol";
 
-/// @notice Deploy EWCCommissionPool and EWCPayout on BSC testnet.
+/// @notice Deploy EWCCommissionPool and EWCPayout on BSC mainnet.
 /// @dev EWC token is not required during initial deployment.
 contract DeployEWCPayout is Script {
 
-    // Replace with your already deployed TestUSDT address.
-    address constant USDT_ADDRESS = 0xC9ba07e331DBfe20691C74E0e0d975D4B109FA33;
+    // Replace with your already deployed mainnet address.
+    address constant USDT_ADDRESS = 0x55d398326f99059fF775485246999027B3197955;
 
     function run() external {
         uint256 privateKey = vm.envUint("PRIVATE_KEY");

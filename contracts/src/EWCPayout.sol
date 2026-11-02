@@ -11,31 +11,18 @@ interface IEWCPayoutPool {
     function payEWC(address to, uint256 amount) external;
 }
 
-/**
- * @notice Shared cumulative Merkle payout ledger
- * for EWCPresale and EWCInvestment.
- *
- * @dev Entitlements are calculated off-chain and
- * committed through a Merkle root.
- *
- * Both investment sources are combined into each
- * user's cumulative entitlements.
- *
- * CommissionPool must authorize this contract
- * through setPayoutContract().
- */
 contract EWCPayout is Ownable, ReentrancyGuard {
-
     IEWCPayoutPool public immutable commissionPool;
 
     address public rootUpdater;
-
     bytes32 public merkleRoot;
-
     uint256 public lastRootUpdateTime;
+
+    uint256 public constant MANUAL_LIMIT = 3000 ether;
 
     mapping(address => uint256) public usdtClaimed;
     mapping(address => uint256) public roiEwcClaimed;
+    mapping(address => uint256) public queuedUSDT;
 
     uint256 public totalUsdtIncomeClaimed;
     uint256 public totalRoiEwcClaimed;
@@ -67,6 +54,19 @@ contract EWCPayout is Ownable, ReentrancyGuard {
         uint256 roiEwcAmount,
         uint256 cumulativeUsdtIncome,
         uint256 cumulativeRoiEwc,
+        uint256 timestamp,
+        bool isQueued
+    );
+
+    event WithdrawalQueued(
+        address indexed user,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    event WithdrawalPaid(
+        address indexed user,
+        uint256 amount,
         uint256 timestamp
     );
 
@@ -75,43 +75,25 @@ contract EWCPayout is Ownable, ReentrancyGuard {
     error InvalidMerkleRoot();
     error InvalidProof();
     error NothingToClaim();
+    error NoQueuedWithdrawal();
 
-    constructor(address _commissionPool)
-        Ownable(msg.sender)
-    {
-        if (_commissionPool == address(0)) {
-            revert ZeroAddress();
-        }
+    constructor(address _commissionPool) Ownable(msg.sender) {
+        if (_commissionPool == address(0)) revert ZeroAddress();
 
         commissionPool = IEWCPayoutPool(_commissionPool);
-
         rootUpdater = msg.sender;
     }
 
-    function setRootUpdater(address newUpdater)
-        external
-        onlyOwner
-    {
-        if (newUpdater == address(0)) {
-            revert ZeroAddress();
-        }
+    function setRootUpdater(address newUpdater) external onlyOwner {
+        if (newUpdater == address(0)) revert ZeroAddress();
 
-        emit RootUpdaterChanged(
-            rootUpdater,
-            newUpdater
-        );
-
+        emit RootUpdaterChanged(rootUpdater, newUpdater);
         rootUpdater = newUpdater;
     }
 
     function setMerkleRoot(bytes32 newRoot) external {
-        if (msg.sender != rootUpdater) {
-            revert NotRootUpdater();
-        }
-
-        if (newRoot == bytes32(0)) {
-            revert InvalidMerkleRoot();
-        }
+        if (msg.sender != rootUpdater) revert NotRootUpdater();
+        if (newRoot == bytes32(0)) revert InvalidMerkleRoot();
 
         emit MerkleRootUpdated(
             merkleRoot,
@@ -120,35 +102,14 @@ contract EWCPayout is Ownable, ReentrancyGuard {
         );
 
         merkleRoot = newRoot;
-
         lastRootUpdateTime = block.timestamp;
     }
 
-    /**
-     * @notice Claim combined presale and
-     * regular investment entitlements.
-     *
-     * @dev Leaf encoding:
-     *
-     * keccak256(
-     *     abi.encode(
-     *         user,
-     *         cumulativeUsdtIncome,
-     *         cumulativeRoiEwc
-     *     )
-     * )
-     *
-     * The backend must combine cumulative
-     * entitlements from both investment sources.
-     */
     function claim(
         uint256 cumulativeUsdtIncome,
         uint256 cumulativeRoiEwc,
         bytes32[] calldata proof
-    )
-        external
-        nonReentrant
-    {
+    ) external nonReentrant {
         bytes32 leaf = keccak256(
             abi.encode(
                 msg.sender,
@@ -157,13 +118,7 @@ contract EWCPayout is Ownable, ReentrancyGuard {
             )
         );
 
-        if (
-            !MerkleProof.verify(
-                proof,
-                merkleRoot,
-                leaf
-            )
-        ) {
+        if (!MerkleProof.verify(proof, merkleRoot, leaf)) {
             revert InvalidProof();
         }
 
@@ -177,42 +132,41 @@ contract EWCPayout is Ownable, ReentrancyGuard {
             revert InvalidProof();
         }
 
-        uint256 usdtAmount =
-            cumulativeUsdtIncome - priorUSDT;
+        uint256 usdtAmount = cumulativeUsdtIncome - priorUSDT;
+        uint256 ewcAmount = cumulativeRoiEwc - priorEWC;
 
-        uint256 ewcAmount =
-            cumulativeRoiEwc - priorEWC;
-
-        if (
-            usdtAmount == 0 &&
-            ewcAmount == 0
-        ) {
+        if (usdtAmount == 0 && ewcAmount == 0) {
             revert NothingToClaim();
         }
 
-        // Update claim accounting before transfers
-
-        usdtClaimed[msg.sender] =
-            cumulativeUsdtIncome;
-
-        roiEwcClaimed[msg.sender] =
-            cumulativeRoiEwc;
+        // Update cumulative claim accounting.
+        usdtClaimed[msg.sender] = cumulativeUsdtIncome;
+        roiEwcClaimed[msg.sender] = cumulativeRoiEwc;
 
         totalUsdtIncomeClaimed += usdtAmount;
-
         totalRoiEwcClaimed += ewcAmount;
 
-        // Transfer USDT income
+        bool isQueued = usdtAmount > MANUAL_LIMIT;
 
+        // Pay automatically or queue for admin payment.
         if (usdtAmount != 0) {
-            commissionPool.payUSDT(
-                msg.sender,
-                usdtAmount
-            );
+            if (isQueued) {
+                queuedUSDT[msg.sender] += usdtAmount;
+
+                emit WithdrawalQueued(
+                    msg.sender,
+                    usdtAmount,
+                    block.timestamp
+                );
+            } else {
+                commissionPool.payUSDT(
+                    msg.sender,
+                    usdtAmount
+                );
+            }
         }
 
-        // Transfer EWC ROI
-
+        // EWC ROI is independent of the USDT queue.
         if (ewcAmount != 0) {
             commissionPool.payEWC(
                 msg.sender,
@@ -220,16 +174,13 @@ contract EWCPayout is Ownable, ReentrancyGuard {
             );
         }
 
-        // Record claim history
-
+        // Record the user's claim once.
         _claims[msg.sender].push(
             ClaimRecord({
                 usdtReceived: usdtAmount,
                 roiEwcReceived: ewcAmount,
-                cumulativeUsdtIncome:
-                    cumulativeUsdtIncome,
-                cumulativeRoiEwc:
-                    cumulativeRoiEwc,
+                cumulativeUsdtIncome: cumulativeUsdtIncome,
+                cumulativeRoiEwc: cumulativeRoiEwc,
                 timestamp: block.timestamp
             })
         );
@@ -240,8 +191,47 @@ contract EWCPayout is Ownable, ReentrancyGuard {
             ewcAmount,
             cumulativeUsdtIncome,
             cumulativeRoiEwc,
-            block.timestamp
+            block.timestamp,
+            isQueued
         );
+    }
+
+    // Admin batch payment, including partial withdrawals.
+    function payQueuedWithdrawal(
+        address[] calldata users,
+        uint256[] calldata amounts
+    ) external onlyOwner nonReentrant {
+        uint256 length = users.length;
+
+        require(
+            length > 0 &&
+            length <= 50 &&
+            length == amounts.length,
+            "Invalid batch"
+        );
+
+        for (uint256 i = 0; i < length; ++i) {
+            address user = users[i];
+            uint256 amount = amounts[i];
+
+            if (user == address(0)) revert ZeroAddress();
+            if (amount == 0) revert NoQueuedWithdrawal();
+
+            require(
+                queuedUSDT[user] >= amount,
+                "Insufficient queued balance"
+            );
+
+            queuedUSDT[user] -= amount;
+
+            commissionPool.payUSDT(user, amount);
+
+            emit WithdrawalPaid(
+                user,
+                amount,
+                block.timestamp
+            );
+        }
     }
 
     function getUserClaimCount(address user)

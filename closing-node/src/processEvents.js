@@ -179,7 +179,9 @@ const PRESALE_ABI = [
 ];
 
 const CLAIM_ABI = [
-    "event Claimed(address indexed user, uint256 usdtAmount, uint256 roiEwcAmount, uint256 cumulativeUsdtIncome, uint256 cumulativeRoiEwc, uint256 timestamp)",
+    "event Claimed(address indexed user, uint256 usdtAmount, uint256 roiEwcAmount, uint256 cumulativeUsdtIncome, uint256 cumulativeRoiEwc, uint256 timestamp, bool isQueued)",
+    "event WithdrawalPaid(address indexed user, uint256 amount, uint256 timestamp)",
+    "event WithdrawalQueued(address indexed user, uint256 amount, uint256 timestamp)"
 ];
 
 const contract = new ethers.Contract(
@@ -192,6 +194,12 @@ const claimInterface = new ethers.Interface(CLAIM_ABI);
 
 const depositTopic =
     contract.interface.getEvent("Deposited").topicHash;
+
+const withdrawalPaidTopic =
+    claimInterface.getEvent("WithdrawalPaid").topicHash;
+
+const withdrawalQueuedTopic =
+    claimInterface.getEvent("WithdrawalQueued").topicHash;
 
 const claimTopic =
     claimInterface.getEvent("Claimed").topicHash;
@@ -557,8 +565,8 @@ async function processDepositEvent(event) {
         // INVESTMENT PACKAGE
         // ----------------------------------------------------
 
-       await connection.execute(
-        `
+        await connection.execute(
+            `
         INSERT INTO select_packages
         (
             u_id,
@@ -573,14 +581,14 @@ async function processDepositEvent(event) {
         )
         VALUES (?, ?, ?, ?, 0, 1, ?, 'pending', NOW())
         `,
-        [
-            id,
-            usdtHuman,
-            allocatedEwcHuman,
-            allocationPriceHuman,
-            bonusEwcHuman,
-        ]
-    );
+            [
+                id,
+                usdtHuman,
+                allocatedEwcHuman,
+                allocationPriceHuman,
+                bonusEwcHuman,
+            ]
+        );
 
         // ----------------------------------------------------
         // FUND TRANSACTION
@@ -1145,6 +1153,8 @@ async function processClaimEvent(event) {
             args.timestamp ?? args[5]
         );
 
+        const isQueued = args.isQueued ?? args[6];
+
         if (
             !Number.isSafeInteger(timestamp) ||
             timestamp <= 0
@@ -1163,45 +1173,61 @@ async function processClaimEvent(event) {
         // SAVE INTO EXISTING WITHDRAWALS TABLE
         // ----------------------------------------------------
 
+
         await connection.execute(
             `
-            INSERT INTO withdrawals
-            (
-                user_id,
-                amount,
-                roi_ewc_amount,
-                cumulative_usdt,
-                cumulative_roi_ewc,
-                price,
-                pending_balance,
-                status,
-                txn_id,
-                block_number,
-                remarks,
-                date_of_withdrawal,
-                date_of_approved
-            )
-            VALUES
-            (
-                ?, ?, ?, ?, ?,
-                0, 0, 1,
-                ?, ?,
-                'Merkle claim',
-                ?, ?
-            )
-            `,
+    INSERT INTO withdrawals
+    (
+        user_id,
+        amount,
+        roi_ewc_amount,
+        cumulative_usdt,
+        cumulative_roi_ewc,
+        price,
+        pending_balance,
+        status,
+        txn_id,
+        block_number,
+        remarks,
+        is_queued,
+        date_of_withdrawal,
+        date_of_approved
+    )
+    VALUES
+    (
+        ?, ?, ?, ?, ?,
+        0, ?, ?,
+        ?, ?,
+        'Merkle claim',
+        ?, ?, ?
+    )
+    `,
             [
                 rows[0].id,
                 usdtAmount,
                 roiEwcAmount,
                 cumulativeUsdt,
                 cumulativeEwc,
+
+                // Pending amount
+                isQueued ? usdtAmount : 0,
+
+                // Status: 0 = pending, 1 = paid
+                isQueued ? 0 : 1,
+
                 txHash,
                 getBlockNumber(event),
+
+                // Indicates admin queue
+                isQueued ? 1 : 0,
+
                 utcDate,
-                utcDate,
+
+                // Approval date only for automatic payouts
+                isQueued ? null : utcDate,
             ]
         );
+
 
         await connection.commit();
         transactionOpen = false;
@@ -1221,6 +1247,128 @@ async function processClaimEvent(event) {
             error
         );
 
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
+async function processWithdrawalPaidEvent(event) {
+    const args = event.args;
+
+    const wallet = args.user ?? args[0];
+    const amount = ethers.formatUnits(
+        args.amount ?? args[1],
+        18
+    );
+
+    const txHash = getTransactionHash(event);
+
+    if (!ethers.isAddress(wallet) || !txHash) {
+        throw new Error("Invalid WithdrawalPaid event");
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        const [members] = await connection.execute(
+            `SELECT id FROM member
+             WHERE LOWER(trx) = ?
+             LIMIT 1`,
+            [wallet.toLowerCase()]
+        );
+
+        if (!members.length) {
+            throw new Error(
+                `WithdrawalPaid wallet not registered: ${wallet}`
+            );
+        }
+
+        const memberId = members[0].id;
+
+        // Prevent duplicate processing.
+        const [processed] = await connection.execute(
+            `SELECT id
+             FROM withdrawal_payments
+             WHERE txn_hash = ? AND log_index = ?
+             LIMIT 1`,
+            [txHash, event.index]
+        );
+
+        if (processed.length) {
+            await connection.commit();
+            return;
+        }
+
+        const [rows] = await connection.execute(
+            `SELECT id, amount, pending_balance
+             FROM withdrawals
+             WHERE user_id = ?
+               AND is_queued = 1
+               AND pending_balance > 0
+             ORDER BY id ASC
+             FOR UPDATE`,
+            [memberId]
+        );
+
+        let remaining = amount;
+
+        for (const row of rows) {
+            if (Number(remaining) <= 0) break;
+
+            const outstanding = Number(row.pending_balance);
+            const payment = Math.min(Number(remaining), outstanding);
+
+            const newBalance = outstanding - payment;
+
+            await connection.execute(
+                `UPDATE withdrawals
+                 SET pending_balance = ?,
+                     status = ?,
+                     date_of_approved = CASE
+                         WHEN ? = 0 THEN NOW()
+                         ELSE date_of_approved
+                     END
+                 WHERE id = ?`,
+                [
+                    newBalance,
+                    newBalance <= 0 ? 1 : 0,
+                    newBalance,
+                    row.id
+                ]
+            );
+
+            remaining = Number(remaining) - payment;
+        }
+
+        if (remaining > 0.00000001) {
+            throw new Error(
+                `WithdrawalPaid exceeds pending balance: ${wallet}`
+            );
+        }
+
+        await connection.execute(
+            `INSERT INTO withdrawal_payments
+             (user_id, amount, txn_hash, log_index, created_at)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                memberId,
+                amount,
+                txHash,
+                event.index
+            ]
+        );
+
+        await connection.commit();
+
+        console.log(
+            `WITHDRAWAL PAID | ${wallet} | ${amount} USDT | ${txHash}`
+        );
+
+    } catch (error) {
+        await connection.rollback();
         throw error;
     } finally {
         connection.release();
@@ -1387,7 +1535,7 @@ async function pollForPresaleEvents() {
                 : PRESALE_CONTRACT_ADDRESS;
 
             const topics = PAYOUT_ENABLED
-                ? [[depositTopic, claimTopic]]
+                ? [[depositTopic, claimTopic, withdrawalPaidTopic]]
                 : [depositTopic];
 
             const logs = await provider.getLogs({
@@ -1418,32 +1566,46 @@ async function pollForPresaleEvents() {
                     log.address.toLowerCase() ===
                     PAYOUT_CONTRACT_ADDRESS.toLowerCase();
 
+
                 if (
                     fromPresale &&
                     log.topics[0] === depositTopic &&
                     log.blockNumber > depositCursor
                 ) {
-                    const parsed =
-                        contract.interface.parseLog(log);
+                    const parsed = contract.interface.parseLog(log);
 
                     await processDepositEvent({
                         ...log,
                         args: parsed.args,
                     });
+
                 } else if (
                     PAYOUT_ENABLED &&
                     fromPayout &&
                     log.topics[0] === claimTopic &&
                     log.blockNumber > claimCursor
                 ) {
-                    const parsed =
-                        claimInterface.parseLog(log);
+                    const parsed = claimInterface.parseLog(log);
 
                     await processClaimEvent({
                         ...log,
                         args: parsed.args,
                     });
+
+                } else if (
+                    PAYOUT_ENABLED &&
+                    fromPayout &&
+                    log.topics[0] === withdrawalPaidTopic &&
+                    log.blockNumber > claimCursor
+                ) {
+                    const parsed = claimInterface.parseLog(log);
+
+                    await processWithdrawalPaidEvent({
+                        ...log,
+                        args: parsed.args,
+                    });
                 }
+
             }
 
             await saveBothCheckpoints(
