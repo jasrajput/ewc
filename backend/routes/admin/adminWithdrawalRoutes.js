@@ -1,42 +1,29 @@
+
 const express = require("express");
 
 const {
   getWithdrawalSummary,
   getWithdrawals,
   getWithdrawalDetails,
-} = require(
-  "../../controllers/admin/adminWithdrawalController"
-);
+  getMerkleOverview,
+} = require("../../controllers/admin/adminWithdrawalController");
 
-const adminAuthMiddleware =
-  require(
-    "../../middleware/adminAuthMiddleware"
-  );
+const adminAuthMiddleware = require("../../middleware/adminAuthMiddleware");
 
-const router =
-  express.Router();
+const router = express.Router();
 
+router.use(adminAuthMiddleware);
 
-router.use(
-  adminAuthMiddleware
-);
+// Summary
+router.get("/summary", getWithdrawalSummary);
 
+// Published Merkle snapshot and claimable balances
+router.get("/merkle-overview", getMerkleOverview);
 
-// Keep /summary before /:id
-router.get(
-  "/summary",
-  getWithdrawalSummary
-);
+// Withdrawal list
+router.get("/", getWithdrawals);
 
-router.get(
-  "/",
-  getWithdrawals
-);
-
-router.get(
-  "/:id",
-  getWithdrawalDetails
-);
-
+// Individual withdrawal details (keep last)
+router.get("/:id", getWithdrawalDetails);
 
 module.exports = router;
