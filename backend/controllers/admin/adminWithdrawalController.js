@@ -363,6 +363,22 @@ const getMerkleOverview = async (req, res) => {
       });
     }
 
+    const memberIds = snapshot.users.map(u => Number(u.user_id));
+
+    const [memberRows] = memberIds.length
+      ? await db.query(
+        `SELECT id, user_id, name
+       FROM member
+       WHERE id IN (?)`,
+        [memberIds]
+      )
+      : [[]];
+
+    const memberMap = new Map(
+      memberRows.map(m => [Number(m.id), m])
+    );
+
+
     const users = [];
     let unclaimedTotal = 0n;
     let queuedTotal = 0n;
@@ -403,7 +419,9 @@ const getMerkleOverview = async (req, res) => {
         queuedTotal += u.queued;
 
         users.push({
-          userId: u.userId,
+          userId: memberMap.get(Number(u.userId))?.user_id || String(u.userId),
+          memberId: Number(u.userId),
+          name: memberMap.get(Number(u.userId))?.name || "",
           wallet: u.wallet,
           cumulativeUsdt: ethers.formatUnits(u.cumulative, 18),
           claimedUsdt: ethers.formatUnits(u.claimed, 18),
