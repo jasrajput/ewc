@@ -111,7 +111,7 @@ const getRankMembers = async (req, res) => {
 
     const rankFilter =
       req.query.rank !== undefined &&
-      req.query.rank !== ""
+        req.query.rank !== ""
         ? Number(req.query.rank)
         : null;
 
@@ -575,40 +575,40 @@ const getRankMembers = async (req, res) => {
         achievement:
           row.achievement_id
             ? {
-                id: Number(
-                  row.achievement_id
+              id: Number(
+                row.achievement_id
+              ),
+
+              levelAchieved: Number(
+                row.achieved_level || 0
+              ),
+
+              rank:
+                row.achieved_rank ||
+                formatRank(
+                  row.achieved_level
                 ),
 
-                levelAchieved: Number(
-                  row.achieved_level || 0
-                ),
+              levelAmount: Number(
+                row.achieved_level_amount ||
+                0
+              ),
 
-                rank:
-                  row.achieved_rank ||
-                  formatRank(
-                    row.achieved_level
-                  ),
+              reward:
+                row.achieved_reward ||
+                null,
 
-                levelAmount: Number(
-                  row.achieved_level_amount ||
-                    0
-                ),
+              // Raw value for now.
+              // We will label this after
+              // confirming status semantics.
+              status: Number(
+                row.achieved_status || 0
+              ),
 
-                reward:
-                  row.achieved_reward ||
-                  null,
-
-                // Raw value for now.
-                // We will label this after
-                // confirming status semantics.
-                status: Number(
-                  row.achieved_status || 0
-                ),
-
-                createdOn:
-                  row.achieved_on ||
-                  null,
-              }
+              createdOn:
+                row.achieved_on ||
+                null,
+            }
             : null,
       }));
 
@@ -713,45 +713,25 @@ const getRankDistribution = async (
     const [distributionRows] =
       await db.execute(
         `
-          SELECT
-            COALESCE(
-              level_achieved,
-              0
-            ) AS rank,
-
-            COUNT(*) AS members
-
-          FROM member
-
-          WHERE COALESCE(
-            level_achieved,
-            0
-          ) BETWEEN 0 AND 12
-
-          GROUP BY
-            COALESCE(
-              level_achieved,
-              0
-            )
-
-          ORDER BY rank ASC
-        `
+      SELECT
+        COALESCE(level_achieved, 0) AS rank_level,
+        COUNT(*) AS members
+      FROM member
+      WHERE COALESCE(level_achieved, 0) BETWEEN 0 AND 12
+      GROUP BY COALESCE(level_achieved, 0)
+      ORDER BY rank_level ASC
+    `
       );
 
 
-    const distributionMap =
-      new Map();
+    const distributionMap = new Map();
 
-    distributionRows.forEach(
-      (row) => {
-        distributionMap.set(
-          Number(row.rank),
-          Number(
-            row.members || 0
-          )
-        );
-      }
-    );
+    distributionRows.forEach((row) => {
+      distributionMap.set(
+        Number(row.rank_level),
+        Number(row.members || 0)
+      );
+    });
 
 
     // Always return 0 through 12,
@@ -804,22 +784,22 @@ const getRankDistribution = async (
         summary: {
           totalMembers: Number(
             summary.totalMembers ||
-              0
+            0
           ),
 
           rankedMembers: Number(
             summary.rankedMembers ||
-              0
+            0
           ),
 
           unrankedMembers: Number(
             summary.unrankedMembers ||
-              0
+            0
           ),
 
           highestRank: Number(
             summary.highestRank ||
-              0
+            0
           ),
 
           highestRankLabel:
@@ -830,7 +810,7 @@ const getRankDistribution = async (
           totalRankIncome: Number(
             incomeRows[0]
               ?.totalRankIncome ||
-              0
+            0
           ),
         },
 
@@ -1155,77 +1135,77 @@ const getMemberRankDetails = async (req, res) => {
         latestAchievement:
           latestAchievement
             ? {
-                id: Number(
-                  latestAchievement.id
+              id: Number(
+                latestAchievement.id
+              ),
+
+              levelAchieved: Number(
+                latestAchievement.level_achieved ||
+                0
+              ),
+
+              rank:
+                latestAchievement.rank ||
+                formatRank(
+                  latestAchievement.level_achieved
                 ),
 
-                levelAchieved: Number(
-                  latestAchievement.level_achieved ||
-                    0
-                ),
+              levelAmount: Number(
+                latestAchievement.level_amount ||
+                0
+              ),
 
-                rank:
-                  latestAchievement.rank ||
-                  formatRank(
-                    latestAchievement.level_achieved
-                  ),
+              reward:
+                latestAchievement.reward ||
+                null,
 
-                levelAmount: Number(
-                  latestAchievement.level_amount ||
-                    0
-                ),
+              // Raw because status meaning
+              // has not been defined yet.
+              status: Number(
+                latestAchievement.status ||
+                0
+              ),
 
-                reward:
-                  latestAchievement.reward ||
-                  null,
-
-                // Raw because status meaning
-                // has not been defined yet.
-                status: Number(
-                  latestAchievement.status ||
-                    0
-                ),
-
-                createdOn:
-                  latestAchievement.created_on ||
-                  null,
-              }
+              createdOn:
+                latestAchievement.created_on ||
+                null,
+            }
             : null,
 
         statistics: {
           totalDirects: Number(
             directStats.totalDirects ||
-              0
+            0
           ),
 
           activatedDirects: Number(
             directStats.activatedDirects ||
-              0
+            0
           ),
 
           communitySize: Number(
             networkStats.communitySize ||
-              0
+            0
           ),
 
           activatedCommunity: Number(
             networkStats.activatedCommunity ||
-              0
+            0
           ),
 
           communityBusiness: Number(
             networkStats.communityBusiness ||
-              0
+            0
           ),
 
           totalRankIncome: Number(
             incomeStats.totalRankIncome ||
-              0
+            0
           ),
 
           rankIncomeEntries: Number(
             incomeStats.rankIncomeEntries ||
-              0
+            0
           ),
 
           totalRanksAchieved:
