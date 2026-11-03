@@ -1,5 +1,4 @@
-const express =
-  require("express");
+const express = require("express");
 
 const {
   getClosingRunSummary,
@@ -9,39 +8,19 @@ const {
   "../../controllers/admin/adminClosingRunController"
 );
 
-const adminAuthMiddleware =
-  require(
-    "../../middleware/adminAuthMiddleware"
-  );
-
-
-const router =
-  express.Router();
-
-
-router.use(
-  adminAuthMiddleware
+const adminAuthMiddleware = require(
+  "../../middleware/adminAuthMiddleware"
 );
 
+const router = express.Router();
 
-// /summary must remain before /:id
-router.get(
-  "/summary",
-  getClosingRunSummary
-);
+router.use(adminAuthMiddleware);
 
+// Summary must remain before /:id
+router.get("/summary", getClosingRunSummary);
 
-router.get(
-  "/",
-  getClosingRuns
-);
+router.get("/", getClosingRuns);
 
+router.get("/:id", getClosingRunDetails);
 
-router.get(
-  "/:id",
-  getClosingRunDetails
-);
-
-
-module.exports =
-  router;
+module.exports = router;

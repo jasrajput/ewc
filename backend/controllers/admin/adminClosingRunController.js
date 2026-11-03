@@ -1,675 +1,326 @@
-const db = require("../../config/db");
 
+const db = require("../../config/db");
 
 // ======================================================
 // HELPERS
 // ======================================================
 
-const formatRun = (row) => ({
-  id: Number(row.id),
+const isComplete = (row) =>
+  ["done", "deferred"].includes(row.roi_status) &&
+  row.usdt_status === "done" &&
+  row.snapshot_status === "done" &&
+  row.publish_status === "done";
 
-  runDate: row.run_date || null,
+const formatRun = (row) => {
+  if (!row) return null;
 
-  roiStatus:
-    row.roi_status || "pending",
-
-  snapshotStatus:
-    row.snapshot_status || "pending",
-
-  snapshotId:
-    row.snapshot_id || null,
-
-  merkleRoot:
-    row.merkle_root || null,
-
-  publishStatus:
-    row.publish_status || "pending",
-
-  txHash:
-    row.tx_hash || null,
-
-  updatedAt:
-    row.updated_at || null,
-
-  complete:
-    row.roi_status === "done" &&
-    row.snapshot_status === "done" &&
-    row.publish_status === "done",
-});
-
+  return {
+    id: row.slot_key,
+    slotKey: row.slot_key,
+    runDate: row.run_date,
+    slotHour: Number(row.slot_key.slice(-2)),
+    roiStatus: row.roi_status || "pending",
+    usdtStatus: row.usdt_status || "pending",
+    snapshotStatus: row.snapshot_status || "pending",
+    publishStatus: row.publish_status || "pending",
+    snapshotId: row.snapshot_id || null,
+    merkleRoot: row.merkle_root || null,
+    txHash: row.tx_hash || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.created_at || null,
+    complete: isComplete(row),
+  };
+};
 
 // ======================================================
-// SUMMARY
-//
+// COMMON SELECT
+// Daily ROI comes from closing_runs.
+// Three-hour stages come from closing_slot_runs.
+// ======================================================
+
+const BASE_SELECT = `
+  SELECT
+    s.slot_key,
+    DATE_FORMAT(s.run_date, '%Y-%m-%d') AS run_date,
+
+    COALESCE(d.roi_status, 'pending') AS roi_status,
+
+    s.usdt_status,
+    s.snapshot_status,
+    s.publish_status,
+    s.snapshot_id,
+    s.merkle_root,
+    s.tx_hash,
+    DATE_FORMAT(s.created_at, '%Y-%m-%d %H:%i:%s')
+      AS created_at
+
+  FROM closing_slot_runs s
+
+  LEFT JOIN closing_runs d
+    ON d.run_date = s.run_date
+`;
+
+// ======================================================
 // GET /api/admin/closing-runs/summary
 // ======================================================
 
-const getClosingRunSummary = async (
-  req,
-  res
-) => {
+const getClosingRunsSummary = async (req, res) => {
   try {
-    const [summaryRows] =
-      await db.execute(`
-        SELECT
+    const [rows] = await db.execute(BASE_SELECT);
 
-          COUNT(*) AS totalRuns,
+    const runs = rows.map(formatRun);
+    const completedRuns = runs.filter(
+      (run) => run.complete
+    ).length;
 
-          SUM(
-            CASE
-              WHEN roi_status = 'done'
-               AND snapshot_status = 'done'
-               AND publish_status = 'done'
-              THEN 1
-              ELSE 0
-            END
-          ) AS completedRuns,
+    const publishedRuns = runs.filter(
+      (run) => run.publishStatus === "done"
+    );
 
-          SUM(
-            CASE
-              WHEN roi_status <> 'done'
-                OR snapshot_status <> 'done'
-                OR publish_status <> 'done'
-              THEN 1
-              ELSE 0
-            END
-          ) AS pendingRuns,
+    const newestRun = [...runs].sort((a, b) =>
+      b.slotKey.localeCompare(a.slotKey)
+    )[0] || null;
 
-          SUM(
-            CASE
-              WHEN roi_status = 'pending'
-              THEN 1
-              ELSE 0
-            END
-          ) AS roiPending,
-
-          SUM(
-            CASE
-              WHEN snapshot_status = 'pending'
-              THEN 1
-              ELSE 0
-            END
-          ) AS snapshotPending,
-
-          SUM(
-            CASE
-              WHEN publish_status = 'pending'
-              THEN 1
-              ELSE 0
-            END
-          ) AS publishPending,
-
-          MAX(run_date) AS latestRunDate
-
-        FROM closing_runs
-      `);
-
-
-    const summary =
-      summaryRows[0] || {};
-
-
-    // Latest run
-    const [latestRows] =
-      await db.execute(`
-        SELECT
-          id,
-          run_date,
-          roi_status,
-          snapshot_status,
-          snapshot_id,
-          merkle_root,
-          publish_status,
-          tx_hash,
-          updated_at
-
-        FROM closing_runs
-
-        ORDER BY
-          run_date DESC,
-          id DESC
-
-        LIMIT 1
-      `);
-
-
-    // Latest successfully published run
-    const [publishedRows] =
-      await db.execute(`
-        SELECT
-          id,
-          run_date,
-          snapshot_id,
-          merkle_root,
-          tx_hash,
-          updated_at
-
-        FROM closing_runs
-
-        WHERE publish_status = 'done'
-
-        ORDER BY
-          run_date DESC,
-          id DESC
-
-        LIMIT 1
-      `);
-
-
-    const latestRun =
-      latestRows[0]
-        ? formatRun(
-            latestRows[0]
-          )
-        : null;
-
-
-    const latestPublished =
-      publishedRows[0]
-        ? {
-            id: Number(
-              publishedRows[0].id
-            ),
-
-            runDate:
-              publishedRows[0]
-                .run_date ||
-              null,
-
-            snapshotId:
-              publishedRows[0]
-                .snapshot_id ||
-              null,
-
-            merkleRoot:
-              publishedRows[0]
-                .merkle_root ||
-              null,
-
-            txHash:
-              publishedRows[0]
-                .tx_hash ||
-              null,
-
-            updatedAt:
-              publishedRows[0]
-                .updated_at ||
-              null,
-          }
-        : null;
-
+    const latestPublished = [...publishedRuns].sort(
+      (a, b) => b.slotKey.localeCompare(a.slotKey)
+    )[0] || null;
 
     return res.status(200).json({
       success: true,
-
       data: {
-        totalRuns: Number(
-          summary.totalRuns || 0
-        ),
+        totalRuns: runs.length,
+        completedRuns,
+        pendingRuns: runs.length - completedRuns,
 
-        completedRuns: Number(
-          summary.completedRuns || 0
-        ),
+        roiPending: runs.filter(
+          (run) => !["done", "deferred"].includes(
+            run.roiStatus
+          )
+        ).length,
 
-        pendingRuns: Number(
-          summary.pendingRuns || 0
-        ),
+        roiDeferred: runs.filter(
+          (run) => run.roiStatus === "deferred"
+        ).length,
 
-        roiPending: Number(
-          summary.roiPending || 0
-        ),
+        usdtPending: runs.filter(
+          (run) => run.usdtStatus !== "done"
+        ).length,
 
-        snapshotPending: Number(
-          summary.snapshotPending || 0
-        ),
+        snapshotPending: runs.filter(
+          (run) => run.snapshotStatus !== "done"
+        ).length,
 
-        publishPending: Number(
-          summary.publishPending || 0
-        ),
+        publishPending: runs.filter(
+          (run) => run.publishStatus !== "done"
+        ).length,
 
-        latestRunDate:
-          summary.latestRunDate ||
-          null,
-
-        latestRun,
-
+        latestRunDate: newestRun?.runDate || null,
+        latestRun: newestRun,
         latestPublished,
       },
     });
-
   } catch (error) {
-    console.error(
-      "Admin closing run summary error:",
-      error
-    );
+    console.error("Closing runs summary error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to load closing run summary.",
+      message: "Unable to load closing runs summary.",
     });
   }
 };
 
-
 // ======================================================
-// LIST
-//
 // GET /api/admin/closing-runs
 // ======================================================
 
-const getClosingRuns = async (
-  req,
-  res
-) => {
+const getClosingRuns = async (req, res) => {
   try {
-    const status = String(
-      req.query.status || ""
-    )
+    const page = Math.max(
+      1,
+      parseInt(req.query.page, 10) || 1
+    );
+
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.limit, 10) || 20)
+    );
+
+    const search = String(req.query.search || "")
       .trim()
       .toLowerCase();
 
-
-    const roiStatus = String(
-      req.query.roiStatus || ""
-    )
+    const status = String(req.query.status || "")
       .trim()
       .toLowerCase();
 
+    const roiStatus = String(req.query.roiStatus || "")
+      .trim()
+      .toLowerCase();
+
+    const usdtStatus = String(req.query.usdtStatus || "")
+      .trim()
+      .toLowerCase();
 
     const snapshotStatus = String(
       req.query.snapshotStatus || ""
-    )
-      .trim()
-      .toLowerCase();
-
+    ).trim().toLowerCase();
 
     const publishStatus = String(
       req.query.publishStatus || ""
-    )
+    ).trim().toLowerCase();
+
+    const from = String(req.query.from || "").trim();
+    const to = String(req.query.to || "").trim();
+
+    const sort = String(req.query.sort || "newest")
       .trim()
       .toLowerCase();
 
+    const [rows] = await db.execute(BASE_SELECT);
 
-    const from = String(
-      req.query.from || ""
-    ).trim();
+    let runs = rows.map(formatRun);
 
+    // Search by slot, snapshot, root, transaction hash.
+    if (search) {
+      runs = runs.filter((run) =>
+        [
+          run.slotKey,
+          run.snapshotId,
+          run.merkleRoot,
+          run.txHash,
+        ].some((value) =>
+          String(value || "").toLowerCase().includes(search)
+        )
+      );
+    }
 
-    const to = String(
-      req.query.to || ""
-    ).trim();
-
-
-    const search = String(
-      req.query.search || ""
-    ).trim();
-
-
-    const sort = String(
-      req.query.sort ||
-        "newest"
-    )
-      .trim()
-      .toLowerCase();
-
-
-    const page = Math.max(
-      Number(
-        req.query.page
-      ) || 1,
-      1
-    );
-
-
-    const limit = Math.min(
-      Math.max(
-        Number(
-          req.query.limit
-        ) || 20,
-        1
-      ),
-      100
-    );
-
-
-    const offset =
-      (page - 1) * limit;
-
-
-    // ==========================================
-    // WHERE
-    // ==========================================
-
-    const where = [];
-    const params = [];
-
-
-    // Entire run status
     if (status === "complete") {
-      where.push(`
-        (
-          roi_status = 'done'
-          AND snapshot_status = 'done'
-          AND publish_status = 'done'
-        )
-      `);
+      runs = runs.filter((run) => run.complete);
+    } else if (status === "pending") {
+      runs = runs.filter((run) => !run.complete);
     }
 
-
-    if (status === "pending") {
-      where.push(`
-        (
-          roi_status = 'pending'
-          OR snapshot_status = 'pending'
-          OR publish_status = 'pending'
-        )
-      `);
-    }
-
-
-    // Individual stages
-    if (
-      ["pending", "done"].includes(
-        roiStatus
-      )
-    ) {
-      where.push(
-        "roi_status = ?"
-      );
-
-      params.push(
-        roiStatus
+    if (roiStatus) {
+      runs = runs.filter(
+        (run) => run.roiStatus === roiStatus
       );
     }
 
-
-    if (
-      ["pending", "done"].includes(
-        snapshotStatus
-      )
-    ) {
-      where.push(
-        "snapshot_status = ?"
-      );
-
-      params.push(
-        snapshotStatus
+    if (usdtStatus) {
+      runs = runs.filter(
+        (run) => run.usdtStatus === usdtStatus
       );
     }
 
-
-    if (
-      ["pending", "done"].includes(
-        publishStatus
-      )
-    ) {
-      where.push(
-        "publish_status = ?"
-      );
-
-      params.push(
-        publishStatus
+    if (snapshotStatus) {
+      runs = runs.filter(
+        (run) => run.snapshotStatus === snapshotStatus
       );
     }
 
+    if (publishStatus) {
+      runs = runs.filter(
+        (run) => run.publishStatus === publishStatus
+      );
+    }
 
-    // Dates
     if (from) {
-      where.push(
-        "run_date >= ?"
-      );
-
-      params.push(from);
+      runs = runs.filter((run) => run.runDate >= from);
     }
-
 
     if (to) {
-      where.push(
-        "run_date <= ?"
-      );
-
-      params.push(to);
+      runs = runs.filter((run) => run.runDate <= to);
     }
 
-
-    // Snapshot / root / tx search
-    if (search) {
-      const term =
-        `%${search}%`;
-
-      where.push(`
-        (
-          snapshot_id LIKE ?
-          OR merkle_root LIKE ?
-          OR tx_hash LIKE ?
+    if (sort === "oldest") {
+      runs.sort((a, b) =>
+        a.slotKey.localeCompare(b.slotKey)
+      );
+    } else if (sort === "updated") {
+      runs.sort((a, b) =>
+        String(b.updatedAt || "").localeCompare(
+          String(a.updatedAt || "")
         )
-      `);
-
-      params.push(
-        term,
-        term,
-        term
+      );
+    } else {
+      runs.sort((a, b) =>
+        b.slotKey.localeCompare(a.slotKey)
       );
     }
 
-
-    const whereSql =
-      where.length
-        ? `WHERE ${where.join(
-            " AND "
-          )}`
-        : "";
-
-
-    // ==========================================
-    // SORT
-    // ==========================================
-
-    const sortMap = {
-      newest:
-        "run_date DESC, id DESC",
-
-      oldest:
-        "run_date ASC, id ASC",
-
-      updated:
-        "updated_at DESC, id DESC",
-    };
-
-
-    const orderBy =
-      sortMap[sort] ||
-      sortMap.newest;
-
-
-    // ==========================================
-    // COUNT
-    // ==========================================
-
-    const [countRows] =
-      await db.execute(
-        `
-          SELECT
-            COUNT(*) AS total
-
-          FROM closing_runs
-
-          ${whereSql}
-        `,
-        params
-      );
-
-
-    const total =
-      Number(
-        countRows[0]?.total ||
-          0
-      );
-
-
-    // ==========================================
-    // LIST
-    // ==========================================
-
-    const [rows] =
-      await db.execute(
-        `
-          SELECT
-            id,
-            run_date,
-            roi_status,
-            snapshot_status,
-            snapshot_id,
-            merkle_root,
-            publish_status,
-            tx_hash,
-            updated_at
-
-          FROM closing_runs
-
-          ${whereSql}
-
-          ORDER BY
-            ${orderBy}
-
-          LIMIT ? OFFSET ?
-        `,
-        [
-          ...params,
-          limit,
-          offset,
-        ]
-      );
-
+    const total = runs.length;
+    const offset = (page - 1) * limit;
 
     return res.status(200).json({
       success: true,
-
       data: {
-        runs:
-          rows.map(
-            formatRun
-          ),
-
+        runs: runs.slice(offset, offset + limit),
         pagination: {
           page,
           limit,
           total,
-
-          totalPages:
-            Math.ceil(
-              total / limit
-            ),
+          totalPages: Math.ceil(total / limit),
         },
       },
     });
-
   } catch (error) {
-    console.error(
-      "Admin closing runs error:",
-      error
-    );
+    console.error("Closing runs list error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to load closing runs.",
+      message: "Unable to load closing runs.",
     });
   }
 };
 
-
 // ======================================================
-// SINGLE RUN
-//
 // GET /api/admin/closing-runs/:id
+// The ID is the slot key, e.g. 2026-11-04_00.
 // ======================================================
 
-const getClosingRunDetails = async (
-  req,
-  res
-) => {
+const getClosingRunDetails = async (req, res) => {
   try {
-    const id =
-      Number(
-        req.params.id
-      );
+    const slotKey = String(req.params.id || "");
 
-
-    if (
-      !Number.isInteger(id) ||
-      id < 1
-    ) {
+    if (!/^\d{4}-\d{2}-\d{2}_(00|03|06|09|12|15|18|21)$/.test(slotKey)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Valid closing run ID is required.",
+        message: "Invalid closing slot key.",
       });
     }
 
+    const [rows] = await db.execute(
+      `${BASE_SELECT}
+       WHERE s.slot_key = ?
+       LIMIT 1`,
+      [slotKey]
+    );
 
-    const [rows] =
-      await db.execute(
-        `
-          SELECT
-            id,
-            run_date,
-            roi_status,
-            snapshot_status,
-            snapshot_id,
-            merkle_root,
-            publish_status,
-            tx_hash,
-            updated_at
-
-          FROM closing_runs
-
-          WHERE id = ?
-
-          LIMIT 1
-        `,
-        [id]
-      );
-
-
-    if (!rows[0]) {
+    if (!rows.length) {
       return res.status(404).json({
         success: false,
-        message:
-          "Closing run not found.",
+        message: "Closing run not found.",
       });
     }
-
 
     return res.status(200).json({
       success: true,
-
       data: {
-        run:
-          formatRun(
-            rows[0]
-          ),
+        run: formatRun(rows[0]),
       },
     });
-
   } catch (error) {
-    console.error(
-      "Admin closing run details error:",
-      error
-    );
+    console.error("Closing run details error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to load closing run details.",
+      message: "Unable to load closing run details.",
     });
   }
 };
 
-
 module.exports = {
-  getClosingRunSummary,
+  getClosingRunsSummary,
   getClosingRuns,
   getClosingRunDetails,
 };
