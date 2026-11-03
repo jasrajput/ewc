@@ -210,21 +210,58 @@ const getMembers = async (req, res) => {
     // TOTAL COUNT
     // =====================================================
 
-    const countSql = `
-      SELECT COUNT(*) AS total
-      FROM member m
-      ${whereClause}
-    `;
+   
+const countSql = `
+  SELECT
+    COUNT(*) AS total,
 
-    const [countRows] =
-      await db.execute(
-        countSql,
-        params
-      );
+    COALESCE(
+      SUM(
+        CASE
+          WHEN m.package_choose >= 2 THEN 1
+          ELSE 0
+        END
+      ),
+      0
+    ) AS activated,
 
-    const total = Number(
-      countRows[0]?.total || 0
-    );
+    COALESCE(
+      SUM(
+        CASE
+          WHEN m.package_choose = 1
+            OR m.package_choose IS NULL
+          THEN 1
+          ELSE 0
+        END
+      ),
+      0
+    ) AS notActivated,
+
+    COALESCE(
+      SUM(
+        CASE
+          WHEN m.status = 1 THEN 1
+          ELSE 0
+        END
+      ),
+      0
+    ) AS blocked
+
+  FROM member m
+  ${whereClause}
+`;
+
+const [countRows] = await db.execute(countSql, params);
+
+const counts = countRows[0] || {};
+
+const total = Number(counts.total || 0);
+
+const summary = {
+  activated: Number(counts.activated || 0),
+  notActivated: Number(counts.notActivated || 0),
+  blocked: Number(counts.blocked || 0),
+};
 
     const totalPages = Math.max(
       Math.ceil(total / limit),
@@ -389,6 +426,8 @@ const getMembers = async (req, res) => {
         total,
         totalPages,
       },
+
+      summary,
 
       filters: {
         search,

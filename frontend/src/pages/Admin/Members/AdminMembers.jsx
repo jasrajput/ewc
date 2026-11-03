@@ -1,8 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   Ban,
@@ -53,41 +49,33 @@ const INITIAL_FILTERS = {
 const AdminMembers = () => {
   const navigate = useNavigate();
 
-  const [members, setMembers] =
-    useState([]);
+  const [members, setMembers] = useState([]);
 
-  const [filters, setFilters] =
-    useState(INITIAL_FILTERS);
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
 
-  const [debouncedSearch, setDebouncedSearch] =
-    useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const [page, setPage] =
-    useState(1);
+  const [page, setPage] = useState(1);
+  const [summary, setSummary] = useState({
+    activated: 0,
+    notActivated: 0,
+    blocked: 0,
+  });
 
-  const [pagination, setPagination] =
-    useState({
-      page: 1,
-      limit: 20,
-      total: 0,
-      totalPages: 1,
-    });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const [
-    statusMember,
-    setStatusMember,
-  ] = useState(null);
+  const [statusMember, setStatusMember] = useState(null);
 
-  const [
-    statusLoading,
-    setStatusLoading,
-  ] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   // ========================================
   // SEARCH DEBOUNCE
@@ -95,135 +83,109 @@ const AdminMembers = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(
-        filters.search.trim()
-      );
+      setDebouncedSearch(filters.search.trim());
 
       setPage(1);
     }, 350);
 
-    return () =>
-      clearTimeout(timer);
+    return () => clearTimeout(timer);
   }, [filters.search]);
 
   // ========================================
   // LOAD MEMBERS
   // ========================================
 
-  const fetchMembers =
-    useCallback(async () => {
-      setLoading(true);
-      setError("");
+  const fetchMembers = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
-      try {
-        const params = {
-          page,
-          limit: 20,
-          sort: filters.sort,
-        };
+    try {
+      const params = {
+        page,
+        limit: 20,
+        sort: filters.sort,
+      };
 
-        if (debouncedSearch) {
-          params.search =
-            debouncedSearch;
-        }
-
-        if (filters.activation) {
-          params.activation =
-            filters.activation;
-        }
-
-        if (filters.status) {
-          params.status =
-            filters.status;
-        }
-
-        if (filters.wallet) {
-          params.wallet =
-            filters.wallet;
-        }
-
-        if (filters.rank !== "") {
-          params.rank =
-            filters.rank;
-        }
-
-        if (filters.joinedFrom) {
-          params.joinedFrom =
-            filters.joinedFrom;
-        }
-
-        if (filters.joinedTo) {
-          params.joinedTo =
-            filters.joinedTo;
-        }
-
-        if (filters.activatedFrom) {
-          params.activatedFrom =
-            filters.activatedFrom;
-        }
-
-        if (filters.activatedTo) {
-          params.activatedTo =
-            filters.activatedTo;
-        }
-
-        const response =
-          await adminApi.get(
-            "/admin/members",
-            { params }
-          );
-
-        setMembers(
-          response.data.data || []
-        );
-
-        setPagination(
-          response.data.pagination || {
-            page: 1,
-            limit: 20,
-            total: 0,
-            totalPages: 1,
-          }
-        );
-      } catch (err) {
-        console.error(
-          "Admin members error:",
-          err
-        );
-
-        if (
-          err.response?.status === 401 ||
-          err.response?.status === 403
-        ) {
-          navigate(
-            "/admin/login",
-            { replace: true }
-          );
-
-          return;
-        }
-
-        setError(
-          err.response?.data?.message ||
-            "Unable to load members."
-        );
-      } finally {
-        setLoading(false);
+      if (debouncedSearch) {
+        params.search = debouncedSearch;
       }
-    }, [
-      page,
-      filters.activation,
-      filters.status,
-      filters.wallet,
-      filters.rank,
-      filters.joinedFrom,
-      filters.joinedTo,
-      filters.activatedFrom,
-      filters.activatedTo,
-      filters.sort,
-      debouncedSearch,
-      navigate,
-    ]);
+
+      if (filters.activation) {
+        params.activation = filters.activation;
+      }
+
+      if (filters.status) {
+        params.status = filters.status;
+      }
+
+      if (filters.wallet) {
+        params.wallet = filters.wallet;
+      }
+
+      if (filters.rank !== "") {
+        params.rank = filters.rank;
+      }
+
+      if (filters.joinedFrom) {
+        params.joinedFrom = filters.joinedFrom;
+      }
+
+      if (filters.joinedTo) {
+        params.joinedTo = filters.joinedTo;
+      }
+
+      if (filters.activatedFrom) {
+        params.activatedFrom = filters.activatedFrom;
+      }
+
+      if (filters.activatedTo) {
+        params.activatedTo = filters.activatedTo;
+      }
+
+      const response = await adminApi.get("/admin/members", { params });
+
+      setMembers(response.data.data || []);
+      setSummary({
+        activated: Number(response.data.summary?.activated || 0),
+        notActivated: Number(response.data.summary?.notActivated || 0),
+        blocked: Number(response.data.summary?.blocked || 0),
+      });
+
+      setPagination(
+        response.data.pagination || {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 1,
+        },
+      );
+    } catch (err) {
+      console.error("Admin members error:", err);
+
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        navigate("/admin/login", { replace: true });
+
+        return;
+      }
+
+      setError(err.response?.data?.message || "Unable to load members.");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    page,
+    filters.activation,
+    filters.status,
+    filters.wallet,
+    filters.rank,
+    filters.joinedFrom,
+    filters.joinedTo,
+    filters.activatedFrom,
+    filters.activatedTo,
+    filters.sort,
+    debouncedSearch,
+    navigate,
+  ]);
 
   useEffect(() => {
     fetchMembers();
@@ -233,10 +195,7 @@ const AdminMembers = () => {
   // FILTER
   // ========================================
 
-  const updateFilter = (
-    key,
-    value
-  ) => {
+  const updateFilter = (key, value) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -257,69 +216,52 @@ const AdminMembers = () => {
   // BLOCK / UNBLOCK
   // ========================================
 
-  const confirmStatusChange =
-    async () => {
-      if (!statusMember) return;
+  const confirmStatusChange = async () => {
+    if (!statusMember) return;
 
-      const newStatus =
-        statusMember.blocked ? 0 : 1;
+    const newStatus = statusMember.blocked ? 0 : 1;
 
-      setStatusLoading(true);
+    setStatusLoading(true);
 
-      try {
-        await adminApi.patch(
-          `/admin/members/${statusMember.id}/status`,
-          {
-            status: newStatus,
-          }
-        );
+    try {
+      await adminApi.patch(`/admin/members/${statusMember.id}/status`, {
+        status: newStatus,
+      });
 
-        setStatusMember(null);
+      setStatusMember(null);
 
-        await fetchMembers();
-      } catch (err) {
-        console.error(
-          "Status update error:",
-          err
-        );
+      await fetchMembers();
+    } catch (err) {
+      console.error("Status update error:", err);
 
-        setError(
-          err.response?.data?.message ||
-            "Unable to update member status."
-        );
-      } finally {
-        setStatusLoading(false);
-      }
-    };
+      setError(
+        err.response?.data?.message || "Unable to update member status.",
+      );
+    } finally {
+      setStatusLoading(false);
+    }
+  };
 
   // ========================================
   // FORMAT
   // ========================================
 
   const formatUsd = (value) =>
-    new Intl.NumberFormat(
-      "en-US",
-      {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    ).format(Number(value || 0));
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0));
 
   const formatDate = (value) => {
     if (!value) return "—";
 
-    return new Date(
-      value
-    ).toLocaleDateString(
-      "en-US",
-      {
-        year: "numeric",
-        month: "short",
-        day: "2-digit",
-      }
-    );
+    return new Date(value).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
   };
 
   const shortenWallet = (wallet) => {
@@ -329,15 +271,20 @@ const AdminMembers = () => {
       return wallet;
     }
 
-    return `${wallet.slice(
-      0,
-      6
-    )}...${wallet.slice(-5)}`;
+    return `${wallet.slice(0, 6)}...${wallet.slice(-5)}`;
   };
 
   // ========================================
   // TABLE
   // ========================================
+
+  const memberStats = {
+    activated: members.filter((member) => member.activated).length,
+
+    notActivated: members.filter((member) => !member.activated).length,
+
+    blocked: members.filter((member) => member.blocked).length,
+  };
 
   const columns = [
     {
@@ -346,35 +293,17 @@ const AdminMembers = () => {
       width: "230px",
 
       render: (member) => (
-        <div
-          className={styles.memberCell}
-        >
-          <div
-            className={
-              styles.memberAvatar
-            }
-          >
-            {String(
-              member.name ||
-                member.user_id ||
-                "U"
-            )
+        <div className={styles.memberCell}>
+          <div className={styles.memberAvatar}>
+            {String(member.name || member.user_id || "U")
               .charAt(0)
               .toUpperCase()}
           </div>
 
-          <div
-            className={
-              styles.memberIdentity
-            }
-          >
-            <strong>
-              {member.name || "—"}
-            </strong>
+          <div className={styles.memberIdentity}>
+            <strong>{member.name || "—"}</strong>
 
-            <span>
-              {member.email || "—"}
-            </span>
+            <span>{member.email || "—"}</span>
           </div>
         </div>
       ),
@@ -385,11 +314,7 @@ const AdminMembers = () => {
       label: "User ID",
 
       render: (member) => (
-        <span
-          className={styles.userId}
-        >
-          {member.user_id || "—"}
-        </span>
+        <span className={styles.userId}>{member.user_id || "—"}</span>
       ),
     },
 
@@ -399,26 +324,10 @@ const AdminMembers = () => {
 
       render: (member) =>
         member.sponsor?.user_id ? (
-          <div
-            className={
-              styles.sponsorCell
-            }
-          >
-            <strong>
-              {
-                member.sponsor
-                  .user_id
-              }
-            </strong>
+          <div className={styles.sponsorCell}>
+            <strong>{member.sponsor.user_id}</strong>
 
-            {member.sponsor.name && (
-              <span>
-                {
-                  member.sponsor
-                    .name
-                }
-              </span>
-            )}
+            {member.sponsor.name && <span>{member.sponsor.name}</span>}
           </div>
         ) : (
           "—"
@@ -430,25 +339,14 @@ const AdminMembers = () => {
       label: "Package",
 
       render: (member) => (
-        <div
-          className={
-            styles.packageCell
-          }
-        >
+        <div className={styles.packageCell}>
           <strong>
             {member.activated
-              ? formatUsd(
-                  member.package_amount
-                )
+              ? formatUsd(member.package_amount)
               : "Not Activated"}
           </strong>
 
-          {member.activated && (
-            <span>
-              Package{" "}
-              {member.package_choose}
-            </span>
-          )}
+          {member.activated && <span>Package {member.package_choose}</span>}
         </div>
       ),
     },
@@ -457,13 +355,7 @@ const AdminMembers = () => {
       key: "rank",
       label: "Rank",
 
-      render: (member) => (
-        <span
-          className={styles.rank}
-        >
-          {member.rank}
-        </span>
-      ),
+      render: (member) => <span className={styles.rank}>{member.rank}</span>,
     },
 
     {
@@ -472,28 +364,13 @@ const AdminMembers = () => {
 
       render: (member) =>
         member.walletRegistered ? (
-          <div
-            className={
-              styles.walletCell
-            }
-            title={member.wallet}
-          >
+          <div className={styles.walletCell} title={member.wallet}>
             <Wallet size={14} />
 
-            <span>
-              {shortenWallet(
-                member.wallet
-              )}
-            </span>
+            <span>{shortenWallet(member.wallet)}</span>
           </div>
         ) : (
-          <span
-            className={
-              styles.muted
-            }
-          >
-            Not registered
-          </span>
+          <span className={styles.muted}>Not registered</span>
         ),
     },
 
@@ -503,13 +380,9 @@ const AdminMembers = () => {
 
       render: (member) =>
         member.activated ? (
-          <AdminStatusBadge variant="gold">
-            Activated
-          </AdminStatusBadge>
+          <AdminStatusBadge variant="gold">Activated</AdminStatusBadge>
         ) : (
-          <AdminStatusBadge variant="neutral">
-            Not Activated
-          </AdminStatusBadge>
+          <AdminStatusBadge variant="neutral">Not Activated</AdminStatusBadge>
         ),
     },
 
@@ -519,13 +392,9 @@ const AdminMembers = () => {
 
       render: (member) =>
         member.blocked ? (
-          <AdminStatusBadge variant="danger">
-            Blocked
-          </AdminStatusBadge>
+          <AdminStatusBadge variant="danger">Blocked</AdminStatusBadge>
         ) : (
-          <AdminStatusBadge variant="success">
-            Active
-          </AdminStatusBadge>
+          <AdminStatusBadge variant="success">Active</AdminStatusBadge>
         ),
     },
 
@@ -534,24 +403,11 @@ const AdminMembers = () => {
       label: "Joined",
 
       render: (member) => (
-        <div
-          className={
-            styles.dateCell
-          }
-        >
-          <strong>
-            {formatDate(
-              member.dateOfJoining
-            )}
-          </strong>
+        <div className={styles.dateCell}>
+          <strong>{formatDate(member.dateOfJoining)}</strong>
 
           {member.date_of_activation && (
-            <span>
-              Activated{" "}
-              {formatDate(
-                member.date_of_activation
-              )}
-            </span>
+            <span>Activated {formatDate(member.date_of_activation)}</span>
           )}
         </div>
       ),
@@ -569,30 +425,23 @@ const AdminMembers = () => {
             {
               label: "View Details",
               icon: Eye,
-              onClick: () =>
-                navigate(
-                  `/admin/members/${member.id}`
-                ),
+              onClick: () => navigate(`/admin/members/${member.id}`),
             },
 
             {
               label: "Edit User",
               icon: Pencil,
-              onClick: () =>
-                navigate(
-                  `/admin/members/${member.id}/edit`
-                ),
+              onClick: () => navigate(`/admin/members/${member.id}/edit`),
             },
 
             {
               label: "View Earnings",
-              icon:
-                CircleDollarSign,
+              icon: CircleDollarSign,
               onClick: () =>
                 navigate(
                   `/admin/earnings?member=${encodeURIComponent(
-                    member.user_id
-                  )}`
+                    member.user_id,
+                  )}`,
                 ),
             },
 
@@ -601,28 +450,18 @@ const AdminMembers = () => {
               icon: Network,
               onClick: () =>
                 navigate(
-                  `/admin/network?member=${encodeURIComponent(
-                    member.user_id
-                  )}`
+                  `/admin/network?member=${encodeURIComponent(member.user_id)}`,
                 ),
             },
 
             {
-              label: member.blocked
-                ? "Unblock User"
-                : "Block User",
+              label: member.blocked ? "Unblock User" : "Block User",
 
-              icon: member.blocked
-                ? ShieldCheck
-                : Ban,
+              icon: member.blocked ? ShieldCheck : Ban,
 
-              danger:
-                !member.blocked,
+              danger: !member.blocked,
 
-              onClick: () =>
-                setStatusMember(
-                  member
-                ),
+              onClick: () => setStatusMember(member),
             },
           ]}
         />
@@ -651,142 +490,91 @@ const AdminMembers = () => {
         <SummaryCard
           icon={UserCheck}
           label="Activated"
-          value=""
+          value={summary.activated}
         />
 
         <SummaryCard
           icon={UserRoundX}
           label="Not Activated"
-          value=""
+          value={summary.notActivated}
         />
 
-        <SummaryCard
-          icon={Ban}
-          label="Blocked"
-          value=""
-        />
+        <SummaryCard icon={Ban} label="Blocked" value={summary.blocked} />
       </div>
-
-      <AdminFilters
-        title="Member Filters"
-        onReset={resetFilters}
-      >
+      <AdminFilters title="Member Filters" onReset={resetFilters}>
         <AdminSearch
           value={filters.search}
-          onChange={(value) =>
-            updateFilter(
-              "search",
-              value
-            )
-          }
+          onChange={(value) => updateFilter("search", value)}
           placeholder="Search ID, name, email, mobile or wallet..."
         />
 
         <AdminSelect
           value={filters.activation}
-          onChange={(value) =>
-            updateFilter(
-              "activation",
-              value
-            )
-          }
+          onChange={(value) => updateFilter("activation", value)}
           placeholder="All Activation"
           options={[
             {
               value: "activated",
-              label:
-                "Activated Members",
+              label: "Activated Members",
             },
             {
               value: "inactive",
-              label:
-                "Not Activated",
+              label: "Not Activated",
             },
           ]}
         />
 
         <AdminSelect
           value={filters.status}
-          onChange={(value) =>
-            updateFilter(
-              "status",
-              value
-            )
-          }
+          onChange={(value) => updateFilter("status", value)}
           placeholder="All Accounts"
           options={[
             {
               value: "active",
-              label:
-                "Active Accounts",
+              label: "Active Accounts",
             },
             {
               value: "blocked",
-              label:
-                "Blocked Members",
+              label: "Blocked Members",
             },
           ]}
         />
 
         <AdminSelect
           value={filters.wallet}
-          onChange={(value) =>
-            updateFilter(
-              "wallet",
-              value
-            )
-          }
+          onChange={(value) => updateFilter("wallet", value)}
           placeholder="All Wallets"
           options={[
             {
               value: "registered",
-              label:
-                "Wallet Registered",
+              label: "Wallet Registered",
             },
             {
               value: "missing",
-              label:
-                "Wallet Not Set",
+              label: "Wallet Not Set",
             },
           ]}
         />
 
         <AdminSelect
           value={filters.rank}
-          onChange={(value) =>
-            updateFilter(
-              "rank",
-              value
-            )
-          }
+          onChange={(value) => updateFilter("rank", value)}
           placeholder="All Ranks"
           options={[
             {
               value: "0",
               label: "Unranked",
             },
-            ...Array.from(
-              { length: 12 },
-              (_, index) => ({
-                value: String(
-                  index + 1
-                ),
-                label: `E-${String(
-                  index + 1
-                ).padStart(2, "0")}`,
-              })
-            ),
+            ...Array.from({ length: 12 }, (_, index) => ({
+              value: String(index + 1),
+              label: `E-${String(index + 1).padStart(2, "0")}`,
+            })),
           ]}
         />
 
         <AdminSelect
           value={filters.sort}
-          onChange={(value) =>
-            updateFilter(
-              "sort",
-              value
-            )
-          }
+          onChange={(value) => updateFilter("sort", value)}
           placeholder=""
           options={[
             {
@@ -798,85 +586,44 @@ const AdminMembers = () => {
               label: "Oldest First",
             },
             {
-              value:
-                "investment_high",
-              label:
-                "Investment: High to Low",
+              value: "investment_high",
+              label: "Investment: High to Low",
             },
             {
-              value:
-                "investment_low",
-              label:
-                "Investment: Low to High",
+              value: "investment_low",
+              label: "Investment: Low to High",
             },
             {
               value: "rank_high",
-              label:
-                "Rank: High to Low",
+              label: "Rank: High to Low",
             },
           ]}
         />
 
-        <div
-          className={
-            styles.filterGroup
-          }
-        >
+        <div className={styles.filterGroup}>
           <span>Joining Date</span>
 
           <AdminDateRange
             from={filters.joinedFrom}
             to={filters.joinedTo}
-            onFromChange={(value) =>
-              updateFilter(
-                "joinedFrom",
-                value
-              )
-            }
-            onToChange={(value) =>
-              updateFilter(
-                "joinedTo",
-                value
-              )
-            }
+            onFromChange={(value) => updateFilter("joinedFrom", value)}
+            onToChange={(value) => updateFilter("joinedTo", value)}
           />
         </div>
 
-        <div
-          className={
-            styles.filterGroup
-          }
-        >
-          <span>
-            Activation Date
-          </span>
+        <div className={styles.filterGroup}>
+          <span>Activation Date</span>
 
           <AdminDateRange
-            from={
-              filters.activatedFrom
-            }
+            from={filters.activatedFrom}
             to={filters.activatedTo}
-            onFromChange={(value) =>
-              updateFilter(
-                "activatedFrom",
-                value
-              )
-            }
-            onToChange={(value) =>
-              updateFilter(
-                "activatedTo",
-                value
-              )
-            }
+            onFromChange={(value) => updateFilter("activatedFrom", value)}
+            onToChange={(value) => updateFilter("activatedTo", value)}
           />
         </div>
       </AdminFilters>
 
-      {error && (
-        <div className={styles.error}>
-          {error}
-        </div>
-      )}
+      {error && <div className={styles.error}>{error}</div>}
 
       <AdminTable
         columns={columns}
@@ -890,9 +637,7 @@ const AdminMembers = () => {
       {!loading && (
         <AdminPagination
           page={pagination.page}
-          totalPages={
-            pagination.totalPages
-          }
+          totalPages={pagination.totalPages}
           total={pagination.total}
           limit={pagination.limit}
           onPageChange={setPage}
@@ -907,11 +652,7 @@ const AdminMembers = () => {
           }
         }}
         size="small"
-        title={
-          statusMember?.blocked
-            ? "Unblock Member"
-            : "Block Member"
-        }
+        title={statusMember?.blocked ? "Unblock Member" : "Block Member"}
         description={
           statusMember?.blocked
             ? "This member will be allowed to access their EWC account again."
@@ -922,23 +663,15 @@ const AdminMembers = () => {
             <AdminButton
               variant="secondary"
               disabled={statusLoading}
-              onClick={() =>
-                setStatusMember(null)
-              }
+              onClick={() => setStatusMember(null)}
             >
               Cancel
             </AdminButton>
 
             <AdminButton
-              variant={
-                statusMember?.blocked
-                  ? "primary"
-                  : "danger"
-              }
+              variant={statusMember?.blocked ? "primary" : "danger"}
               disabled={statusLoading}
-              onClick={
-                confirmStatusChange
-              }
+              onClick={confirmStatusChange}
             >
               {statusLoading
                 ? "Updating..."
@@ -950,35 +683,17 @@ const AdminMembers = () => {
         }
       >
         {statusMember && (
-          <div
-            className={
-              styles.confirmMember
-            }
-          >
-            <div
-              className={
-                styles.confirmAvatar
-              }
-            >
-              {String(
-                statusMember.name ||
-                  statusMember.user_id
-              )
+          <div className={styles.confirmMember}>
+            <div className={styles.confirmAvatar}>
+              {String(statusMember.name || statusMember.user_id)
                 .charAt(0)
                 .toUpperCase()}
             </div>
 
             <div>
-              <strong>
-                {statusMember.name ||
-                  statusMember.user_id}
-              </strong>
+              <strong>{statusMember.name || statusMember.user_id}</strong>
 
-              <span>
-                {
-                  statusMember.user_id
-                }
-              </span>
+              <span>{statusMember.user_id}</span>
             </div>
           </div>
         )}
@@ -987,20 +702,13 @@ const AdminMembers = () => {
   );
 };
 
-
 // ==========================================
 // SUMMARY CARD
 // ==========================================
 
-const SummaryCard = ({
-  icon: Icon,
-  label,
-  value,
-}) => (
+const SummaryCard = ({ icon: Icon, label, value }) => (
   <div className={styles.summaryCard}>
-    <div
-      className={styles.summaryIcon}
-    >
+    <div className={styles.summaryIcon}>
       <Icon size={18} />
     </div>
 
