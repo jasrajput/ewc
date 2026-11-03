@@ -314,145 +314,345 @@ const getWithdrawalDetails = async (req, res) => {
 };
 
 // GET /api/admin/withdrawals/merkle-overview
+
+/**
+ * Wait between RPC calls or retries.
+ */
+const merkleRpcSleep = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Retry temporary RPC failures.
+ *
+ * Handles BSC rate limits, HTTP 429, temporary RPC
+ * unavailability and related ethers BAD_DATA errors.
+ */
+const merkleRpcCall = async (operation, label, maxAttempts = 5) => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      const message = [
+        error?.message,
+        error?.shortMessage,
+        error?.info?.error?.message,
+        error?.error?.message,
+        error?.value?.[0]?.error?.message,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const rateLimited =
+        error?.status === 429 ||
+        error?.error?.code === -32005 ||
+        error?.value?.[0]?.error?.code === -32005 ||
+        message.includes("rate limit") ||
+        message.includes("too many requests") ||
+        message.includes("429");
+
+      const temporaryFailure =
+        rateLimited ||
+        error?.code === "TIMEOUT" ||
+        error?.code === "SERVER_ERROR" ||
+        message.includes("timeout") ||
+        message.includes("temporarily unavailable") ||
+        message.includes("missing response for request");
+
+      if (!temporaryFailure || attempt === maxAttempts) {
+        throw error;
+      }
+
+      const baseDelay = rateLimited ? 1500 : 750;
+      const delay = Math.min(
+        baseDelay * 2 ** (attempt - 1),
+        12000
+      );
+
+      console.warn(
+        `[Merkle RPC] ${label} failed. ` +
+        `Retry ${attempt}/${maxAttempts - 1} ` +
+        `in ${delay}ms: ${error.message}`
+      );
+
+      await merkleRpcSleep(delay);
+    }
+  }
+};
+
+/**
+ * Admin Merkle overview.
+ *
+ * - Validates latest.json and snapshot
+ * - Verifies published root on BSC
+ * - Reads claimed and queued amounts
+ * - Avoids JSON-RPC batching
+ * - Limits request concurrency
+ * - Retries temporary rate limits
+ */
 const getMerkleOverview = async (req, res) => {
   try {
+    // ==================================================
+    // CONFIGURATION
+    // ==================================================
+
     const directory = process.env.MERKLE_SNAPSHOT_DIR;
     const payoutAddress = process.env.MERKLE_CONTRACT;
     const rpcUrl = process.env.RPC_URL;
 
     if (!directory || !path.isAbsolute(directory)) {
-      throw new Error("MERKLE_SNAPSHOT_DIR must be an absolute path");
+      throw new Error(
+        "MERKLE_SNAPSHOT_DIR must be an absolute path"
+      );
     }
 
-    if (!ethers.isAddress(payoutAddress) || !rpcUrl) {
-      throw new Error("Missing MERKLE_CONTRACT or RPC_URL");
+    if (!payoutAddress || !ethers.isAddress(payoutAddress)) {
+      throw new Error("Invalid MERKLE_CONTRACT");
     }
+
+    if (!rpcUrl) {
+      throw new Error("RPC_URL is missing");
+    }
+
+    // ==================================================
+    // LOAD LATEST SNAPSHOT
+    // ==================================================
 
     const latest = JSON.parse(
-      await fs.readFile(path.join(directory, "latest.json"), "utf8")
+      await fs.readFile(
+        path.join(directory, "latest.json"),
+        "utf8"
+      )
     );
 
-    if (!/^[a-zA-Z0-9_-]+$/.test(String(latest.snapshot_id))) {
+    const snapshotId = String(latest.snapshot_id || "");
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(snapshotId)) {
       throw new Error("Invalid snapshot ID");
     }
 
     const snapshot = JSON.parse(
       await fs.readFile(
-        path.join(directory, `snapshot_${latest.snapshot_id}.json`),
+        path.join(
+          directory,
+          `snapshot_${snapshotId}.json`
+        ),
         "utf8"
       )
     );
 
-    if (snapshot.root?.toLowerCase() !== latest.root?.toLowerCase()) {
+    if (
+      !snapshot.root ||
+      !latest.root ||
+      snapshot.root.toLowerCase() !== latest.root.toLowerCase()
+    ) {
       throw new Error("Snapshot/root mismatch");
     }
 
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-
-    if ((await provider.getNetwork()).chainId !== 56n) {
-      throw new Error("Expected BSC mainnet (56)");
+    if (!Array.isArray(snapshot.users)) {
+      throw new Error("Invalid snapshot users");
     }
 
-    const payout = new ethers.Contract(payoutAddress, PAYOUT_ABI, provider);
-    const currentRoot = await payout.merkleRoot();
+    // ==================================================
+    // BSC PROVIDER — DISABLE BATCHING
+    // ==================================================
 
-    if (currentRoot.toLowerCase() !== latest.root.toLowerCase()) {
+    const provider = new ethers.JsonRpcProvider(
+      rpcUrl,
+      56,
+      {
+        batchMaxCount: 1,
+        staticNetwork: true,
+      }
+    );
+
+    const payout = new ethers.Contract(
+      payoutAddress,
+      PAYOUT_ABI,
+      provider
+    );
+
+    // ==================================================
+    // VERIFY PUBLISHED ROOT
+    // ==================================================
+
+    const currentRoot = await merkleRpcCall(
+      () => payout.merkleRoot(),
+      "Read published Merkle root"
+    );
+
+    if (
+      currentRoot.toLowerCase() !==
+      latest.root.toLowerCase()
+    ) {
       return res.status(409).json({
         success: false,
-        message: "Snapshot does not match the published on-chain Merkle root.",
+        message:
+          "Snapshot does not match the published on-chain Merkle root.",
       });
     }
 
-    const memberIds = snapshot.users.map(u => Number(u.user_id));
+    // ==================================================
+    // LOAD MEMBER INFORMATION
+    // ==================================================
+
+    const memberIds = [
+      ...new Set(
+        snapshot.users.map((user) =>
+          Number(user.user_id)
+        )
+      ),
+    ];
 
     const [memberRows] = memberIds.length
       ? await db.query(
-        `SELECT id, user_id, name
-       FROM member
-       WHERE id IN (?)`,
-        [memberIds]
-      )
+          `
+          SELECT
+            id,
+            user_id,
+            name
+          FROM member
+          WHERE id IN (?)
+          `,
+          [memberIds]
+        )
       : [[]];
 
     const memberMap = new Map(
-      memberRows.map(m => [Number(m.id), m])
+      memberRows.map((member) => [
+        Number(member.id),
+        member,
+      ])
     );
 
+    // ==================================================
+    // READ CLAIMED AND QUEUED USDT
+    // ==================================================
 
     const users = [];
+
     let unclaimedTotal = 0n;
     let queuedTotal = 0n;
 
-    for (let i = 0; i < snapshot.users.length; i += 10) {
-      const chunk = snapshot.users.slice(i, i + 10);
+    // Process sequentially to avoid a burst of eth_call.
+    // Increase concurrency only after verifying RPC limits.
+    for (const user of snapshot.users) {
+      const wallet = ethers.getAddress(user.wallet);
 
-      const batch = await Promise.all(
-        chunk.map(async (u) => {
-          const wallet = ethers.getAddress(u.wallet);
-
-          const [claimed, queued] = await Promise.all([
-            payout.usdtClaimed(wallet),
-            payout.queuedUSDT(wallet),
-          ]);
-
-          const cumulative = BigInt(u.cumulative_usdt_income_wei);
-
-          if (cumulative < claimed) {
-            throw new Error(`Claimed exceeds snapshot entitlement: ${wallet}`);
-          }
-
-          return {
-            userId: u.user_id,
-            wallet,
-            cumulative,
-            claimed,
-            queued,
-            cumulativeEwc: u.cumulative_roi_ewc,
-          };
-        })
+      const cumulative = BigInt(
+        user.cumulative_usdt_income_wei
       );
 
-      for (const u of batch) {
-        const unclaimed = u.cumulative - u.claimed;
+      const claimed = BigInt(
+        await merkleRpcCall(
+          () => payout.usdtClaimed(wallet),
+          `Read claimed USDT for ${wallet}`
+        )
+      );
 
-        unclaimedTotal += unclaimed;
-        queuedTotal += u.queued;
+      // Small spacing between normal successful RPC reads.
+      await merkleRpcSleep(150);
 
-        users.push({
-          userId: memberMap.get(Number(u.userId))?.user_id || String(u.userId),
-          memberId: Number(u.userId),
-          name: memberMap.get(Number(u.userId))?.name || "",
-          wallet: u.wallet,
-          cumulativeUsdt: ethers.formatUnits(u.cumulative, 18),
-          claimedUsdt: ethers.formatUnits(u.claimed, 18),
-          unclaimedUsdt: ethers.formatUnits(unclaimed, 18),
-          queuedUsdt: ethers.formatUnits(u.queued, 18),
-          cumulativeEwc: u.cumulativeEwc,
-        });
+      const queued = BigInt(
+        await merkleRpcCall(
+          () => payout.queuedUSDT(wallet),
+          `Read queued USDT for ${wallet}`
+        )
+      );
+
+      if (cumulative < claimed) {
+        throw new Error(
+          `Claimed exceeds snapshot entitlement: ${wallet}`
+        );
       }
+
+      const unclaimed = cumulative - claimed;
+
+      unclaimedTotal += unclaimed;
+      queuedTotal += queued;
+
+      const member = memberMap.get(
+        Number(user.user_id)
+      );
+
+      users.push({
+        userId:
+          member?.user_id ||
+          String(user.user_id),
+
+        memberId: Number(user.user_id),
+
+        name: member?.name || "",
+
+        wallet,
+
+        cumulativeUsdt: ethers.formatUnits(
+          cumulative,
+          18
+        ),
+
+        claimedUsdt: ethers.formatUnits(
+          claimed,
+          18
+        ),
+
+        unclaimedUsdt: ethers.formatUnits(
+          unclaimed,
+          18
+        ),
+
+        queuedUsdt: ethers.formatUnits(
+          queued,
+          18
+        ),
+
+        cumulativeEwc: user.cumulative_roi_ewc,
+      });
+
+      // Prevent immediate back-to-back wallet reads.
+      await merkleRpcSleep(150);
     }
+
+    // ==================================================
+    // SUCCESS RESPONSE
+    // ==================================================
 
     return res.status(200).json({
       success: true,
+
       data: {
         snapshotId: latest.snapshot_id,
         root: latest.root,
         publishedTransaction: latest.tx_hash,
+
         totals: {
-          unclaimedUsdt: ethers.formatUnits(unclaimedTotal, 18),
-          queuedUsdt: ethers.formatUnits(queuedTotal, 18),
+          unclaimedUsdt: ethers.formatUnits(
+            unclaimedTotal,
+            18
+          ),
+
+          queuedUsdt: ethers.formatUnits(
+            queuedTotal,
+            18
+          ),
         },
+
         users,
       },
     });
   } catch (error) {
-    console.error("Admin Merkle overview error:", error);
+    console.error(
+      "Admin Merkle overview error:",
+      error
+    );
+
     return res.status(500).json({
       success: false,
       message: "Unable to load published Merkle claims.",
     });
   }
 };
+
 
 module.exports = {
   getWithdrawalSummary,
