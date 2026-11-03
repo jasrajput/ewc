@@ -675,6 +675,12 @@ async function processDepositEvent(event) {
                 [ownQualification.rank, member.id]
             );
 
+            await recordRankAchievement(
+                connection,
+                member.id,
+                ownQualification.rank
+            );
+
             await syncAllowanceRank(
                 connection,
                 member.id,
@@ -866,6 +872,49 @@ async function calculateQualifiedRank(connection, memberId) {
     };
 }
 
+
+
+async function recordRankAchievement(connection, memberId, newRank) {
+    const rank = Number(newRank);
+
+    if (!Number.isInteger(rank) || rank < 1 || rank > 12) {
+        throw new Error(`Invalid achieved rank: ${newRank}`);
+    }
+
+    // Avoid duplicate records for the same achieved rank.
+    const [existing] = await connection.execute(
+        `SELECT id
+         FROM achieved_level
+         WHERE member_id = ?
+           AND level_achieved = ?
+         LIMIT 1`,
+        [memberId, rank]
+    );
+
+    if (existing.length > 0) return;
+
+    await connection.execute(
+        `INSERT INTO achieved_level
+         (
+             member_id,
+             level_achieved,
+             level_amount,
+             reward,
+             status,
+             created_on,
+             \`rank\`,
+             pool
+         )
+         VALUES (?, ?, NULL, NULL, 0, NOW(), ?, 0)`,
+        [
+            memberId,
+            rank,
+            `E-${String(rank).padStart(2, "0")}`
+        ]
+    );
+}
+
+
 async function updateUplineRanks(connection, member) {
     let parentUserId = member.real_sponsor_id;
 
@@ -916,6 +965,12 @@ async function updateUplineRanks(connection, member) {
                 WHERE id = ?
                 `,
                 [result.rank, parent.id]
+            );
+
+            await recordRankAchievement(
+                connection,
+                parent.id,
+                result.rank
             );
 
             await syncAllowanceRank(
