@@ -66,6 +66,7 @@ jobs:
             --exclude='.env' \
             --exclude='.env.*' \
             --exclude='node_modules/' \
+            --exclude='merkle_snapshots/' \
             --exclude='logs/' \
             --exclude='*.log' \
             ./closing-node/ ubuntu@13.206.187.201:/var/www/ewc/closing-node/

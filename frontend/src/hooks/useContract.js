@@ -1,5 +1,5 @@
 import { useReadContract, useWriteContract } from "wagmi";
-import { STAKING_ADDRESS, TOKEN_ADDRESS, TOKEN_ABI, USDT_ADDRESS } from "../contracts/config";
+import { PRESALE_ADDRESS, TOKEN_ADDRESS, TOKEN_ABI, USDT_ADDRESS } from "../contracts/config";
 
 // ── READ: USDT balance
 export const useUSDTBalance = (address) => {
@@ -29,7 +29,7 @@ export const useTokenAllowance = (ownerAddress) => {
     address: TOKEN_ADDRESS,
     abi: TOKEN_ABI,
     functionName: "allowance",
-    args: ownerAddress ? [ownerAddress, STAKING_ADDRESS] : undefined,
+    args: ownerAddress ? [ownerAddress, PRESALE_ADDRESS] : undefined,
     query: { enabled: !!ownerAddress },
   });
 };
@@ -40,7 +40,7 @@ export const useUSDTAllowance = (ownerAddress) => {
     address: USDT_ADDRESS,
     abi: TOKEN_ABI,
     functionName: "allowance",
-    args: ownerAddress ? [ownerAddress, STAKING_ADDRESS] : undefined,
+    args: ownerAddress ? [ownerAddress, PRESALE_ADDRESS] : undefined,
     query: { enabled: !!ownerAddress },
   });
 };
