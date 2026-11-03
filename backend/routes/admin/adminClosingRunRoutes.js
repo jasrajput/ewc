@@ -1,7 +1,7 @@
 const express = require("express");
 
 const {
-  getClosingRunSummary,
+  getClosingRunsSummary,
   getClosingRuns,
   getClosingRunDetails,
 } = require(
@@ -17,7 +17,7 @@ const router = express.Router();
 router.use(adminAuthMiddleware);
 
 // Summary must remain before /:id
-router.get("/summary", getClosingRunSummary);
+router.get("/summary", getClosingRunsSummary);
 
 router.get("/", getClosingRuns);
 
