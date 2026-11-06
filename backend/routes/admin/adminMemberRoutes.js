@@ -6,6 +6,7 @@ const {
   updateMemberProfile,
   updateMemberStatus,
   updateMemberRoiStatus,
+  updateMemberRank
 } = require(
   "../../controllers/admin/adminMemberController"
 );
@@ -47,6 +48,8 @@ router.patch(
   "/:id/roi-status",
   updateMemberRoiStatus
 );
+
+router.patch("/:id/rank", updateMemberRank);
 
 
 module.exports = router;

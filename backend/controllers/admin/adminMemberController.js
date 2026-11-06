@@ -1622,10 +1622,155 @@ const updateMemberRoiStatus = async (req, res) => {
   }
 };
 
+
+
+// =========================================================
+// MANUAL RANK UPGRADE
+// =========================================================
+
+const updateMemberRank = async (req, res) => {
+  const memberId = Number(req.params.id);
+  const newRank = Number(req.body.rank);
+
+  if (
+    !Number.isSafeInteger(memberId) ||
+    memberId <= 0 ||
+    !Number.isInteger(newRank) ||
+    newRank < 1 ||
+    newRank > 12
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid member ID or rank.",
+    });
+  }
+
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    await connection.beginTransaction();
+
+    // Get member and lock row
+    const [members] = await connection.query(
+      `SELECT id, user_id, level_achieved
+       FROM member
+       WHERE id = ?
+       FOR UPDATE`,
+      [memberId]
+    );
+
+    if (!members.length) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Member not found.",
+      });
+    }
+
+    const member = members[0];
+    const oldRank = Number(member.level_achieved || 0);
+
+    if (newRank <= oldRank) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "New rank must be higher than current rank.",
+      });
+    }
+
+    // 1. Update member rank
+    await connection.query(
+      `UPDATE member
+       SET level_achieved = ?
+       WHERE id = ?`,
+      [newRank, memberId]
+    );
+
+    // 2. Insert rank achievement (if not already recorded)
+    await connection.query(
+      `INSERT INTO achieved_level (
+         member_id,
+         level_achieved,
+         level_amount,
+         reward,
+         status,
+         created_on,
+         \`rank\`,
+         pool
+       )
+       SELECT
+         ?, ?, NULL, NULL, 0, NOW(), ?, 0
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM achieved_level
+         WHERE member_id = ?
+           AND level_achieved = ?
+       )`,
+      [
+        memberId,
+        newRank,
+        `E-${String(newRank).padStart(2, "0")}`,
+        memberId,
+        newRank,
+      ]
+    );
+
+    await connection.commit();
+
+    // Admin audit log
+    try {
+      await logAdminAction({
+        req,
+        action: "MEMBER_RANK_UPGRADED",
+        entityType: "member",
+        entityId: memberId,
+        entityUserId: member.user_id,
+        fieldName: "level_achieved",
+        oldValue: oldRank,
+        newValue: newRank,
+        description: `Member manually upgraded from E-${String(oldRank).padStart(2, "0")} to E-${String(newRank).padStart(2, "0")}.`,
+      });
+    } catch (auditError) {
+      console.error("Rank upgrade audit error:", auditError);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Member rank upgraded successfully.",
+      data: {
+        id: memberId,
+        user_id: member.user_id,
+        oldRank,
+        newRank,
+      },
+    });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+
+    console.error("Manual rank update error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update member rank.",
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
+
 module.exports = {
   getMembers,
   getMemberDetails,
   updateMemberProfile,
   updateMemberStatus,
   updateMemberRoiStatus,
+  updateMemberRank
 };
