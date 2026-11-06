@@ -21,6 +21,9 @@ import NetworkTree from "./pages/Network/NetworkTree";
 import Rank from "./pages/Rank/Rank";
 import MonthlyAllowance from "./pages/Rank/MonthlyAllowance";
 
+import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword/ResetPassword";
+
 import Withdrawal from "./pages/Withdrawal/Withdrawal";
 import WithdrawalHistory from "./pages/Withdrawal/WithdrawalHistory";
 
@@ -67,6 +70,9 @@ function App() {
           path="*"
           element={<Navigate to="/login" replace />}
         />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
 
         <Route element={<ProtectedRoute />}>
