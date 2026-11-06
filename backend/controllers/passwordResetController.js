@@ -21,6 +21,18 @@ const validToken = (token) =>
 // REQUEST PASSWORD RESET
 // =====================================================
 
+const maskEmail = (email) => {
+  const value = String(email || "").trim();
+
+  if (value.length <= 8) {
+    return "***";
+  }
+
+  return `${value.slice(0, 3)}${"*".repeat(
+    Math.max(3, value.length - 8)
+  )}${value.slice(-5)}`;
+};
+
 const forgotPassword = async (req, res) => {
   const identifier = String(
     req.body?.identifier || req.body?.email || ""
@@ -32,6 +44,8 @@ const forgotPassword = async (req, res) => {
       message: "Enter your username or registered email address.",
     });
   }
+
+  let maskedEmail = null;
 
   try {
     // Find member using username or email.
@@ -53,6 +67,9 @@ const forgotPassword = async (req, res) => {
 
     if (members.length) {
       const member = members[0];
+      maskedEmail = member.email
+        ? maskEmail(member.email)
+        : null;
 
       // Only send reset emails to registered addresses.
       if (
@@ -121,6 +138,7 @@ const forgotPassword = async (req, res) => {
   return res.status(200).json({
     success: true,
     message: GENERIC_MESSAGE,
+    maskedEmail,
   });
 };
 

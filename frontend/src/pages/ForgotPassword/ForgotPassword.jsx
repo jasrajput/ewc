@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -20,6 +19,7 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [maskedEmail, setMaskedEmail] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,23 +34,23 @@ const ForgotPassword = () => {
     setLoading(true);
     setMessage("");
     setError("");
+    setMaskedEmail(null);
 
     try {
-      const response = await api.post(
-        "/auth/password-reset/forgot",
-        {
-          identifier: value,
-        }
-      );
+      const response = await api.post("/auth/password-reset/forgot", {
+        identifier: value,
+      });
 
       setMessage(
         response.data.message ||
-          "If an account exists with those details, a password reset link will be sent to its registered email."
+          "If an account exists with those details, a password reset link will be sent to its registered email.",
       );
+
+      setMaskedEmail(response.data.maskedEmail || null);
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to process your request. Please try again."
+          "Unable to process your request. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -87,18 +87,23 @@ const ForgotPassword = () => {
               </div>
 
               <h1>Check Your Email</h1>
+              {maskedEmail && (
+                <div className={styles.maskedEmailBox}>
+                  <Mail size={20} />
 
-              <p className={styles.resultDescription}>
-                {message}
-              </p>
+                  <span>Password reset email requested for</span>
+
+                  <strong>{maskedEmail}</strong>
+                </div>
+              )}
+
+              <p className={styles.resultDescription}>{message}</p>
 
               <div className={styles.emailNotice}>
                 <Mail size={19} />
-
                 <span>
-                  If the account has a registered email,
-                  check its inbox and spam folder for a
-                  message from EWC Support.
+                  Check your inbox and spam folder for a message from EWC
+                  Support. The reset link expires in 15 minutes.
                 </span>
               </div>
 
@@ -106,15 +111,12 @@ const ForgotPassword = () => {
                 <ShieldCheck size={17} />
 
                 <span>
-                  Password reset links expire after
-                  15 minutes and can only be used once.
+                  Password reset links expire after 15 minutes and can only be
+                  used once.
                 </span>
               </div>
 
-              <Link
-                to="/login"
-                className={styles.primaryButton}
-              >
+              <Link to="/login" className={styles.primaryButton}>
                 <span>Back to Sign In</span>
                 <ArrowRight size={19} />
               </Link>
@@ -126,6 +128,7 @@ const ForgotPassword = () => {
                   setIdentifier("");
                   setMessage("");
                   setError("");
+                  setMaskedEmail(null);
                 }}
               >
                 Try another username or email
@@ -142,32 +145,22 @@ const ForgotPassword = () => {
                 <h1>Forgot Password?</h1>
 
                 <p>
-                  Enter your EWC username or registered
-                  email address. We'll send a secure
-                  password reset link to your registered
-                  email.
+                  Enter your EWC username or registered email address. We'll
+                  send a secure password reset link to your registered email.
                 </p>
               </div>
 
               {/* FORM */}
-              <form
-                className={styles.form}
-                onSubmit={handleSubmit}
-              >
+              <form className={styles.form} onSubmit={handleSubmit}>
                 {error && (
-                  <div
-                    className={styles.errorMessage}
-                    role="alert"
-                  >
+                  <div className={styles.errorMessage} role="alert">
                     <AlertCircle size={17} />
                     <span>{error}</span>
                   </div>
                 )}
 
                 <div className={styles.formGroup}>
-                  <label htmlFor="identifier">
-                    Username or Email
-                  </label>
+                  <label htmlFor="identifier">Username or Email</label>
 
                   <div className={styles.inputWrapper}>
                     <UserRound
@@ -199,9 +192,8 @@ const ForgotPassword = () => {
                   <ShieldCheck size={17} />
 
                   <span>
-                    For your security, the reset link will
-                    only be sent to the registered email
-                    address of your EWC account.
+                    For your security, the reset link will only be sent to the
+                    registered email address of your EWC account.
                   </span>
                 </div>
 
@@ -211,17 +203,10 @@ const ForgotPassword = () => {
                   disabled={loading}
                 >
                   <span>
-                    {loading
-                      ? "Sending Reset Link..."
-                      : "Send Reset Link"}
+                    {loading ? "Sending Reset Link..." : "Send Reset Link"}
                   </span>
 
-                  {!loading && (
-                    <ArrowRight
-                      size={19}
-                      strokeWidth={2.2}
-                    />
-                  )}
+                  {!loading && <ArrowRight size={19} strokeWidth={2.2} />}
                 </button>
               </form>
 
@@ -232,10 +217,7 @@ const ForgotPassword = () => {
                 <span />
               </div>
 
-              <Link
-                to="/login"
-                className={styles.backLink}
-              >
+              <Link to="/login" className={styles.backLink}>
                 <ArrowLeft size={16} />
                 Back to Sign In
               </Link>
@@ -250,8 +232,8 @@ const ForgotPassword = () => {
         </section>
 
         <p className={styles.footer}>
-          © {new Date().getFullYear()} Elevate World
-          Community. All rights reserved.
+          © {new Date().getFullYear()} Elevate World Community. All rights
+          reserved.
         </p>
       </div>
     </main>
