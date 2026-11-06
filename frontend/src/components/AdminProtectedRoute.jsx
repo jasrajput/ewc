@@ -12,7 +12,7 @@ const AdminProtectedRoute = () => {
     return (
       <Navigate
         to="/admin/login"
-        replace
+        replace 
       />
     );
   }
