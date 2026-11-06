@@ -6,6 +6,7 @@ import {
   Eye,
   Network,
   Pencil,
+  TrendingUp,
   ShieldCheck,
   UserCheck,
   UserRoundX,
@@ -76,6 +77,11 @@ const AdminMembers = () => {
   const [statusMember, setStatusMember] = useState(null);
 
   const [statusLoading, setStatusLoading] = useState(false);
+
+  const [rankMember, setRankMember] = useState(null);
+  const [selectedRank, setSelectedRank] = useState("");
+  const [rankLoading, setRankLoading] = useState(false);
+  const [rankError, setRankError] = useState("");
 
   // ========================================
   // SEARCH DEBOUNCE
@@ -239,6 +245,40 @@ const AdminMembers = () => {
       );
     } finally {
       setStatusLoading(false);
+    }
+  };
+
+  // ========================================
+  // MANUAL RANK UPGRADE
+  // ========================================
+
+  const openRankModal = (member) => {
+    setRankMember(member);
+    setSelectedRank("");
+    setRankError("");
+  };
+
+  const confirmRankUpdate = async () => {
+    if (!rankMember || !selectedRank) return;
+
+    setRankLoading(true);
+    setRankError("");
+
+    try {
+      await adminApi.patch(`/admin/members/${rankMember.id}/rank`, {
+        rank: Number(selectedRank),
+      });
+
+      setRankMember(null);
+      setSelectedRank("");
+      await fetchMembers();
+    } catch (err) {
+      console.error("Manual rank update error:", err);
+      setRankError(
+        err.response?.data?.message || "Unable to update member rank."
+      );
+    } finally {
+      setRankLoading(false);
     }
   };
 
@@ -432,6 +472,12 @@ const AdminMembers = () => {
               label: "Edit User",
               icon: Pencil,
               onClick: () => navigate(`/admin/members/${member.id}/edit`),
+            },
+
+            {
+              label: "Update Rank",
+              icon: TrendingUp,
+              onClick: () => openRankModal(member),
             },
 
             {
@@ -643,6 +689,86 @@ const AdminMembers = () => {
           onPageChange={setPage}
         />
       )}
+
+      <AdminModal
+        open={Boolean(rankMember)}
+        onClose={() => {
+          if (!rankLoading) setRankMember(null);
+        }}
+        size="small"
+        title="Manual Rank Upgrade"
+        description="Update the member's current rank and add an achievement record. This does not add business volume or credit salary."
+        footer={
+          <>
+            <AdminButton
+              variant="secondary"
+              disabled={rankLoading}
+              onClick={() => setRankMember(null)}
+            >
+              Cancel
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              disabled={rankLoading || !selectedRank}
+              onClick={confirmRankUpdate}
+            >
+              {rankLoading ? "Updating..." : "Update Rank"}
+            </AdminButton>
+          </>
+        }
+      >
+        {rankMember && (
+          <div style={{ display: "grid", gap: 14 }}>
+            <div className={styles.confirmMember}>
+              <div className={styles.confirmAvatar}>
+                {String(rankMember.name || rankMember.user_id)
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
+              <div>
+                <strong>{rankMember.name || rankMember.user_id}</strong>
+                <span>{rankMember.user_id}</span>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              <label htmlFor="manual-rank-select">
+                Select new rank
+              </label>
+              <select
+                id="manual-rank-select"
+                value={selectedRank}
+                disabled={rankLoading}
+                onChange={(event) => {
+                  setSelectedRank(event.target.value);
+                  setRankError("");
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  background: "#151b26",
+                  border: "1px solid #475569",
+                  color: "#fff",
+                }}
+              >
+                <option value="">Choose rank</option>
+                {Array.from({ length: 12 }, (_, index) => index + 1).map(
+                  (rank) => (
+                    <option key={rank} value={rank}>
+                      {`E-${String(rank).padStart(2, "0")}`}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            {rankError && (
+              <div className={styles.error}>{rankError}</div>
+            )}
+          </div>
+        )}
+      </AdminModal>
 
       <AdminModal
         open={Boolean(statusMember)}

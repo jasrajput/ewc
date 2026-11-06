@@ -33,7 +33,7 @@ import Notifications from "./pages/Notifications/Notifications";
 // Admin
 import AdminLogin from "./pages/Admin/Login/AdminLogin";
 import AdminDashboard from "./pages/Admin/Dashboard/AdminDashboard";
-import AdminMembers from "./pages/Admin/Members/AdminMembers";
+import AdminMembers from "./pages/Admin/Members/AdminMembersOld";
 import AdminMemberDetails from "./pages/Admin/Members/AdminMemberDetails";
 import AdminEditMember from "./pages/Admin/Members/AdminEditMember";
 import AdminAuditLogs from "./pages/Admin/AuditLogs/AdminAuditLogs";
