@@ -1,7 +1,19 @@
 
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import {
+  LockKeyhole,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
+
 import api from "../../services/api";
+import styles from "./ResetPassword.module.css";
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -9,6 +21,10 @@ const ResetPassword = () => {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -17,8 +33,18 @@ const ResetPassword = () => {
     e.preventDefault();
     setError("");
 
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
+      return;
+    }
+
+    if (!token) {
+      setError("Invalid password reset link.");
       return;
     }
 
@@ -37,7 +63,7 @@ const ResetPassword = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        "Unable to reset password."
+          "Unable to reset password. Please try again."
       );
     } finally {
       setLoading(false);
@@ -45,156 +71,270 @@ const ResetPassword = () => {
   };
 
   return (
-    <main style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.brand}>EWC</div>
+    <main className={styles.resetPage}>
+      <div className={styles.gridBackground} />
+      <div className={styles.glowOne} />
+      <div className={styles.glowTwo} />
 
-        <h2 style={{ margin: 0 }}>
-          {success ? "Password Updated" : "Reset Password"}
-        </h2>
+      <div className={styles.pageContent}>
+        {/* BRAND */}
+        <Link to="/" className={styles.brand}>
+          <img
+            src="/logo.png"
+            alt="Elevate World Community"
+            className={styles.logo}
+          />
+        </Link>
 
-        {success ? (
-          <>
-            <p style={styles.muted}>
-              Your password has been changed successfully.
-            </p>
+        <section className={styles.resetCard}>
+          <div className={styles.cardAccent} />
 
-            <Link to="/login" style={styles.link}>
-              Go to Login
-            </Link>
-          </>
-        ) : !token ? (
-          <>
-            <p style={styles.error}>
-              Password reset link is missing or invalid.
-            </p>
+          {success ? (
+            <div className={styles.resultState}>
+              <div className={styles.successIcon}>
+                <CheckCircle2 size={27} />
+              </div>
 
-            <Link to="/forgot-password" style={styles.link}>
-              Request New Link
-            </Link>
-          </>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            style={styles.form}
-          >
-            <p style={styles.muted}>
-              Choose a new password for your EWC account.
-            </p>
+              <h1>Password Updated!</h1>
 
-            {error && (
-              <div style={styles.error}>{error}</div>
-            )}
+              <p className={styles.resultDescription}>
+                Your password has been successfully reset.
+                You can now sign in to your EWC account
+                using your new password.
+              </p>
 
-            <label htmlFor="newPassword">
-              New Password
-            </label>
+              <div className={styles.successBox}>
+                <ShieldCheck size={19} />
+                <span>
+                  Your new password is now active.
+                </span>
+              </div>
 
-            <input
-              id="newPassword"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
-            />
+              <Link
+                to="/login"
+                className={styles.primaryButton}
+              >
+                <span>Back to Sign In</span>
+                <ArrowRight size={19} />
+              </Link>
+            </div>
+          ) : !token ? (
+            <div className={styles.resultState}>
+              <div className={styles.errorIcon}>
+                <AlertCircle size={26} />
+              </div>
 
-            <label htmlFor="confirmPassword">
-              Confirm New Password
-            </label>
+              <h1>Invalid Reset Link</h1>
 
-            <input
-              id="confirmPassword"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              style={styles.input}
-            />
+              <p className={styles.resultDescription}>
+                This password reset link is missing or
+                invalid. Please request a new link to
+                continue.
+              </p>
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={styles.button}
-            >
-              {loading ? "Updating..." : "Reset Password"}
-            </button>
+              <Link
+                to="/forgot-password"
+                className={styles.primaryButton}
+              >
+                <span>Request New Link</span>
+                <ArrowRight size={19} />
+              </Link>
 
-            <Link to="/login" style={styles.link}>
-              Back to Login
-            </Link>
-          </form>
-        )}
+              <Link to="/login" className={styles.backLink}>
+                <ArrowLeft size={16} />
+                Back to Sign In
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* HEADER */}
+              <div className={styles.cardHeader}>
+                <div className={styles.headerIcon}>
+                  <LockKeyhole size={22} />
+                </div>
+
+                <h1>Reset Password</h1>
+
+                <p>
+                  Create a new secure password for your
+                  EWC account.
+                </p>
+              </div>
+
+              {/* FORM */}
+              <form
+                className={styles.form}
+                onSubmit={handleSubmit}
+              >
+                {error && (
+                  <div
+                    className={styles.errorMessage}
+                    role="alert"
+                  >
+                    <AlertCircle size={17} />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="newPassword">
+                    New Password
+                  </label>
+
+                  <div className={styles.inputWrapper}>
+                    <LockKeyhole
+                      className={styles.inputIcon}
+                      size={19}
+                      strokeWidth={1.8}
+                    />
+
+                    <input
+                      id="newPassword"
+                      type={
+                        showPassword ? "text" : "password"
+                      }
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (error) setError("");
+                      }}
+                      placeholder="Enter new password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      required
+                    />
+
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() =>
+                        setShowPassword((prev) => !prev)
+                      }
+                      aria-label={
+                        showPassword
+                          ? "Hide password"
+                          : "Show password"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff size={19} />
+                      ) : (
+                        <Eye size={19} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="confirmPassword">
+                    Confirm New Password
+                  </label>
+
+                  <div className={styles.inputWrapper}>
+                    <LockKeyhole
+                      className={styles.inputIcon}
+                      size={19}
+                      strokeWidth={1.8}
+                    />
+
+                    <input
+                      id="confirmPassword"
+                      type={
+                        showConfirmPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (error) setError("");
+                      }}
+                      placeholder="Confirm new password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      required
+                    />
+
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() =>
+                        setShowConfirmPassword(
+                          (prev) => !prev
+                        )
+                      }
+                      aria-label={
+                        showConfirmPassword
+                          ? "Hide password"
+                          : "Show password"
+                      }
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff size={19} />
+                      ) : (
+                        <Eye size={19} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.passwordHint}>
+                  <ShieldCheck size={16} />
+                  <span>
+                    Use at least 8 characters for your new
+                    password.
+                  </span>
+                </div>
+
+                <button
+                  type="submit"
+                  className={styles.primaryButton}
+                  disabled={loading}
+                >
+                  <span>
+                    {loading
+                      ? "Updating Password..."
+                      : "Reset Password"}
+                  </span>
+
+                  {!loading && (
+                    <ArrowRight
+                      size={19}
+                      strokeWidth={2.2}
+                    />
+                  )}
+                </button>
+              </form>
+
+              <div className={styles.divider}>
+                <span />
+                <p>ACCOUNT SECURITY</p>
+                <span />
+              </div>
+
+              <Link
+                to="/login"
+                className={styles.backLink}
+              >
+                <ArrowLeft size={16} />
+                Back to Sign In
+              </Link>
+            </>
+          )}
+
+          <div className={styles.securityNote}>
+            <span className={styles.securityDot} />
+            Secure access to the EWC community platform
+          </div>
+        </section>
+
+        <p className={styles.footer}>
+          © {new Date().getFullYear()} Elevate World
+          Community. All rights reserved.
+        </p>
       </div>
     </main>
   );
-};
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    background: "#0b101b",
-    color: "#fff",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 420,
-    padding: 32,
-    borderRadius: 16,
-    background: "#141d2e",
-    border: "1px solid #293247",
-  },
-  brand: {
-    color: "#e8c76a",
-    fontSize: 24,
-    fontWeight: 800,
-    marginBottom: 20,
-  },
-  muted: {
-    color: "#a8b1c4",
-    lineHeight: 1.6,
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-    marginTop: 16,
-  },
-  input: {
-    padding: 14,
-    border: "1px solid #374158",
-    borderRadius: 8,
-    background: "#0b1220",
-    color: "#fff",
-    fontSize: 15,
-  },
-  button: {
-    background: "#e8c76a",
-    color: "#151515",
-    fontWeight: 700,
-    padding: 14,
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-  },
-  link: {
-    display: "block",
-    color: "#e8c76a",
-    textAlign: "center",
-    textDecoration: "none",
-    marginTop: 16,
-  },
-  error: {
-    color: "#fca5a5",
-  },
 };
 
 export default ResetPassword;
