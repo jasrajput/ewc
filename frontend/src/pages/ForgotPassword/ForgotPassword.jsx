@@ -1,7 +1,18 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  Mail,
+  ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  KeyRound,
+} from "lucide-react";
+
 import api from "../../services/api";
+import styles from "./ForgotPassword.module.css";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -11,6 +22,12 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     setError("");
@@ -18,14 +35,17 @@ const ForgotPassword = () => {
     try {
       const response = await api.post(
         "/auth/password-reset/forgot",
-        { email }
+        { email: email.trim() }
       );
 
-      setMessage(response.data.message);
+      setMessage(
+        response.data.message ||
+          "If an account exists with that email, a password reset link will be sent."
+      );
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        "Unable to process request."
+          "Unable to process your request. Please try again."
       );
     } finally {
       setLoading(false);
@@ -33,121 +53,192 @@ const ForgotPassword = () => {
   };
 
   return (
-    <main style={styles.page}>
-      <form onSubmit={handleSubmit} style={styles.card}>
-        <div style={styles.brand}>EWC</div>
+    <main className={styles.forgotPage}>
+      {/* Background */}
+      <div className={styles.gridBackground} />
+      <div className={styles.glowOne} />
+      <div className={styles.glowTwo} />
 
-        <h2 style={styles.title}>Forgot Password?</h2>
-
-        <p style={styles.subtitle}>
-          Enter your registered email address and we'll send
-          you a secure password reset link.
-        </p>
-
-        {message && (
-          <div style={styles.success}>{message}</div>
-        )}
-
-        {error && (
-          <div style={styles.error}>{error}</div>
-        )}
-
-        <label htmlFor="email" style={styles.label}>
-          Email Address
-        </label>
-
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter registered email"
-          required
-          autoComplete="email"
-          style={styles.input}
-        />
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={styles.button}
-        >
-          {loading ? "Sending..." : "Send Reset Link"}
-        </button>
-
-        <Link to="/login" style={styles.link}>
-          Back to Login
+      <div className={styles.pageContent}>
+        {/* Brand */}
+        <Link to="/" className={styles.brand}>
+          <img
+            src="/logo.png"
+            alt="Elevate World Community"
+            className={styles.logo}
+          />
         </Link>
-      </form>
+
+        {/* Forgot Password Card */}
+        <section className={styles.forgotCard}>
+          <div className={styles.cardAccent} />
+
+          {message ? (
+            <div className={styles.resultState}>
+              <div className={styles.successIcon}>
+                <CheckCircle2 size={27} />
+              </div>
+
+              <h1>Check Your Email</h1>
+
+              <p className={styles.resultDescription}>
+                {message}
+              </p>
+
+              <div className={styles.emailNotice}>
+                <Mail size={19} />
+                <span>
+                  Check your inbox and spam folder for an
+                  email from EWC Support.
+                </span>
+              </div>
+
+              <div className={styles.securityInfo}>
+                <ShieldCheck size={17} />
+                <span>
+                  Password reset links expire after 15
+                  minutes.
+                </span>
+              </div>
+
+              <Link
+                to="/login"
+                className={styles.primaryButton}
+              >
+                <span>Back to Sign In</span>
+                <ArrowRight size={19} />
+              </Link>
+
+              <button
+                type="button"
+                className={styles.tryAgainButton}
+                onClick={() => {
+                  setMessage("");
+                  setError("");
+                }}
+              >
+                Try another email address
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Header */}
+              <div className={styles.cardHeader}>
+                <div className={styles.headerIcon}>
+                  <KeyRound size={22} />
+                </div>
+
+                <h1>Forgot Password?</h1>
+
+                <p>
+                  No worries! Enter your registered email
+                  address and we'll send you a secure link
+                  to reset your password.
+                </p>
+              </div>
+
+              {/* Form */}
+              <form
+                className={styles.form}
+                onSubmit={handleSubmit}
+              >
+                {error && (
+                  <div
+                    className={styles.errorMessage}
+                    role="alert"
+                  >
+                    <AlertCircle size={17} />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="email">
+                    Email Address
+                  </label>
+
+                  <div className={styles.inputWrapper}>
+                    <Mail
+                      className={styles.inputIcon}
+                      size={19}
+                      strokeWidth={1.8}
+                    />
+
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+
+                        if (error) {
+                          setError("");
+                        }
+                      }}
+                      placeholder="Enter your registered email"
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.securityInfo}>
+                  <ShieldCheck size={17} />
+                  <span>
+                    We'll send a secure password reset link
+                    valid for 15 minutes.
+                  </span>
+                </div>
+
+                <button
+                  type="submit"
+                  className={styles.primaryButton}
+                  disabled={loading}
+                >
+                  <span>
+                    {loading
+                      ? "Sending Reset Link..."
+                      : "Send Reset Link"}
+                  </span>
+
+                  {!loading && (
+                    <ArrowRight
+                      size={19}
+                      strokeWidth={2.2}
+                    />
+                  )}
+                </button>
+              </form>
+
+              <div className={styles.divider}>
+                <span />
+                <p>REMEMBER YOUR PASSWORD?</p>
+                <span />
+              </div>
+
+              <Link
+                to="/login"
+                className={styles.backLink}
+              >
+                <ArrowLeft size={16} />
+                Back to Sign In
+              </Link>
+            </>
+          )}
+
+          <div className={styles.securityNote}>
+            <span className={styles.securityDot} />
+            Secure access to the EWC community platform
+          </div>
+        </section>
+
+        <p className={styles.footer}>
+          © {new Date().getFullYear()} Elevate World
+          Community. All rights reserved.
+        </p>
+      </div>
     </main>
   );
-};
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#0b101b",
-    padding: 20,
-    color: "#fff",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 420,
-    padding: 32,
-    background: "#141d2e",
-    border: "1px solid #293247",
-    borderRadius: 16,
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-  },
-  brand: {
-    color: "#e8c76a",
-    fontSize: 24,
-    fontWeight: 800,
-  },
-  title: {
-    margin: 0,
-    fontSize: 26,
-  },
-  subtitle: {
-    color: "#a8b1c4",
-    lineHeight: 1.6,
-  },
-  label: {
-    fontSize: 14,
-  },
-  input: {
-    padding: 14,
-    borderRadius: 8,
-    border: "1px solid #374158",
-    background: "#0b1220",
-    color: "#fff",
-    fontSize: 15,
-  },
-  button: {
-    padding: 14,
-    borderRadius: 9,
-    background: "#e8c76a",
-    color: "#151515",
-    border: "none",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  link: {
-    textAlign: "center",
-    color: "#e8c76a",
-    textDecoration: "none",
-  },
-  success: {
-    color: "#86efac",
-  },
-  error: {
-    color: "#fca5a5",
-  },
 };
 
 export default ForgotPassword;
