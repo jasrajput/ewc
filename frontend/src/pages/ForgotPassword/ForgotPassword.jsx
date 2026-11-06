@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  UserRound,
   Mail,
   ArrowRight,
   ArrowLeft,
@@ -15,7 +16,7 @@ import api from "../../services/api";
 import styles from "./ForgotPassword.module.css";
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -23,8 +24,10 @@ const ForgotPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!email.trim()) {
-      setError("Please enter your email address.");
+    const value = identifier.trim();
+
+    if (!value) {
+      setError("Please enter your username or email address.");
       return;
     }
 
@@ -35,12 +38,14 @@ const ForgotPassword = () => {
     try {
       const response = await api.post(
         "/auth/password-reset/forgot",
-        { email: email.trim() }
+        {
+          identifier: value,
+        }
       );
 
       setMessage(
         response.data.message ||
-          "If an account exists with that email, a password reset link will be sent."
+          "If an account exists with those details, a password reset link will be sent to its registered email."
       );
     } catch (err) {
       setError(
@@ -54,13 +59,13 @@ const ForgotPassword = () => {
 
   return (
     <main className={styles.forgotPage}>
-      {/* Background */}
+      {/* BACKGROUND */}
       <div className={styles.gridBackground} />
       <div className={styles.glowOne} />
       <div className={styles.glowTwo} />
 
       <div className={styles.pageContent}>
-        {/* Brand */}
+        {/* EWC LOGO */}
         <Link to="/" className={styles.brand}>
           <img
             src="/logo.png"
@@ -69,11 +74,13 @@ const ForgotPassword = () => {
           />
         </Link>
 
-        {/* Forgot Password Card */}
         <section className={styles.forgotCard}>
           <div className={styles.cardAccent} />
 
           {message ? (
+            // =========================================
+            // SUCCESS SCREEN
+            // =========================================
             <div className={styles.resultState}>
               <div className={styles.successIcon}>
                 <CheckCircle2 size={27} />
@@ -87,17 +94,20 @@ const ForgotPassword = () => {
 
               <div className={styles.emailNotice}>
                 <Mail size={19} />
+
                 <span>
-                  Check your inbox and spam folder for an
-                  email from EWC Support.
+                  If the account has a registered email,
+                  check its inbox and spam folder for a
+                  message from EWC Support.
                 </span>
               </div>
 
               <div className={styles.securityInfo}>
                 <ShieldCheck size={17} />
+
                 <span>
-                  Password reset links expire after 15
-                  minutes.
+                  Password reset links expire after
+                  15 minutes and can only be used once.
                 </span>
               </div>
 
@@ -113,16 +123,17 @@ const ForgotPassword = () => {
                 type="button"
                 className={styles.tryAgainButton}
                 onClick={() => {
+                  setIdentifier("");
                   setMessage("");
                   setError("");
                 }}
               >
-                Try another email address
+                Try another username or email
               </button>
             </div>
           ) : (
             <>
-              {/* Header */}
+              {/* HEADER */}
               <div className={styles.cardHeader}>
                 <div className={styles.headerIcon}>
                   <KeyRound size={22} />
@@ -131,13 +142,14 @@ const ForgotPassword = () => {
                 <h1>Forgot Password?</h1>
 
                 <p>
-                  No worries! Enter your registered email
-                  address and we'll send you a secure link
-                  to reset your password.
+                  Enter your EWC username or registered
+                  email address. We'll send a secure
+                  password reset link to your registered
+                  email.
                 </p>
               </div>
 
-              {/* Form */}
+              {/* FORM */}
               <form
                 className={styles.form}
                 onSubmit={handleSubmit}
@@ -153,30 +165,31 @@ const ForgotPassword = () => {
                 )}
 
                 <div className={styles.formGroup}>
-                  <label htmlFor="email">
-                    Email Address
+                  <label htmlFor="identifier">
+                    Username or Email
                   </label>
 
                   <div className={styles.inputWrapper}>
-                    <Mail
+                    <UserRound
                       className={styles.inputIcon}
                       size={19}
                       strokeWidth={1.8}
                     />
 
                     <input
-                      id="email"
-                      type="email"
-                      value={email}
+                      id="identifier"
+                      type="text"
+                      value={identifier}
                       onChange={(e) => {
-                        setEmail(e.target.value);
+                        setIdentifier(e.target.value);
 
                         if (error) {
                           setError("");
                         }
                       }}
-                      placeholder="Enter your registered email"
-                      autoComplete="email"
+                      placeholder="Enter username or email"
+                      autoComplete="username"
+                      maxLength={254}
                       required
                     />
                   </div>
@@ -184,9 +197,11 @@ const ForgotPassword = () => {
 
                 <div className={styles.securityInfo}>
                   <ShieldCheck size={17} />
+
                   <span>
-                    We'll send a secure password reset link
-                    valid for 15 minutes.
+                    For your security, the reset link will
+                    only be sent to the registered email
+                    address of your EWC account.
                   </span>
                 </div>
 
@@ -210,6 +225,7 @@ const ForgotPassword = () => {
                 </button>
               </form>
 
+              {/* BACK TO LOGIN */}
               <div className={styles.divider}>
                 <span />
                 <p>REMEMBER YOUR PASSWORD?</p>
@@ -226,6 +242,7 @@ const ForgotPassword = () => {
             </>
           )}
 
+          {/* SECURITY FOOTER */}
           <div className={styles.securityNote}>
             <span className={styles.securityDot} />
             Secure access to the EWC community platform

@@ -22,79 +22,108 @@ const validToken = (token) =>
 // =====================================================
 
 const forgotPassword = async (req, res) => {
-  const email = String(req.body?.email || "")
-    .trim()
-    .toLowerCase();
+  const identifier = String(
+    req.body?.identifier || req.body?.email || ""
+  ).trim();
 
-  if (!email || email.length > 254 ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!identifier || identifier.length > 254) {
     return res.status(400).json({
       success: false,
-      message: "Enter a valid email address.",
+      message: "Enter your username or registered email address.",
     });
   }
 
   try {
-    // query() avoids the prepared statement collation
-    // issue previously encountered on the member table.
+    // Find member using username or email.
+    // db.query() avoids the previous prepared-statement
+    // collation conversion issue on the member table.
     const [members] = await db.query(
-      `SELECT id, email
-       FROM member
-       WHERE email = ?
-       LIMIT 1`,
-      [email]
+      `
+        SELECT
+          id,
+          user_id,
+          name,
+          email
+        FROM member
+        WHERE user_id = ? OR email = ?
+        LIMIT 1
+      `,
+      [identifier, identifier]
     );
 
     if (members.length) {
       const member = members[0];
 
-      const token = crypto.randomBytes(32).toString("hex");
-      const tokenHash = hashToken(token);
+      // Only send reset emails to registered addresses.
+      if (
+        member.email &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email)
+      ) {
+        const token = crypto.randomBytes(32).toString("hex");
+        const tokenHash = hashToken(token);
 
-      // Replace any previous reset links for this account.
-      await db.query(
-        "DELETE FROM password_reset_tokens WHERE member_id = ?",
-        [member.id]
-      );
+        const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, "");
 
-      await db.query(
-        `INSERT INTO password_reset_tokens
-         (member_id, token_hash, expires_at)
-         VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))`,
-        [member.id, tokenHash]
-      );
+        if (!frontendUrl) {
+          throw new Error("FRONTEND_URL is not configured.");
+        }
 
-      const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, "");
-
-      if (!frontendUrl) {
-        throw new Error("FRONTEND_URL is not configured.");
-      }
-
-      const resetLink =
-        `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
-
-      try {
-        await sendPasswordResetEmail(member.email, resetLink, member.name || "Member");
-      } catch (mailError) {
-        // Invalidate link if email delivery fails.
+        // Replace previous unused reset links.
         await db.query(
-          "DELETE FROM password_reset_tokens WHERE token_hash = ?",
-          [tokenHash]
+          `DELETE FROM password_reset_tokens
+           WHERE member_id = ?`,
+          [member.id]
         );
 
-        console.error("Password reset email error:", mailError);
+        // Save hashed token with 15-minute expiry.
+        await db.query(
+          `
+            INSERT INTO password_reset_tokens (
+              member_id,
+              token_hash,
+              expires_at
+            )
+            VALUES (
+              ?,
+              ?,
+              DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE)
+            )
+          `,
+          [member.id, tokenHash]
+        );
+
+        const resetLink =
+          `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+        try {
+          await sendPasswordResetEmail(
+            member.email,
+            resetLink,
+            member.name || member.user_id || "Member"
+          );
+        } catch (mailError) {
+          // Invalidate token if sending fails.
+          await db.query(
+            `DELETE FROM password_reset_tokens
+             WHERE token_hash = ?`,
+            [tokenHash]
+          );
+
+          console.error("Password reset email error:", mailError);
+        }
       }
     }
   } catch (error) {
     console.error("Forgot password error:", error);
   }
 
-  // Never disclose whether the email is registered.
+  // Never reveal whether an account exists.
   return res.status(200).json({
     success: true,
     message: GENERIC_MESSAGE,
   });
 };
+
 
 // =====================================================
 // RESET PASSWORD
@@ -194,12 +223,54 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const verifyResetToken = async (req, res) => {
+  const token = String(req.query.token || "");
+
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid password reset link.",
+    });
+  }
+
+  try {
+    const tokenHash = require("crypto")
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const [rows] = await db.query(
+      `SELECT id
+       FROM password_reset_tokens
+       WHERE token_hash = ?
+         AND expires_at > UTC_TIMESTAMP()
+       LIMIT 1`,
+      [tokenHash]
+    );
+
+    if (!rows.length) {
+      return res.status(400).json({
+        success: false,
+        message: "This reset link has expired or already been used.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Valid reset link.",
+    });
+  } catch (error) {
+    console.error("Reset token verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify reset link.",
+    });
+  }
+};
+
 module.exports = {
   forgotPassword,
   resetPassword,
+  verifyResetToken
 };
-
-// node -e 'require("dotenv").config(); require("nodemailer").createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT),secure:Number(process.env.SMTP_PORT)===465,auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_APP_PASSWORD}}).verify().then(()=>console.log("SMTP connection successful")).catch(e=>{console.error(e.message);process.exitCode=1})'
-// curl -i -X POST https://api.zenithalmart.live/api/auth/password-reset/forgot \
-//   -H "Content-Type: application/json" \
-//   -d '{"email":"jasrajput956@gmail.com"}'

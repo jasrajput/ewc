@@ -5,6 +5,7 @@ const { rateLimit } = require("express-rate-limit");
 const {
   forgotPassword,
   resetPassword,
+  verifyResetToken
 } = require("../controllers/passwordResetController");
 
 const router = express.Router();
@@ -33,5 +34,6 @@ const resetLimiter = rateLimit({
 
 router.post("/forgot", forgotLimiter, forgotPassword);
 router.post("/reset", resetLimiter, resetPassword);
+router.get("/verify", verifyResetToken);
 
 module.exports = router;

@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   LockKeyhole,
@@ -18,6 +17,8 @@ import styles from "./ResetPassword.module.css";
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const [verifying, setVerifying] = useState(true);
+  const [validLink, setValidLink] = useState(false);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,6 +29,46 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const verifyToken = async () => {
+      if (!token) {
+        setValidLink(false);
+        setVerifying(false);
+        return;
+      }
+
+      try {
+        await api.get("/auth/password-reset/verify", {
+          params: { token },
+        });
+
+        if (!cancelled) {
+          setValidLink(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setValidLink(false);
+          setError(
+            err.response?.data?.message ||
+              "This reset link is invalid or expired.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setVerifying(false);
+        }
+      }
+    };
+
+    verifyToken();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,7 +104,7 @@ const ResetPassword = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to reset password. Please try again."
+          "Unable to reset password. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -89,7 +130,14 @@ const ResetPassword = () => {
         <section className={styles.resetCard}>
           <div className={styles.cardAccent} />
 
-          {success ? (
+          {verifying ? (
+            <div className={styles.resultState}>
+              <h1>Verifying Link...</h1>
+              <p className={styles.resultDescription}>
+                Checking your password reset link.
+              </p>
+            </div>
+          ) : success ? (
             <div className={styles.resultState}>
               <div className={styles.successIcon}>
                 <CheckCircle2 size={27} />
@@ -98,27 +146,21 @@ const ResetPassword = () => {
               <h1>Password Updated!</h1>
 
               <p className={styles.resultDescription}>
-                Your password has been successfully reset.
-                You can now sign in to your EWC account
-                using your new password.
+                Your password has been successfully reset. You can now sign in
+                to your EWC account using your new password.
               </p>
 
               <div className={styles.successBox}>
                 <ShieldCheck size={19} />
-                <span>
-                  Your new password is now active.
-                </span>
+                <span>Your new password is now active.</span>
               </div>
 
-              <Link
-                to="/login"
-                className={styles.primaryButton}
-              >
+              <Link to="/login" className={styles.primaryButton}>
                 <span>Back to Sign In</span>
                 <ArrowRight size={19} />
               </Link>
             </div>
-          ) : !token ? (
+          ) : !validLink ? (
             <div className={styles.resultState}>
               <div className={styles.errorIcon}>
                 <AlertCircle size={26} />
@@ -127,15 +169,11 @@ const ResetPassword = () => {
               <h1>Invalid Reset Link</h1>
 
               <p className={styles.resultDescription}>
-                This password reset link is missing or
-                invalid. Please request a new link to
-                continue.
+                {error ||
+                  "This password reset link has expired or already been used."}
               </p>
 
-              <Link
-                to="/forgot-password"
-                className={styles.primaryButton}
-              >
+              <Link to="/forgot-password" className={styles.primaryButton}>
                 <span>Request New Link</span>
                 <ArrowRight size={19} />
               </Link>
@@ -155,31 +193,20 @@ const ResetPassword = () => {
 
                 <h1>Reset Password</h1>
 
-                <p>
-                  Create a new secure password for your
-                  EWC account.
-                </p>
+                <p>Create a new secure password for your EWC account.</p>
               </div>
 
               {/* FORM */}
-              <form
-                className={styles.form}
-                onSubmit={handleSubmit}
-              >
+              <form className={styles.form} onSubmit={handleSubmit}>
                 {error && (
-                  <div
-                    className={styles.errorMessage}
-                    role="alert"
-                  >
+                  <div className={styles.errorMessage} role="alert">
                     <AlertCircle size={17} />
                     <span>{error}</span>
                   </div>
                 )}
 
                 <div className={styles.formGroup}>
-                  <label htmlFor="newPassword">
-                    New Password
-                  </label>
+                  <label htmlFor="newPassword">New Password</label>
 
                   <div className={styles.inputWrapper}>
                     <LockKeyhole
@@ -190,9 +217,7 @@ const ResetPassword = () => {
 
                     <input
                       id="newPassword"
-                      type={
-                        showPassword ? "text" : "password"
-                      }
+                      type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value);
@@ -207,28 +232,18 @@ const ResetPassword = () => {
                     <button
                       type="button"
                       className={styles.passwordToggle}
-                      onClick={() =>
-                        setShowPassword((prev) => !prev)
-                      }
+                      onClick={() => setShowPassword((prev) => !prev)}
                       aria-label={
-                        showPassword
-                          ? "Hide password"
-                          : "Show password"
+                        showPassword ? "Hide password" : "Show password"
                       }
                     >
-                      {showPassword ? (
-                        <EyeOff size={19} />
-                      ) : (
-                        <Eye size={19} />
-                      )}
+                      {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                     </button>
                   </div>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label htmlFor="confirmPassword">
-                    Confirm New Password
-                  </label>
+                  <label htmlFor="confirmPassword">Confirm New Password</label>
 
                   <div className={styles.inputWrapper}>
                     <LockKeyhole
@@ -239,11 +254,7 @@ const ResetPassword = () => {
 
                     <input
                       id="confirmPassword"
-                      type={
-                        showConfirmPassword
-                          ? "text"
-                          : "password"
-                      }
+                      type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => {
                         setConfirmPassword(e.target.value);
@@ -258,15 +269,9 @@ const ResetPassword = () => {
                     <button
                       type="button"
                       className={styles.passwordToggle}
-                      onClick={() =>
-                        setShowConfirmPassword(
-                          (prev) => !prev
-                        )
-                      }
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
                       aria-label={
-                        showConfirmPassword
-                          ? "Hide password"
-                          : "Show password"
+                        showConfirmPassword ? "Hide password" : "Show password"
                       }
                     >
                       {showConfirmPassword ? (
@@ -280,10 +285,7 @@ const ResetPassword = () => {
 
                 <div className={styles.passwordHint}>
                   <ShieldCheck size={16} />
-                  <span>
-                    Use at least 8 characters for your new
-                    password.
-                  </span>
+                  <span>Use at least 8 characters for your new password.</span>
                 </div>
 
                 <button
@@ -292,17 +294,10 @@ const ResetPassword = () => {
                   disabled={loading}
                 >
                   <span>
-                    {loading
-                      ? "Updating Password..."
-                      : "Reset Password"}
+                    {loading ? "Updating Password..." : "Reset Password"}
                   </span>
 
-                  {!loading && (
-                    <ArrowRight
-                      size={19}
-                      strokeWidth={2.2}
-                    />
-                  )}
+                  {!loading && <ArrowRight size={19} strokeWidth={2.2} />}
                 </button>
               </form>
 
@@ -312,10 +307,7 @@ const ResetPassword = () => {
                 <span />
               </div>
 
-              <Link
-                to="/login"
-                className={styles.backLink}
-              >
+              <Link to="/login" className={styles.backLink}>
                 <ArrowLeft size={16} />
                 Back to Sign In
               </Link>
@@ -329,8 +321,8 @@ const ResetPassword = () => {
         </section>
 
         <p className={styles.footer}>
-          © {new Date().getFullYear()} Elevate World
-          Community. All rights reserved.
+          © {new Date().getFullYear()} Elevate World Community. All rights
+          reserved.
         </p>
       </div>
     </main>
