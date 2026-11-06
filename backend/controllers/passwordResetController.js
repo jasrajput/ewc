@@ -74,7 +74,7 @@ const forgotPassword = async (req, res) => {
         `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
       try {
-        await sendPasswordResetEmail(member.email, resetLink);
+        await sendPasswordResetEmail(member.email, resetLink, member.name || "Member");
       } catch (mailError) {
         // Invalidate link if email delivery fails.
         await db.query(
@@ -198,3 +198,8 @@ module.exports = {
   forgotPassword,
   resetPassword,
 };
+
+// node -e 'require("dotenv").config(); require("nodemailer").createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT),secure:Number(process.env.SMTP_PORT)===465,auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_APP_PASSWORD}}).verify().then(()=>console.log("SMTP connection successful")).catch(e=>{console.error(e.message);process.exitCode=1})'
+// curl -i -X POST https://api.zenithalmart.live/api/auth/password-reset/forgot \
+//   -H "Content-Type: application/json" \
+//   -d '{"email":"jasrajput956@gmail.com"}'
