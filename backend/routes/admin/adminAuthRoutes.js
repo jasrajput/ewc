@@ -15,4 +15,4 @@ router.post("/login", login);
 // Protected
 router.get("/me", adminAuthMiddleware, me);
 
-module.exports = router;
+module.exports = router; 

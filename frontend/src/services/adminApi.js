@@ -25,4 +25,4 @@ adminApi.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-export default adminApi;
+export default adminApi; 
