@@ -1,9 +1,61 @@
+
 import { useState } from "react";
 import { Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 
 import UserLayout from "../../components/layout/UserLayout";
 import api from "../../services/api";
 import styles from "./Security.module.css";
+
+// ======================================================
+// PASSWORD INPUT
+// Defined outside Security to prevent input focus loss.
+// ======================================================
+
+const PasswordInput = ({
+  label,
+  name,
+  value,
+  visible,
+  toggle,
+  onChange,
+}) => (
+  <div className={styles.formGroup}>
+    <label htmlFor={name}>{label}</label>
+
+    <div className={styles.passwordInput}>
+      <input
+        id={name}
+        type={visible ? "text" : "password"}
+        name={name}
+        value={value}
+        onChange={onChange}
+        autoComplete={
+          name === "currentPassword"
+            ? "current-password"
+            : "new-password"
+        }
+        required
+      />
+
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+      >
+        {visible ? (
+          <EyeOff size={17} />
+        ) : (
+          <Eye size={17} />
+        )}
+      </button>
+    </div>
+  </div>
+);
+
+// ======================================================
+// SECURITY PAGE
+// ======================================================
 
 const Security = () => {
   const [form, setForm] = useState({
@@ -22,33 +74,72 @@ const Security = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // ====================================================
+  // HANDLE INPUT CHANGE
+  // ====================================================
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
 
     setError("");
     setSuccess("");
   };
 
+  // ====================================================
+  // TOGGLE PASSWORD VISIBILITY
+  // ====================================================
+
+  const toggleVisibility = (field) => {
+    setShow((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  // ====================================================
+  // CHANGE PASSWORD
+  // ====================================================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (saving) return;
 
     setError("");
     setSuccess("");
 
+    const {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    } = form;
+
+    // Validate required fields
     if (
-      !form.currentPassword ||
-      !form.newPassword ||
-      !form.confirmPassword
+      !currentPassword ||
+      !newPassword ||
+      !confirmPassword
     ) {
       setError("All password fields are required.");
       return;
     }
 
-    if (form.newPassword !== form.confirmPassword) {
+    // Validate matching passwords
+    if (newPassword !== confirmPassword) {
       setError("New passwords do not match.");
+      return;
+    }
+
+    // Prevent reusing the current password
+    if (currentPassword === newPassword) {
+      setError(
+        "New password must be different from your current password."
+      );
       return;
     }
 
@@ -57,19 +148,44 @@ const Security = () => {
 
       const response = await api.put(
         "/account/password",
-        form
+        {
+          currentPassword,
+          newPassword,
+          confirmPassword,
+        }
       );
 
-      setSuccess(response.data.message);
+      if (response.data?.success === false) {
+        throw new Error(
+          response.data?.message ||
+          "Unable to update password."
+        );
+      }
 
+      setSuccess(
+        response.data?.message ||
+        "Password updated successfully."
+      );
+
+      // Clear fields after successful update
       setForm({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
+
+      // Hide passwords after successful update
+      setShow({
+        current: false,
+        new: false,
+        confirm: false,
+      });
     } catch (err) {
+      console.error("Password update error:", err);
+
       setError(
         err.response?.data?.message ||
+        err.message ||
         "Unable to update password."
       );
     } finally {
@@ -77,34 +193,9 @@ const Security = () => {
     }
   };
 
-  const PasswordInput = ({
-    label,
-    name,
-    visible,
-    toggle,
-  }) => (
-    <div className={styles.formGroup}>
-      <label>{label}</label>
-
-      <div className={styles.passwordInput}>
-        <input
-          type={visible ? "text" : "password"}
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          autoComplete="off"
-        />
-
-        <button type="button" onClick={toggle}>
-          {visible ? (
-            <EyeOff size={17} />
-          ) : (
-            <Eye size={17} />
-          )}
-        </button>
-      </div>
-    </div>
-  );
+  // ====================================================
+  // RENDER
+  // ====================================================
 
   return (
     <UserLayout
@@ -113,6 +204,8 @@ const Security = () => {
     >
       <div className={styles.container}>
         <section className={styles.settingsCard}>
+          {/* HEADER */}
+
           <div className={styles.cardHeader}>
             <div className={styles.iconBox}>
               <KeyRound size={21} />
@@ -120,12 +213,15 @@ const Security = () => {
 
             <div>
               <h2>Change Password</h2>
+
               <p>
                 Update the password used to access your
                 EWC account.
               </p>
             </div>
           </div>
+
+          {/* SECURITY NOTICE */}
 
           <div className={styles.securityNote}>
             <ShieldCheck size={18} />
@@ -136,54 +232,65 @@ const Security = () => {
             </span>
           </div>
 
+          {/* ERROR MESSAGE */}
+
           {error && (
-            <div className={styles.errorMessage}>
+            <div
+              className={styles.errorMessage}
+              role="alert"
+            >
               {error}
             </div>
           )}
 
+          {/* SUCCESS MESSAGE */}
+
           {success && (
-            <div className={styles.successMessage}>
+            <div
+              className={styles.successMessage}
+              role="status"
+            >
               {success}
             </div>
           )}
+
+          {/* PASSWORD FORM */}
 
           <form onSubmit={handleSubmit}>
             <PasswordInput
               label="Current Password"
               name="currentPassword"
+              value={form.currentPassword}
               visible={show.current}
+              onChange={handleChange}
               toggle={() =>
-                setShow((prev) => ({
-                  ...prev,
-                  current: !prev.current,
-                }))
+                toggleVisibility("current")
               }
             />
 
             <PasswordInput
               label="New Password"
               name="newPassword"
+              value={form.newPassword}
               visible={show.new}
+              onChange={handleChange}
               toggle={() =>
-                setShow((prev) => ({
-                  ...prev,
-                  new: !prev.new,
-                }))
+                toggleVisibility("new")
               }
             />
 
             <PasswordInput
               label="Confirm New Password"
               name="confirmPassword"
+              value={form.confirmPassword}
               visible={show.confirm}
+              onChange={handleChange}
               toggle={() =>
-                setShow((prev) => ({
-                  ...prev,
-                  confirm: !prev.confirm,
-                }))
+                toggleVisibility("confirm")
               }
             />
+
+            {/* SUBMIT BUTTON */}
 
             <button
               type="submit"
@@ -191,6 +298,7 @@ const Security = () => {
               disabled={saving}
             >
               <KeyRound size={17} />
+
               {saving
                 ? "Updating..."
                 : "Update Password"}
