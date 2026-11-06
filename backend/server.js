@@ -14,6 +14,7 @@ const supportRoutes = require("./routes/supportRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const investmentRoutes = require("./routes/investmentRoutes");
 const monthlyAllowanceRoutes = require("./routes/monthlyAllowanceRoutes");
+const passwordResetRoutes = require("./routes/passwordResetRoutes");
 
 const adminAuthRoutes = require("./routes/admin/adminAuthRoutes");
 const adminDashboardRoutes = require("./routes/admin/adminDashboardRoutes");
@@ -69,6 +70,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/investment", investmentRoutes);
 app.use("/api/monthly-allowance", monthlyAllowanceRoutes);
+app.use("/api/auth/password-reset", passwordResetRoutes);
 
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
