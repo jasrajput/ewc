@@ -33,6 +33,7 @@ const adminAnnouncementRoutes = require("./routes/admin/adminAnnouncementRoutes"
 
 
 const app = express();
+app.set("trust proxy", "loopback");
 
 // =========================================================
 // CORS
