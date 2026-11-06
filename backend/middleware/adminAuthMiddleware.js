@@ -1,3 +1,4 @@
+
 const jwt = require("jsonwebtoken");
 
 const adminAuthMiddleware = (req, res, next) => {
@@ -25,12 +26,7 @@ const adminAuthMiddleware = (req, res, next) => {
       process.env.JWT_SECRET
     );
 
-    // Critical:
-    // A normal member JWT must never work on admin routes.
-    if (
-      decoded.type !== "admin" ||
-      !decoded.admin
-    ) {
+    if (decoded.type !== "admin" || !decoded.admin) {
       return res.status(403).json({
         success: false,
         message: "Admin access required.",
@@ -46,7 +42,8 @@ const adminAuthMiddleware = (req, res, next) => {
     if (error.name === "TokenExpiredError") {
       return res.status(401).json({
         success: false,
-        message: "Admin session has expired. Please login again.",
+        message:
+          "Admin session has expired. Please login again.",
       });
     }
 
