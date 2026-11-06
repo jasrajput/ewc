@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Activity,
@@ -17,6 +13,15 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import { usePublicClient } from "wagmi";
+import { formatUnits } from "viem";
+
+import {
+  TOKEN_ABI,
+  USDT_ADDRESS,
+  COMMISSION_POOL,
+} from "../../../contracts/config";
+
 import { useNavigate } from "react-router-dom";
 
 import adminApi from "../../../services/adminApi";
@@ -26,15 +31,72 @@ import styles from "./AdminDashboard.module.css";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const publicClient = usePublicClient({ chainId: 56 });
 
-  const [dashboard, setDashboard] =
-    useState(null);
+  const [commissionPoolBalance, setCommissionPoolBalance] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [commissionPoolLoading, setCommissionPoolLoading] = useState(true);
 
-  const [error, setError] =
-    useState("");
+  const [commissionPoolError, setCommissionPoolError] = useState("");
+
+  useEffect(() => {
+    if (!publicClient) {
+      setCommissionPoolError("BSC connection unavailable");
+      setCommissionPoolLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    const fetchCommissionPoolBalance = async () => {
+      try {
+        setCommissionPoolLoading(true);
+        setCommissionPoolError("");
+
+        const [balance, decimals] = await Promise.all([
+          publicClient.readContract({
+            address: USDT_ADDRESS,
+            abi: TOKEN_ABI,
+            functionName: "balanceOf",
+            args: [COMMISSION_POOL],
+          }),
+
+          publicClient.readContract({
+            address: USDT_ADDRESS,
+            abi: TOKEN_ABI,
+            functionName: "decimals",
+          }),
+        ]);
+
+        if (active) {
+          setCommissionPoolBalance(formatUnits(balance, Number(decimals)));
+        }
+      } catch (error) {
+        console.error("Commission pool balance error:", error);
+
+        if (active) {
+          setCommissionPoolError("Unable to load balance");
+          setCommissionPoolBalance(null);
+        }
+      } finally {
+        if (active) {
+          setCommissionPoolLoading(false);
+        }
+      }
+    };
+
+    fetchCommissionPoolBalance();
+
+    return () => {
+      active = false;
+    };
+  }, [publicClient]);
+
+  const [dashboard, setDashboard] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -44,55 +106,30 @@ const AdminDashboard = () => {
       setError("");
 
       try {
-        const response =
-          await adminApi.get(
-            "/admin/dashboard"
-          );
+        const response = await adminApi.get("/admin/dashboard");
 
         if (active) {
-          setDashboard(
-            response.data.data || null
-          );
+          setDashboard(response.data.data || null);
         }
       } catch (err) {
-        console.error(
-          "Admin dashboard error:",
-          err
-        );
+        console.error("Admin dashboard error:", err);
 
-        if (
-          err.response?.status === 401 ||
-          err.response?.status === 403
-        ) {
-          localStorage.removeItem(
-            "ewc_admin_token"
-          );
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          localStorage.removeItem("ewc_admin_token");
 
-          localStorage.removeItem(
-            "ewc_admin_user"
-          );
+          localStorage.removeItem("ewc_admin_user");
 
-          sessionStorage.removeItem(
-            "ewc_admin_token"
-          );
+          sessionStorage.removeItem("ewc_admin_token");
 
-          sessionStorage.removeItem(
-            "ewc_admin_user"
-          );
+          sessionStorage.removeItem("ewc_admin_user");
 
-          navigate(
-            "/admin/login",
-            { replace: true }
-          );
+          navigate("/admin/login", { replace: true });
 
           return;
         }
 
         if (active) {
-          setError(
-            err.response?.data?.message ||
-              "Unable to load dashboard."
-          );
+          setError(err.response?.data?.message || "Unable to load dashboard.");
         }
       } finally {
         if (active) {
@@ -108,53 +145,39 @@ const AdminDashboard = () => {
     };
   }, [navigate]);
 
-  const overview =
-    dashboard?.overview || {};
+  const overview = dashboard?.overview || {};
 
-  const income =
-    dashboard?.income || {};
+  const income = dashboard?.income || {};
 
-  const withdrawals =
-    dashboard?.withdrawals || {};
+  const withdrawals = dashboard?.withdrawals || {};
 
-  const recentMembers =
-    dashboard?.recentMembers || [];
+  const recentMembers = dashboard?.recentMembers || [];
 
-  const recentTransactions =
-    dashboard?.recentTransactions || [];
+  const recentTransactions = dashboard?.recentTransactions || [];
 
-  const rankDistribution =
-    dashboard?.rankDistribution || [];
+  const rankDistribution = dashboard?.rankDistribution || [];
 
   const formatUsd = (value) =>
-    new Intl.NumberFormat(
-      "en-US",
-      {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    ).format(Number(value || 0));
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0));
 
   const formatNumber = (value) =>
-    new Intl.NumberFormat(
-      "en-US"
-    ).format(Number(value || 0));
+    new Intl.NumberFormat("en-US").format(Number(value || 0));
 
   const formatDate = (date) => {
     if (!date) return "—";
 
-    return new Date(date).toLocaleString(
-      "en-US",
-      {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }
-    );
+    return new Date(date).toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const maxRankTotal = useMemo(() => {
@@ -163,11 +186,8 @@ const AdminDashboard = () => {
     }
 
     return Math.max(
-      ...rankDistribution.map(
-        (item) =>
-          Number(item.total || 0)
-      ),
-      1
+      ...rankDistribution.map((item) => Number(item.total || 0)),
+      1,
     );
   }, [rankDistribution]);
 
@@ -178,13 +198,9 @@ const AdminDashboard = () => {
         subtitle="EWC platform overview and administration"
       >
         <div className={styles.loadingState}>
-          <span
-            className={styles.spinner}
-          />
+          <span className={styles.spinner} />
 
-          <span>
-            Loading administration data...
-          </span>
+          <span>Loading administration data...</span>
         </div>
       </AdminLayout>
     );
@@ -195,33 +211,22 @@ const AdminDashboard = () => {
       title="Dashboard"
       subtitle="EWC platform overview and administration"
     >
-      {error && (
-        <div className={styles.errorBox}>
-          {error}
-        </div>
-      )}
+      {error && <div className={styles.errorBox}>{error}</div>}
 
       <section className={styles.hero}>
         <div className={styles.heroContent}>
-          <span className={styles.eyebrow}>
-            EWC ADMINISTRATION
-          </span>
+          <span className={styles.eyebrow}>EWC ADMINISTRATION</span>
 
-          <h2>
-            Platform Control Center
-          </h2>
+          <h2>Platform Control Center</h2>
 
           <p>
-            Monitor members, business,
-            earnings and platform activity
-            from one place.
+            Monitor members, business, earnings and platform activity from one
+            place.
           </p>
         </div>
 
         <div className={styles.heroStatus}>
-          <span
-            className={styles.statusDot}
-          />
+          <span className={styles.statusDot} />
 
           <div>
             <span>System Status</span>
@@ -234,55 +239,56 @@ const AdminDashboard = () => {
         <StatCard
           icon={Users}
           label="Total Members"
-          value={formatNumber(
-            overview.totalMembers
-          )}
-          detail={`${formatNumber(
-            overview.todayRegistrations
-          )} joined today`}
+          value={formatNumber(overview.totalMembers)}
+          detail={`${formatNumber(overview.todayRegistrations)} joined today`}
         />
 
         <StatCard
           icon={CircleDollarSign}
           label="Total Business"
-          value={formatUsd(
-            overview.totalBusiness
-          )}
+          value={formatUsd(overview.totalBusiness)}
           detail={`${formatNumber(
-            overview.activatedMembers
+            overview.activatedMembers,
           )} activated members`}
         />
 
         <StatCard
           icon={Coins}
           label="Total Earnings"
-          value={formatUsd(
-            overview.totalIncome
-          )}
+          value={formatUsd(overview.totalIncome)}
           detail="Platform income distributed"
         />
 
         <StatCard
           icon={Clock3}
           label="Pending Withdrawals"
-          value={formatUsd(
-            withdrawals.pendingAmount
-          )}
+          value={formatUsd(withdrawals.pendingAmount)}
           detail={`${formatNumber(
-            withdrawals.pendingRequests
+            withdrawals.pendingRequests,
           )} pending requests`}
-          warning={
-            Number(
-              withdrawals.pendingRequests ||
-                0
-            ) > 0
+          warning={Number(withdrawals.pendingRequests || 0) > 0}
+        />
+
+        <StatCard
+          icon={WalletCards}
+          label="Commission Pool Balance"
+          value={
+            commissionPoolLoading
+              ? "Loading..."
+              : commissionPoolError
+                ? "Unavailable"
+                : `${Number(commissionPoolBalance).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 4,
+                  })} USDT`
+          }
+          detail={
+            commissionPoolError || "Live USDT balance held by commission pool"
           }
         />
       </section>
 
-      <section
-        className={styles.secondaryStats}
-      >
+      <section className={styles.secondaryStats}>
         <SmallStat
           icon={UserCheck}
           label="Active"
@@ -298,17 +304,13 @@ const AdminDashboard = () => {
         <SmallStat
           icon={WalletCards}
           label="Wallets Registered"
-          value={
-            overview.walletRegistered
-          }
+          value={overview.walletRegistered}
         />
 
         <SmallStat
           icon={TrendingUp}
           label="Approved Withdrawals"
-          value={
-            withdrawals.approvedRequests
-          }
+          value={withdrawals.approvedRequests}
         />
       </section>
 
@@ -320,99 +322,53 @@ const AdminDashboard = () => {
           />
 
           <div className={styles.incomeGrid}>
-            <IncomeItem
-              label="Direct Income"
-              value={income.direct}
-            />
+            <IncomeItem label="Direct Income" value={income.direct} />
 
-            <IncomeItem
-              label="Rank Income"
-              value={income.rank}
-            />
+            <IncomeItem label="Rank Income" value={income.rank} />
 
-            <IncomeItem
-              label="Rank Salary"
-              value={income.salary}
-            />
+            <IncomeItem label="Rank Salary" value={income.salary} />
 
-            <IncomeItem
-              label="Reward Income"
-              value={income.reward}
-            />
+            <IncomeItem label="Reward Income" value={income.reward} />
           </div>
 
           <div className={styles.incomeTotal}>
             <div>
               <Activity size={18} />
 
-              <span>
-                Total Distributed
-              </span>
+              <span>Total Distributed</span>
             </div>
 
-            <strong>
-              {formatUsd(income.total)}
-            </strong>
+            <strong>{formatUsd(income.total)}</strong>
           </div>
         </section>
 
         <section className={styles.panel}>
-          <PanelHeader
-            eyebrow="NETWORK STATUS"
-            title="Rank Distribution"
-          />
+          <PanelHeader eyebrow="NETWORK STATUS" title="Rank Distribution" />
 
           {rankDistribution.length === 0 ? (
-            <div className={styles.empty}>
-              No ranked members yet.
-            </div>
+            <div className={styles.empty}>No ranked members yet.</div>
           ) : (
             <div className={styles.rankList}>
-              {rankDistribution.map(
-                (rank) => (
-                  <div
-                    className={
-                      styles.rankRow
-                    }
-                    key={rank.level}
-                  >
-                    <div
-                      className={
-                        styles.rankInfo
-                      }
-                    >
-                      <span>
-                        {rank.name}
-                      </span>
+              {rankDistribution.map((rank) => (
+                <div className={styles.rankRow} key={rank.level}>
+                  <div className={styles.rankInfo}>
+                    <span>{rank.name}</span>
 
-                      <strong>
-                        {formatNumber(
-                          rank.total
-                        )}
-                      </strong>
-                    </div>
-
-                    <div
-                      className={
-                        styles.rankTrack
-                      }
-                    >
-                      <span
-                        style={{
-                          width: `${Math.max(
-                            4,
-                            (Number(
-                              rank.total
-                            ) /
-                              maxRankTotal) *
-                              100
-                          )}%`,
-                        }}
-                      />
-                    </div>
+                    <strong>{formatNumber(rank.total)}</strong>
                   </div>
-                )
-              )}
+
+                  <div className={styles.rankTrack}>
+                    <span
+                      style={{
+                        width: `${Math.max(
+                          4,
+                          (Number(rank.total) / maxRankTotal) * 100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -423,9 +379,7 @@ const AdminDashboard = () => {
           eyebrow="MEMBERS"
           title="Recent Registrations"
           action="View All Members"
-          onAction={() =>
-            navigate("/admin/members")
-          }
+          onAction={() => navigate("/admin/members")}
         />
 
         <div className={styles.tableWrapper}>
@@ -443,107 +397,61 @@ const AdminDashboard = () => {
             </thead>
 
             <tbody>
-              {recentMembers.map(
-                (member) => (
-                  <tr key={member.id}>
-                    <td>
-                      <div
-                        className={
-                          styles.memberCell
-                        }
-                      >
-                        <div
-                          className={
-                            styles.memberAvatar
-                          }
-                        >
-                          {String(
-                            member.name ||
-                              member.user_id ||
-                              "U"
-                          )
-                            .charAt(0)
-                            .toUpperCase()}
-                        </div>
-
-                        <div>
-                          <strong>
-                            {member.name ||
-                              "—"}
-                          </strong>
-
-                          <span>
-                            {member.email ||
-                              "—"}
-                          </span>
-                        </div>
+              {recentMembers.map((member) => (
+                <tr key={member.id}>
+                  <td>
+                    <div className={styles.memberCell}>
+                      <div className={styles.memberAvatar}>
+                        {String(member.name || member.user_id || "U")
+                          .charAt(0)
+                          .toUpperCase()}
                       </div>
-                    </td>
 
-                    <td>
-                      {member.user_id}
-                    </td>
+                      <div>
+                        <strong>{member.name || "—"}</strong>
 
-                    <td>
-                      {Number(
-                        member.package_choose
-                      ) >= 2
-                        ? formatUsd(
-                            member.package_amount
-                          )
-                        : "Not Active"}
-                    </td>
+                        <span>{member.email || "—"}</span>
+                      </div>
+                    </div>
+                  </td>
 
-                    <td>
-                      <span
-                        className={
-                          styles.rankBadge
-                        }
-                      >
-                        {member.rank}
-                      </span>
-                    </td>
+                  <td>{member.user_id}</td>
 
-                    <td>
-                      <span
-                        className={
-                          member.walletRegistered
-                            ? styles.yes
-                            : styles.no
-                        }
-                      >
-                        {member.walletRegistered
-                          ? "Registered"
-                          : "Not Set"}
-                      </span>
-                    </td>
+                  <td>
+                    {Number(member.package_choose) >= 2
+                      ? formatUsd(member.package_amount)
+                      : "Not Active"}
+                  </td>
 
-                    <td>
-                      <span
-                        className={
-                          Number(
-                            member.status
-                          ) === 0
-                            ? styles.activeBadge
-                            : styles.blockedBadge
-                        }
-                      >
-                        {Number(
-                          member.status
-                        ) === 0
-                          ? "Active"
-                          : "Blocked"}
-                      </span>
-                    </td>
+                  <td>
+                    <span className={styles.rankBadge}>{member.rank}</span>
+                  </td>
 
-                    <td>
-                      {formatDate(
-                        member.joined_at
-                      )}
-                    </td>
-                  </tr>
-                )
-              )}
+                  <td>
+                    <span
+                      className={
+                        member.walletRegistered ? styles.yes : styles.no
+                      }
+                    >
+                      {member.walletRegistered ? "Registered" : "Not Set"}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span
+                      className={
+                        Number(member.status) === 0
+                          ? styles.activeBadge
+                          : styles.blockedBadge
+                      }
+                    >
+                      {Number(member.status) === 0 ? "Active" : "Blocked"}
+                    </span>
+                  </td>
+
+                  <td>{formatDate(member.joined_at)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -554,77 +462,36 @@ const AdminDashboard = () => {
           eyebrow="ACTIVITY"
           title="Recent Earnings"
           action="View Transactions"
-          onAction={() =>
-            navigate(
-              "/admin/transactions"
-            )
-          }
+          onAction={() => navigate("/admin/transactions")}
         />
 
-        <div
-          className={
-            styles.transactionList
-          }
-        >
-          {recentTransactions.length ===
-          0 ? (
-            <div className={styles.empty}>
-              No recent transactions.
-            </div>
+        <div className={styles.transactionList}>
+          {recentTransactions.length === 0 ? (
+            <div className={styles.empty}>No recent transactions.</div>
           ) : (
-            recentTransactions.map(
-              (transaction) => (
-                <div
-                  className={
-                    styles.transaction
-                  }
-                  key={transaction.id}
-                >
-                  <div
-                    className={
-                      styles.transactionIcon
-                    }
-                  >
-                    <Coins size={17} />
-                  </div>
-
-                  <div
-                    className={
-                      styles.transactionInfo
-                    }
-                  >
-                    <strong>
-                      {transaction.type}
-                    </strong>
-
-                    <span>
-                      {transaction.username ||
-                        transaction.name ||
-                        "Unknown Member"}
-                    </span>
-                  </div>
-
-                  <div
-                    className={
-                      styles.transactionRight
-                    }
-                  >
-                    <strong>
-                      +
-                      {formatUsd(
-                        transaction.amount
-                      )}
-                    </strong>
-
-                    <span>
-                      {formatDate(
-                        transaction.created_at
-                      )}
-                    </span>
-                  </div>
+            recentTransactions.map((transaction) => (
+              <div className={styles.transaction} key={transaction.id}>
+                <div className={styles.transactionIcon}>
+                  <Coins size={17} />
                 </div>
-              )
-            )
+
+                <div className={styles.transactionInfo}>
+                  <strong>{transaction.type}</strong>
+
+                  <span>
+                    {transaction.username ||
+                      transaction.name ||
+                      "Unknown Member"}
+                  </span>
+                </div>
+
+                <div className={styles.transactionRight}>
+                  <strong>+{formatUsd(transaction.amount)}</strong>
+
+                  <span>{formatDate(transaction.created_at)}</span>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </section>
@@ -632,23 +499,10 @@ const AdminDashboard = () => {
   );
 };
 
-const StatCard = ({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  warning = false,
-}) => (
+const StatCard = ({ icon: Icon, label, value, detail, warning = false }) => (
   <div className={styles.statCard}>
-    <div
-      className={`${styles.statIcon} ${
-        warning ? styles.warningIcon : ""
-      }`}
-    >
-      <Icon
-        size={20}
-        strokeWidth={1.8}
-      />
+    <div className={`${styles.statIcon} ${warning ? styles.warningIcon : ""}`}>
+      <Icon size={20} strokeWidth={1.8} />
     </div>
 
     <div className={styles.statContent}>
@@ -661,11 +515,7 @@ const StatCard = ({
   </div>
 );
 
-const SmallStat = ({
-  icon: Icon,
-  label,
-  value,
-}) => (
+const SmallStat = ({ icon: Icon, label, value }) => (
   <div className={styles.smallStat}>
     <Icon size={17} />
 
@@ -673,54 +523,35 @@ const SmallStat = ({
       <span>{label}</span>
 
       <strong>
-        {new Intl.NumberFormat(
-          "en-US"
-        ).format(Number(value || 0))}
+        {new Intl.NumberFormat("en-US").format(Number(value || 0))}
       </strong>
     </div>
   </div>
 );
 
-const IncomeItem = ({
-  label,
-  value,
-}) => (
+const IncomeItem = ({ label, value }) => (
   <div className={styles.incomeItem}>
     <span>{label}</span>
 
     <strong>
-      {new Intl.NumberFormat(
-        "en-US",
-        {
-          style: "currency",
-          currency: "USD",
-        }
-      ).format(Number(value || 0))}
+      {new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(Number(value || 0))}
     </strong>
   </div>
 );
 
-const PanelHeader = ({
-  eyebrow,
-  title,
-  action,
-  onAction,
-}) => (
+const PanelHeader = ({ eyebrow, title, action, onAction }) => (
   <div className={styles.panelHeader}>
     <div>
-      <span className={styles.eyebrow}>
-        {eyebrow}
-      </span>
+      <span className={styles.eyebrow}>{eyebrow}</span>
 
       <h3>{title}</h3>
     </div>
 
     {action && (
-      <button
-        type="button"
-        onClick={onAction}
-        className={styles.panelAction}
-      >
+      <button type="button" onClick={onAction} className={styles.panelAction}>
         {action}
 
         <ArrowRight size={14} />
