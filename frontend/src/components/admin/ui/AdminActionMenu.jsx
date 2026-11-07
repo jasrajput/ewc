@@ -42,6 +42,8 @@ const AdminActionMenu = ({
       );
   }, []);
 
+  console.log("Actions:", actions.map((action) => action.label));
+
   return (
     <div
       className={styles.actionMenu}
