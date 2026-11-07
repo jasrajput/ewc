@@ -121,11 +121,25 @@ const register = async (req, res) => {
       });
     }
 
+    // Require verified email proof before registration.
+    const registrationToken = String(
+      req.body.registrationToken || ""
+    );
+
+    if (!/^[a-f0-9]{64}$/i.test(registrationToken)) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Verify your email OTP before creating an account.",
+      });
+    }
+
     // =====================================================
     // GET DATABASE CONNECTION
     // =====================================================
 
     connection = await db.getConnection();
+
 
     // =====================================================
     // CHECK USERNAME
@@ -224,6 +238,33 @@ const register = async (req, res) => {
     // =====================================================
 
     await connection.beginTransaction();
+
+    const registrationTokenHash = require("crypto")
+      .createHash("sha256")
+      .update(registrationToken)
+      .digest("hex");
+
+    const [emailProof] = await connection.query(
+      `
+    SELECT email
+    FROM registration_email_verifications
+    WHERE email = ?
+      AND registration_token_hash = ?
+      AND registration_expires_at > UTC_TIMESTAMP()
+    FOR UPDATE
+  `,
+      [cleanEmail, registrationTokenHash]
+    );
+
+    if (!emailProof.length) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "Email verification is missing or expired. Request a new OTP.",
+      });
+    }
 
     // =====================================================
     // INSERT MEMBER
@@ -350,6 +391,15 @@ const register = async (req, res) => {
 
       userLevel++;
     }
+
+    // Consume verification only after all inserts succeed.
+    await connection.query(
+      `
+    DELETE FROM registration_email_verifications
+    WHERE email = ?
+  `,
+      [cleanEmail]
+    );
 
     // =====================================================
     // COMMIT
