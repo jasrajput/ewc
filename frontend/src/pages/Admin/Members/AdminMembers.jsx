@@ -12,6 +12,7 @@ import {
   UserRoundX,
   Users,
   Wallet,
+  Trash2,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -258,6 +259,22 @@ const AdminMembers = () => {
     setRankError("");
   };
 
+  const removeRank = async (member) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to remove the rank of ${member.user_id}?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await adminApi.delete(`/admin/members/${member.id}/rank`);
+
+      await fetchMembers();
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to remove member rank.");
+    }
+  };
+
   const confirmRankUpdate = async () => {
     if (!rankMember || !selectedRank) return;
 
@@ -275,7 +292,7 @@ const AdminMembers = () => {
     } catch (err) {
       console.error("Manual rank update error:", err);
       setRankError(
-        err.response?.data?.message || "Unable to update member rank."
+        err.response?.data?.message || "Unable to update member rank.",
       );
     } finally {
       setRankLoading(false);
@@ -479,6 +496,17 @@ const AdminMembers = () => {
               icon: TrendingUp,
               onClick: () => openRankModal(member),
             },
+
+            ...(Number(member.rank) > 0 ||
+            /^E-0?[1-9]$|^E-1[0-2]$/i.test(String(member.rank || ""))
+              ? [
+                  {
+                    label: "Remove Rank",
+                    icon: Trash2,
+                    onClick: () => removeRank(member),
+                  },
+                ]
+              : []),
 
             {
               label: "View Earnings",
@@ -732,9 +760,7 @@ const AdminMembers = () => {
             </div>
 
             <div style={{ display: "grid", gap: 8 }}>
-              <label htmlFor="manual-rank-select">
-                Select new rank
-              </label>
+              <label htmlFor="manual-rank-select">Select new rank</label>
               <select
                 id="manual-rank-select"
                 value={selectedRank}
@@ -758,14 +784,12 @@ const AdminMembers = () => {
                     <option key={rank} value={rank}>
                       {`E-${String(rank).padStart(2, "0")}`}
                     </option>
-                  )
+                  ),
                 )}
               </select>
             </div>
 
-            {rankError && (
-              <div className={styles.error}>{rankError}</div>
-            )}
+            {rankError && <div className={styles.error}>{rankError}</div>}
           </div>
         )}
       </AdminModal>

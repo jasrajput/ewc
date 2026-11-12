@@ -1766,11 +1766,119 @@ const updateMemberRank = async (req, res) => {
   }
 };
 
+const removeMemberRank = async (req, res) => {
+  const memberId = Number(req.params.id);
+
+  if (!Number.isSafeInteger(memberId) || memberId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid member ID.",
+    });
+  }
+
+  let connection;
+  let committed = false;
+
+  try {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [members] = await connection.query(
+      `SELECT id, user_id, level_achieved
+       FROM member
+       WHERE id = ?
+       FOR UPDATE`,
+      [memberId]
+    );
+
+    if (!members.length) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Member not found.",
+      });
+    }
+
+    const member = members[0];
+    const oldRank = Number(member.level_achieved || 0);
+
+    if (oldRank === 0) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Member already has no rank.",
+      });
+    }
+
+   // 1. Reset current rank
+    await connection.query(
+      `UPDATE member
+      SET level_achieved = 0
+      WHERE id = ?`,
+      [memberId]
+    );
+
+    // 2. Remove rank achievement records
+    await connection.query(
+      `DELETE FROM achieved_level
+      WHERE member_id = ?`,
+      [memberId]
+    );
+
+    await connection.commit();
+    committed = true;
+
+    try {
+      await logAdminAction({
+        req,
+        action: "MEMBER_RANK_REMOVED",
+        entityType: "member",
+        entityId: memberId,
+        entityUserId: member.user_id,
+        fieldName: "level_achieved",
+        oldValue: oldRank,
+        newValue: 0,
+        description: `Admin removed member rank E-${String(oldRank).padStart(2, "0")}.`,
+      });
+    } catch (auditError) {
+      console.error("Rank removal audit error:", auditError);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Member rank removed successfully.",
+      data: {
+        id: memberId,
+        user_id: member.user_id,
+        oldRank,
+        newRank: 0,
+        rank: "No Rank",
+      },
+    });
+  } catch (error) {
+    if (connection && !committed) {
+      await connection.rollback().catch(() => {});
+    }
+
+    console.error("Remove member rank error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to remove member rank.",
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   getMembers,
   getMemberDetails,
   updateMemberProfile,
   updateMemberStatus,
   updateMemberRoiStatus,
-  updateMemberRank
+  updateMemberRank,
+  removeMemberRank
 };
