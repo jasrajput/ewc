@@ -1691,33 +1691,34 @@ const updateMemberRank = async (req, res) => {
     );
 
     // 2. Insert rank achievement (if not already recorded)
-    await connection.query(
-      `INSERT INTO achieved_level (
-         member_id,
-         level_achieved,
-         level_amount,
-         reward,
-         status,
-         created_on,
-         \`rank\`,
-         pool
-       )
-       SELECT
-         ?, ?, NULL, NULL, 0, NOW(), ?, 0
-       WHERE NOT EXISTS (
-         SELECT 1
-         FROM achieved_level
-         WHERE member_id = ?
-           AND level_achieved = ?
-       )`,
-      [
-        memberId,
-        newRank,
-        `E-${String(newRank).padStart(2, "0")}`,
-        memberId,
-        newRank,
-      ]
-    );
+  await connection.query(
+  `INSERT INTO achieved_level (
+     member_id,
+     level_achieved,
+     level_amount,
+     reward,
+     status,
+     created_on,
+     \`rank\`,
+     pool,
+     assigned_by_admin
+   )
+   SELECT
+     ?, ?, NULL, NULL, 0, NOW(), ?, 0, 1
+   WHERE NOT EXISTS (
+     SELECT 1
+     FROM achieved_level
+     WHERE member_id = ?
+       AND level_achieved = ?
+   )`,
+  [
+    memberId,
+    newRank,
+    `E-${String(newRank).padStart(2, "0")}`,
+    memberId,
+    newRank,
+  ]
+);
 
     await connection.commit();
 
