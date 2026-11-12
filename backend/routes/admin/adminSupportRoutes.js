@@ -12,6 +12,13 @@ const {
   "../../controllers/admin/adminSupportController"
 );
 
+const {
+  adminListAgents,
+  adminCreateAgent,
+  adminUpdateAgentStatus,
+  adminAssignTicket,
+} = require("../../controllers/supportAgentController");
+
 
 // Use the SAME middleware import/export
 // already used by your other admin routes.
@@ -29,6 +36,20 @@ router.use(
   adminAuthMiddleware
 );
 
+
+router.get("/agents", adminListAgents);
+
+router.post("/agents", adminCreateAgent);
+
+router.patch(
+  "/agents/:id/status",
+  adminUpdateAgentStatus
+);
+
+router.patch(
+  "/:id/assign",
+  adminAssignTicket
+);
 
 // Must remain before /:id
 router.get(

@@ -16,6 +16,14 @@ const getAdminUsername = (req) =>
 const formatTicket = (row) => ({
   id: Number(row.id),
 
+  assignedAgentId:
+    row.assigned_agent_id == null
+      ? null
+      : Number(row.assigned_agent_id),
+
+  assignedAgentName:
+    row.assigned_agent_name || null,
+
   member: {
     id: Number(row.member_id),
     userId: row.user_id || "",
@@ -419,7 +427,6 @@ const getSupportTickets = async (req, res) => {
       await db.execute(
         `
           SELECT
-
             st.id,
             st.subject,
             st.category,
@@ -427,6 +434,11 @@ const getSupportTickets = async (req, res) => {
             st.created_at,
             st.updated_at,
 
+            -- SUPPORT AGENT
+            st.assigned_agent_id,
+            sa.name AS assigned_agent_name,
+
+            -- MEMBER
             m.id AS member_id,
             m.user_id,
             m.name,
@@ -486,6 +498,9 @@ const getSupportTickets = async (req, res) => {
 
           INNER JOIN member m
             ON m.id = st.user_id
+
+          LEFT JOIN support_agents sa
+            ON sa.id = st.assigned_agent_id
 
           ${whereSql}
 
@@ -563,31 +578,39 @@ const getSupportTicketDetails = async (
     const [ticketRows] =
       await db.execute(
         `
-          SELECT
+      SELECT
 
-            st.id,
-            st.subject,
-            st.category,
-            st.status,
-            st.created_at,
-            st.updated_at,
+        st.id,
+        st.subject,
+        st.category,
+        st.status,
+        st.created_at,
+        st.updated_at,
 
-            m.id AS member_id,
-            m.user_id,
-            m.name,
-            m.email,
-            m.mobile_no,
-            m.trx
+        -- SUPPORT AGENT
+        st.assigned_agent_id,
+        sa.name AS assigned_agent_name,
 
-          FROM support_tickets st
+        -- MEMBER
+        m.id AS member_id,
+        m.user_id,
+        m.name,
+        m.email,
+        m.mobile_no,
+        m.trx
 
-          INNER JOIN member m
-            ON m.id = st.user_id
+      FROM support_tickets st
 
-          WHERE st.id = ?
+      INNER JOIN member m
+        ON m.id = st.user_id
 
-          LIMIT 1
-        `,
+      LEFT JOIN support_agents sa
+        ON sa.id = st.assigned_agent_id
+
+      WHERE st.id = ?
+
+      LIMIT 1
+    `,
         [ticketId]
       );
 
@@ -844,7 +867,7 @@ const replyToSupportTicket = async (
     if (connection) {
       try {
         await connection.rollback();
-      } catch (_) {}
+      } catch (_) { }
     }
 
     console.error(

@@ -982,3 +982,151 @@
     max-width: 88%;
   }
 }
+
+.agentPanel {
+  margin-bottom: 22px;
+  padding: 22px;
+  background: #171c20;
+  border: 1px solid rgba(245, 185, 0, 0.16);
+  border-radius: 12px;
+}
+
+.agentPanelHeader h2 {
+  margin: 0;
+  color: #f2f3f4;
+  font-size: 19px;
+}
+
+.agentPanelHeader p {
+  margin: 8px 0 20px;
+  color: #929aa5;
+  font-size: 13px;
+}
+
+.agentForm {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.agentForm input,
+.assignmentPanel select {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  color: #f2f3f4;
+  background: #1c2227;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  outline: none;
+}
+
+.agentForm input:focus,
+.assignmentPanel select:focus {
+  border-color: rgba(245, 185, 0, 0.6);
+}
+
+.agentForm button,
+.agentItemActions button {
+  padding: 10px 16px;
+  background: #f5b900;
+  color: #101410;
+  border: 0;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.agentForm button:disabled {
+  opacity: 0.5;
+}
+
+.agentList {
+  display: flex;
+  flex-direction: column;
+}
+
+.agentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.agentItem strong,
+.agentItem span {
+  display: block;
+}
+
+.agentItem strong {
+  color: #f2f3f4;
+  font-size: 13px;
+}
+
+.agentItem span,
+.agentEmpty {
+  margin-top: 5px;
+  color: #929aa5;
+  font-size: 12px;
+}
+
+.agentItemActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agentItemActions button {
+  background: rgba(245, 185, 0, 0.08);
+  border: 1px solid rgba(245, 185, 0, 0.2);
+  color: #f5b900;
+}
+
+.assignmentPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 16px;
+  padding: 15px;
+  background: rgba(245, 185, 0, 0.04);
+  border: 1px solid rgba(245, 185, 0, 0.15);
+  border-radius: 10px;
+}
+
+.assignmentPanel label {
+  color: #f2f3f4;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.assignmentPanel small {
+  color: #929aa5;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agentNotice {
+  margin-bottom: 12px;
+  color: #6ee7a0;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .agentForm {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .agentForm {
+    grid-template-columns: 1fr;
+  }
+
+  .agentItem {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

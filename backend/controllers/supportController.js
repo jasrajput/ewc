@@ -18,6 +18,54 @@ const db = require("../config/db");
 // helper.
 // ======================================================
 
+
+// Select the next active agent in round-robin order.
+// Call inside an existing database transaction.
+const getNextSupportAgentId = async (connection) => {
+  const [cursorRows] = await connection.query(
+    `
+      SELECT last_agent_id
+      FROM support_assignment_cursor
+      WHERE id = 1
+      FOR UPDATE
+    `
+  );
+
+  if (!cursorRows.length) {
+    throw new Error("Support assignment cursor not initialized.");
+  }
+
+  const [agents] = await connection.query(
+    `
+      SELECT id
+      FROM support_agents
+      WHERE is_active = 1
+      ORDER BY id ASC
+    `
+  );
+
+  if (!agents.length) {
+    return null;
+  }
+
+  const lastId = Number(cursorRows[0].last_agent_id);
+
+  const nextAgent =
+    agents.find((agent) => Number(agent.id) > lastId) ||
+    agents[0];
+
+  await connection.query(
+    `
+      UPDATE support_assignment_cursor
+      SET last_agent_id = ?
+      WHERE id = 1
+    `,
+    [nextAgent.id]
+  );
+
+  return Number(nextAgent.id);
+};
+
 const getAuthenticatedMemberId = (req) => {
   const id =
     req.user?.id ??
@@ -240,6 +288,8 @@ const createTicket = async (
 
     await connection.beginTransaction();
 
+    const assignedAgentId = await getNextSupportAgentId(connection);
+
 
     const [ticketResult] =
       await connection.execute(
@@ -251,14 +301,17 @@ const createTicket = async (
             category,
             status,
             member_last_read_at,
-            admin_last_read_at
+            admin_last_read_at,
+            agent_last_read_at,
+            assigned_agent_id
           )
-          VALUES (?, ?, ?, 'open', NOW(), NULL)
+          VALUES (?, ?, ?, 'open', NOW(), NULL, NULL, ?)
         `,
         [
           memberId,
           subject,
           category || null,
+          assignedAgentId
         ]
       );
 
@@ -1242,6 +1295,7 @@ const getSupportSummary = async (
     });
   }
 };
+
 
 
 module.exports = {

@@ -32,6 +32,7 @@ import Wallet from "./pages/Account/Wallet";
 import Security from "./pages/Account/Security";
 import Support from "./pages/Support/Support";
 import Notifications from "./pages/Notifications/Notifications";
+import SupportAgent from "./pages/SupportAgent/SupportAgent";
 
 // Admin
 import AdminLogin from "./pages/Admin/Login/AdminLogin";
@@ -74,12 +75,17 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
+        <Route
+          path="/support-agent"
+          element={<SupportAgent />}
+        />
+
 
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/investment" element={<Investment />} />
           <Route path="/presale" element={<Presale />} />
-          
+
           <Route path="/earnings/:type" element={<Income />} />
           <Route path="/network/directs" element={<DirectPartners />} />
           <Route path="/network/community" element={<Community />} />
@@ -175,12 +181,12 @@ function App() {
             element={<AdminTransactions />}
           />
 
-            <Route
+          <Route
             path="/admin/support"
             element={<AdminSupport />}
           />
 
-           <Route
+          <Route
             path="/admin/announcements"
             element={<AdminAnnouncements />}
           />
