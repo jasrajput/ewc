@@ -82,21 +82,6 @@ const SupportAgent = () => {
     );
   }, []);
 
-  useEffect(() => {
-    if (!agent) return;
-
-    const refresh = () => {
-      loadTickets(pagination.page).catch(console.error);
-      loadNotifications().catch(console.error);
-    };
-
-    refresh();
-
-    const interval = setInterval(refresh, 15000);
-
-    return () => clearInterval(interval);
-  }, [agent, pagination.page, loadTickets, loadNotifications]);
-
   const logout = useCallback(() => {
     sessionStorage.removeItem("ewc_support_agent_token");
 
@@ -132,14 +117,33 @@ const SupportAgent = () => {
     [statusFilter],
   );
 
-  const openTicket = useCallback(async (ticketId) => {
-    const { data } = await supportApi.get(`/tickets/${ticketId}`);
+  useEffect(() => {
+    if (!agent) return;
 
-    setSelectedTicket(data.data?.ticket || null);
-    setMessages(data.data?.messages || []);
-    setReply("");
-    await Promise.all([loadNotifications(), loadTickets(pagination.page)]);
-  }, []);
+    const refresh = () => {
+      loadTickets(pagination.page).catch(console.error);
+      loadNotifications().catch(console.error);
+    };
+
+    refresh();
+
+    const interval = setInterval(refresh, 15000);
+
+    return () => clearInterval(interval);
+  }, [agent, pagination.page, loadTickets, loadNotifications]);
+
+  const openTicket = useCallback(
+    async (ticketId) => {
+      const { data } = await supportApi.get(`/tickets/${ticketId}`);
+
+      setSelectedTicket(data.data?.ticket || null);
+      setMessages(data.data?.messages || []);
+      setReply("");
+
+      await Promise.all([loadNotifications(), loadTickets(pagination.page)]);
+    },
+    [loadNotifications, loadTickets, pagination.page],
+  );
 
   // Validate existing support session.
   useEffect(() => {
@@ -175,8 +179,22 @@ const SupportAgent = () => {
   useEffect(() => {
     if (!agent) return;
 
-    loadTickets(1).catch((err) => setError(errorMessage(err)));
-  }, [agent, loadTickets]);
+    const refresh = () => {
+      loadTickets(pagination.page).catch((err) =>
+        console.error("Ticket refresh:", err),
+      );
+
+      loadNotifications().catch((err) =>
+        console.error("Notification refresh:", err),
+      );
+    };
+
+    refresh();
+
+    const interval = setInterval(refresh, 15000);
+
+    return () => clearInterval(interval);
+  }, [agent, pagination.page, loadTickets, loadNotifications]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -355,11 +373,13 @@ const SupportAgent = () => {
           <div className={styles.actions}>
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
                 loadTickets(pagination.page).catch((err) =>
                   setError(errorMessage(err)),
-                )
-              }
+                );
+
+                loadNotifications().catch((err) => setError(errorMessage(err)));
+              }}
             >
               <RefreshCw size={16} />
               Refresh
