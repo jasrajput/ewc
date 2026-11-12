@@ -1,8 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import axios from "axios";
 
@@ -22,14 +18,14 @@ import api from "../../services/api";
 import styles from "./SupportAgent.module.css";
 
 const supportApi = axios.create({
-  baseURL: `${String(api.defaults.baseURL || "/api")
-    .replace(/\/$/, "")}/support-agent`,
+  baseURL: `${String(api.defaults.baseURL || "/api").replace(
+    /\/$/,
+    "",
+  )}/support-agent`,
 });
 
 supportApi.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem(
-    "ewc_support_agent_token"
-  );
+  const token = sessionStorage.getItem("ewc_support_agent_token");
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -39,14 +35,11 @@ supportApi.interceptors.request.use((config) => {
 });
 
 const errorMessage = (error) =>
-  error.response?.data?.message ||
-  "Something went wrong. Please try again.";
+  error.response?.data?.message || "Something went wrong. Please try again.";
 
 const SupportAgent = () => {
   const [token, setToken] = useState(
-    () =>
-      sessionStorage.getItem("ewc_support_agent_token") ||
-      ""
+    () => sessionStorage.getItem("ewc_support_agent_token") || "",
   );
 
   const [agent, setAgent] = useState(null);
@@ -72,6 +65,37 @@ const SupportAgent = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  const [notifications, setNotifications] = useState({
+    unreadTickets: 0,
+    unreadMessages: 0,
+  });
+
+  const loadNotifications = useCallback(async () => {
+    const response = await supportApi.get("/notifications");
+
+    setNotifications(
+      response.data?.data || {
+        unreadTickets: 0,
+        unreadMessages: 0,
+      },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!agent) return;
+
+    const refresh = () => {
+      loadTickets(pagination.page).catch(console.error);
+      loadNotifications().catch(console.error);
+    };
+
+    refresh();
+
+    const interval = setInterval(refresh, 15000);
+
+    return () => clearInterval(interval);
+  }, [agent, pagination.page, loadTickets, loadNotifications]);
 
   const logout = useCallback(() => {
     sessionStorage.removeItem("ewc_support_agent_token");
@@ -102,20 +126,19 @@ const SupportAgent = () => {
           page: 1,
           totalPages: 0,
           total: 0,
-        }
+        },
       );
     },
-    [statusFilter]
+    [statusFilter],
   );
 
   const openTicket = useCallback(async (ticketId) => {
-    const { data } = await supportApi.get(
-      `/tickets/${ticketId}`
-    );
+    const { data } = await supportApi.get(`/tickets/${ticketId}`);
 
     setSelectedTicket(data.data?.ticket || null);
     setMessages(data.data?.messages || []);
     setReply("");
+    await Promise.all([loadNotifications(), loadTickets(pagination.page)]);
   }, []);
 
   // Validate existing support session.
@@ -152,9 +175,7 @@ const SupportAgent = () => {
   useEffect(() => {
     if (!agent) return;
 
-    loadTickets(1).catch((err) =>
-      setError(errorMessage(err))
-    );
+    loadTickets(1).catch((err) => setError(errorMessage(err)));
   }, [agent, loadTickets]);
 
   const handleLogin = async (e) => {
@@ -169,10 +190,7 @@ const SupportAgent = () => {
         password: credentials.password,
       });
 
-      sessionStorage.setItem(
-        "ewc_support_agent_token",
-        data.token
-      );
+      sessionStorage.setItem("ewc_support_agent_token", data.token);
 
       setToken(data.token);
       setAgent(data.agent);
@@ -200,12 +218,9 @@ const SupportAgent = () => {
     const ticketId = selectedTicket.id;
 
     try {
-      await supportApi.post(
-        `/tickets/${ticketId}/reply`,
-        {
-          message: reply.trim(),
-        }
-      );
+      await supportApi.post(`/tickets/${ticketId}/reply`, {
+        message: reply.trim(),
+      });
 
       await openTicket(ticketId);
       await loadTickets(pagination.page);
@@ -228,12 +243,9 @@ const SupportAgent = () => {
     const ticketId = selectedTicket.id;
 
     try {
-      await supportApi.patch(
-        `/tickets/${ticketId}/status`,
-        {
-          status: nextStatus,
-        }
-      );
+      await supportApi.patch(`/tickets/${ticketId}/status`, {
+        status: nextStatus,
+      });
 
       await openTicket(ticketId);
       await loadTickets(pagination.page);
@@ -254,11 +266,7 @@ const SupportAgent = () => {
     return (
       <main className={styles.page}>
         <div className={styles.loginCard}>
-          <img
-            src="/logo.png"
-            alt="EWC Logo"
-            className={styles.logo}
-          />
+          <img src="/logo.png" alt="EWC Logo" className={styles.logo} />
 
           <div className={styles.loginIcon}>
             <Headset size={28} />
@@ -266,20 +274,11 @@ const SupportAgent = () => {
 
           <h1>Support Staff Login</h1>
 
-          <p>
-            Sign in to manage your assigned support tickets.
-          </p>
+          <p>Sign in to manage your assigned support tickets.</p>
 
-          {error && (
-            <div className={styles.error}>
-              {error}
-            </div>
-          )}
+          {error && <div className={styles.error}>{error}</div>}
 
-          <form
-            className={styles.loginForm}
-            onSubmit={handleLogin}
-          >
+          <form className={styles.loginForm} onSubmit={handleLogin}>
             <label>Email Address</label>
 
             <div className={styles.inputWrap}>
@@ -344,9 +343,12 @@ const SupportAgent = () => {
 
             <div>
               <h1>EWC Support Desk</h1>
-              <p>
-                Welcome, {agent.name}
-              </p>
+              {notifications.unreadMessages > 0 && (
+                <span className={styles.notificationBadge}>
+                  {notifications.unreadMessages} new messages
+                </span>
+              )}
+              <p>Welcome, {agent.name}</p>
             </div>
           </div>
 
@@ -354,8 +356,8 @@ const SupportAgent = () => {
             <button
               type="button"
               onClick={() =>
-                loadTickets(pagination.page).catch(
-                  (err) => setError(errorMessage(err))
+                loadTickets(pagination.page).catch((err) =>
+                  setError(errorMessage(err)),
                 )
               }
             >
@@ -376,18 +378,12 @@ const SupportAgent = () => {
           </div>
         )}
 
-        {notice && (
-          <div className={styles.notice}>
-            {notice}
-          </div>
-        )}
+        {notice && <div className={styles.notice}>{notice}</div>}
 
         <div className={styles.filterBar}>
           <div>
             <h2>My Assigned Tickets</h2>
-            <span>
-              {pagination.total} tickets
-            </span>
+            <span>{pagination.total} tickets</span>
           </div>
 
           <select
@@ -410,9 +406,7 @@ const SupportAgent = () => {
 
           <aside className={styles.ticketList}>
             {tickets.length === 0 && (
-              <div className={styles.empty}>
-                No assigned tickets found.
-              </div>
+              <div className={styles.empty}>No assigned tickets found.</div>
             )}
 
             {tickets.map((ticket) => (
@@ -420,9 +414,7 @@ const SupportAgent = () => {
                 type="button"
                 key={ticket.id}
                 className={`${styles.ticketItem} ${
-                  selectedTicket?.id === ticket.id
-                    ? styles.selectedTicket
-                    : ""
+                  selectedTicket?.id === ticket.id ? styles.selectedTicket : ""
                 }`}
                 onClick={async () => {
                   setError("");
@@ -438,22 +430,37 @@ const SupportAgent = () => {
                 <div className={styles.ticketTop}>
                   <strong>#{ticket.id}</strong>
 
-                  <span>
-                    {ticket.status}
-                  </span>
+                  <span>{ticket.status}</span>
                 </div>
 
                 <h3>{ticket.subject}</h3>
 
+                <div className={styles.latestReply}>
+                  <span>
+                    Latest:{" "}
+                    {ticket.last_message_at
+                      ? new Date(ticket.last_message_at).toLocaleString()
+                      : "No replies"}
+                  </span>
+
+                  <small>
+                    {ticket.last_sender_type === "member"
+                      ? "Member replied"
+                      : ticket.last_sender_type === "admin"
+                        ? "Support replied"
+                        : ""}
+                  </small>
+                </div>
+
                 <p>
-                  {ticket.member_name} (
-                  {ticket.member_username})
+                  {ticket.member_name} ({ticket.member_username})
                 </p>
 
                 {ticket.unreadCount > 0 && (
-                  <small className={styles.unread}>
-                    {ticket.unreadCount} new member message(s)
-                  </small>
+                  <span className={styles.unreadBadge}>
+                    {ticket.unreadCount} new{" "}
+                    {ticket.unreadCount === 1 ? "reply" : "replies"}
+                  </span>
                 )}
               </button>
             ))}
@@ -464,8 +471,8 @@ const SupportAgent = () => {
                   type="button"
                   disabled={pagination.page <= 1}
                   onClick={() =>
-                    loadTickets(pagination.page - 1).catch(
-                      (err) => setError(errorMessage(err))
+                    loadTickets(pagination.page - 1).catch((err) =>
+                      setError(errorMessage(err)),
                     )
                   }
                 >
@@ -478,12 +485,10 @@ const SupportAgent = () => {
 
                 <button
                   type="button"
-                  disabled={
-                    pagination.page >= pagination.totalPages
-                  }
+                  disabled={pagination.page >= pagination.totalPages}
                   onClick={() =>
-                    loadTickets(pagination.page + 1).catch(
-                      (err) => setError(errorMessage(err))
+                    loadTickets(pagination.page + 1).catch((err) =>
+                      setError(errorMessage(err)),
                     )
                   }
                 >
@@ -517,8 +522,7 @@ const SupportAgent = () => {
                   <h2>{selectedTicket.subject}</h2>
 
                   <p>
-                    Ticket #{selectedTicket.id} ·{" "}
-                    {selectedTicket.member_name}
+                    Ticket #{selectedTicket.id} · {selectedTicket.member_name}
                   </p>
 
                   <button
@@ -527,9 +531,7 @@ const SupportAgent = () => {
                     disabled={busy}
                     onClick={() =>
                       changeStatus(
-                        selectedTicket.status === "open"
-                          ? "closed"
-                          : "open"
+                        selectedTicket.status === "open" ? "closed" : "open",
                       )
                     }
                   >
@@ -549,30 +551,21 @@ const SupportAgent = () => {
 
                 <div className={styles.messages}>
                   {messages.map((message) => {
-                    const isMember =
-                      message.sender_type === "member";
+                    const isMember = message.sender_type === "member";
 
                     return (
                       <div
                         key={message.id}
                         className={`${styles.message} ${
-                          isMember
-                            ? styles.memberMessage
-                            : styles.staffMessage
+                          isMember ? styles.memberMessage : styles.staffMessage
                         }`}
                       >
-                        <strong>
-                          {isMember
-                            ? "Member"
-                            : "EWC Support"}
-                        </strong>
+                        <strong>{isMember ? "Member" : "EWC Support"}</strong>
 
                         <p>{message.message}</p>
 
                         <small>
-                          {new Date(
-                            message.created_at
-                          ).toLocaleString()}
+                          {new Date(message.created_at).toLocaleString()}
                         </small>
                       </div>
                     );
@@ -580,15 +573,10 @@ const SupportAgent = () => {
                 </div>
 
                 {selectedTicket.status === "open" && (
-                  <form
-                    className={styles.replyForm}
-                    onSubmit={handleReply}
-                  >
+                  <form className={styles.replyForm} onSubmit={handleReply}>
                     <textarea
                       value={reply}
-                      onChange={(e) =>
-                        setReply(e.target.value)
-                      }
+                      onChange={(e) => setReply(e.target.value)}
                       placeholder="Write a reply to the member..."
                       maxLength={10000}
                       rows={4}

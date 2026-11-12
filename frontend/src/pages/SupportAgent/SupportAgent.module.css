@@ -448,3 +448,39 @@
     max-width: 95%;
   }
 }
+
+.notificationBadge {
+  display: inline-block;
+  margin-top: 9px;
+  padding: 6px 11px;
+  border-radius: 20px;
+  background: rgba(245, 185, 0, 0.12);
+  color: #ffc928;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.latestReply {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 12px;
+  color: #929aa5;
+  font-size: 11px;
+}
+
+.latestReply small {
+  color: #c1c6ce;
+  font-size: 11px;
+}
+
+.unreadBadge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(245, 185, 0, 0.12);
+  color: #ffc928;
+  font-size: 11px;
+  font-weight: 700;
+}

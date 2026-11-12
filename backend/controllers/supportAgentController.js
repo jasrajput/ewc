@@ -164,6 +164,22 @@ const getTickets = async (req, res) => {
           m.user_id AS member_username,
           m.name AS member_name,
           (
+            SELECT sm.created_at
+            FROM support_messages sm
+            WHERE sm.ticket_id = st.id
+            ORDER BY sm.created_at DESC, sm.id DESC
+            LIMIT 1
+          ) AS last_message_at,
+
+          (
+            SELECT sm.sender_type
+            FROM support_messages sm
+            WHERE sm.ticket_id = st.id
+            ORDER BY sm.created_at DESC, sm.id DESC
+            LIMIT 1
+          ) AS last_sender_type,
+ 
+          (
             SELECT COUNT(*)
             FROM support_messages sm
             WHERE sm.ticket_id = st.id
@@ -310,7 +326,7 @@ const replyToTicket = async (req, res) => {
     if (
       !tickets.length ||
       Number(tickets[0].assigned_agent_id) !==
-        Number(req.supportAgent.id)
+      Number(req.supportAgent.id)
     ) {
       await connection.rollback();
 
@@ -360,7 +376,7 @@ const replyToTicket = async (req, res) => {
     });
   } catch (error) {
     if (connection) {
-      await connection.rollback().catch(() => {});
+      await connection.rollback().catch(() => { });
     }
 
     return serverError(res, error);
@@ -591,12 +607,52 @@ const adminAssignTicket = async (req, res) => {
     });
   } catch (error) {
     if (connection) {
-      await connection.rollback().catch(() => {});
+      await connection.rollback().catch(() => { });
     }
 
     return serverError(res, error);
   } finally {
     if (connection) connection.release();
+  }
+};
+
+const getAgentNotificationSummary = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `
+        SELECT
+          COUNT(*) AS unreadTickets,
+          COALESCE(SUM(unread_count), 0) AS unreadMessages
+        FROM (
+          SELECT
+            st.id,
+            (
+              SELECT COUNT(*)
+              FROM support_messages sm
+              WHERE sm.ticket_id = st.id
+                AND sm.sender_type = 'member'
+                AND (
+                  st.agent_last_read_at IS NULL
+                  OR sm.created_at > st.agent_last_read_at
+                )
+            ) AS unread_count
+          FROM support_tickets st
+          WHERE st.assigned_agent_id = ?
+        ) AS ticket_counts
+        WHERE unread_count > 0
+      `,
+      [req.supportAgent.id]
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        unreadTickets: Number(rows[0]?.unreadTickets || 0),
+        unreadMessages: Number(rows[0]?.unreadMessages || 0),
+      },
+    });
+  } catch (error) {
+    return serverError(res, error);
   }
 };
 
@@ -607,6 +663,8 @@ module.exports = {
   getTicketDetails,
   replyToTicket,
   updateStatus,
+  getAgentNotificationSummary,
+
   adminListAgents,
   adminCreateAgent,
   adminUpdateAgentStatus,

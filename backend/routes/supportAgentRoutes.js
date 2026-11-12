@@ -33,7 +33,14 @@ router.post("/login", loginLimiter, controller.login);
 
 router.use(supportAgentAuth);
 
+
 router.get("/me", controller.me);
+
+router.get(
+  "/notifications",
+  controller.getAgentNotificationSummary
+);
+
 router.get("/tickets", controller.getTickets);
 router.get("/tickets/:id", controller.getTicketDetails);
 
