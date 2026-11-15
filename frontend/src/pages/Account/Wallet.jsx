@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import {
   Wallet as WalletIcon,
@@ -20,11 +19,7 @@ const Wallet = () => {
   // CONNECTED WALLET - WAGMI
   // =========================================================
 
-  const {
-    address: connectedAddress,
-    isConnected,
-    chainId,
-  } = useAccount();
+  const { address: connectedAddress, isConnected, chainId } = useAccount();
 
   // =========================================================
   // STATES
@@ -66,8 +61,7 @@ const Wallet = () => {
       }
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-        "Unable to load wallet information."
+        err.response?.data?.message || "Unable to load wallet information.",
       );
     } finally {
       setLoading(false);
@@ -118,8 +112,7 @@ const Wallet = () => {
   // CONNECTED WALLET HELPERS
   // =========================================================
 
-  const hasConnectedWallet =
-    isConnected && Boolean(connectedAddress);
+  const hasConnectedWallet = isConnected && Boolean(connectedAddress);
 
   const isBscMainnet = chainId === 56;
 
@@ -198,14 +191,10 @@ const Wallet = () => {
 
       await loadAccount();
 
-      setSuccess(
-        response.data.message ||
-        "Wallet registered successfully."
-      );
+      setSuccess(response.data.message || "Wallet registered successfully.");
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-        "Unable to register wallet address."
+        err.response?.data?.message || "Unable to register wallet address.",
       );
 
       setConfirming(false);
@@ -220,13 +209,8 @@ const Wallet = () => {
 
   if (loading) {
     return (
-      <UserLayout
-        title="Wallet"
-        subtitle="Manage your withdrawal wallet"
-      >
-        <div className={styles.loading}>
-          Loading wallet information...
-        </div>
+      <UserLayout title="Wallet" subtitle="Manage your withdrawal wallet">
+        <div className={styles.loading}>Loading wallet information...</div>
       </UserLayout>
     );
   }
@@ -236,13 +220,9 @@ const Wallet = () => {
   // =========================================================
 
   return (
-    <UserLayout
-      title="Wallet"
-      subtitle="Manage your withdrawal wallet"
-    >
+    <UserLayout title="Wallet" subtitle="Manage your withdrawal wallet">
       <div className={styles.container}>
         <section className={styles.walletCard}>
-
           {/* =============================================== */}
           {/* HEADER */}
           {/* =============================================== */}
@@ -256,8 +236,8 @@ const Wallet = () => {
               <h2>Withdrawal Wallet</h2>
 
               <p>
-                This wallet will be used for your EWC
-                presale investments and reward claims.
+                This wallet will be used for your EWC presale investments and
+                reward claims.
               </p>
             </div>
           </div>
@@ -274,9 +254,7 @@ const Wallet = () => {
                 <div>
                   <strong>Wallet Registered</strong>
 
-                  <span>
-                    Your wallet is permanently registered.
-                  </span>
+                  <span>Your wallet is permanently registered.</span>
                 </div>
               </div>
 
@@ -290,9 +268,8 @@ const Wallet = () => {
                 <ShieldCheck size={18} />
 
                 <p>
-                  This wallet address cannot be changed.
-                  It is used for EWC presale account
-                  verification and reward entitlement.
+                  This wallet address cannot be changed. It is used for EWC
+                  presale account verification and reward entitlement.
                 </p>
               </div>
             </>
@@ -309,10 +286,9 @@ const Wallet = () => {
                   <strong>Important</strong>
 
                   <p>
-                    Your wallet can only be registered
-                    once. Make sure the address is
-                    correct before submitting it.
-                    It cannot be changed later.
+                    Your wallet can only be registered once. Make sure the
+                    address is correct before submitting it. It cannot be
+                    changed later.
                   </p>
                 </div>
               </div>
@@ -329,8 +305,7 @@ const Wallet = () => {
                     padding: "18px",
                     borderRadius: "14px",
                     background: "rgba(212,175,55,0.06)",
-                    border:
-                      "1px solid rgba(212,175,55,0.30)",
+                    border: "1px solid rgba(212,175,55,0.30)",
                   }}
                 >
                   <div
@@ -356,9 +331,8 @@ const Wallet = () => {
                       marginBottom: "12px",
                     }}
                   >
-                    You already have a wallet connected.
-                    Would you like to use this wallet
-                    address for your EWC account?
+                    You already have a wallet connected. Would you like to use
+                    this wallet address for your EWC account?
                   </p>
 
                   <div
@@ -378,9 +352,7 @@ const Wallet = () => {
                   <div
                     style={{
                       fontSize: "12px",
-                      color: isBscMainnet
-                        ? "#69d79a"
-                        : "#e9c45a",
+                      color: isBscMainnet ? "#69d79a" : "#e9c45a",
                       marginBottom: "14px",
                     }}
                   >
@@ -413,8 +385,7 @@ const Wallet = () => {
                         border: "none",
                         borderRadius: "9px",
                         cursor: "pointer",
-                        background:
-                          "linear-gradient(135deg, #d4af37, #b98c22)",
+                        background: "linear-gradient(135deg, #d4af37, #b98c22)",
                         color: "#111",
                         fontWeight: 700,
                         fontSize: "14px",
@@ -430,16 +401,10 @@ const Wallet = () => {
               {/* MESSAGES */}
               {/* =========================================== */}
 
-              {error && (
-                <div className={styles.errorMessage}>
-                  {error}
-                </div>
-              )}
+              {error && <div className={styles.errorMessage}>{error}</div>}
 
               {success && (
-                <div className={styles.successMessage}>
-                  {success}
-                </div>
+                <div className={styles.successMessage}>{success}</div>
               )}
 
               {/* =========================================== */}
@@ -479,6 +444,11 @@ const Wallet = () => {
                   <WalletIcon size={17} />
                   Register Wallet
                 </button>
+
+                <br />
+                <br />
+                <br />
+                <br />
               </form>
             </>
           )}
@@ -492,7 +462,6 @@ const Wallet = () => {
       {confirming && (
         <div className={styles.modalOverlay}>
           <div className={styles.confirmModal}>
-
             <div className={styles.modalWarning}>
               <TriangleAlert size={25} />
             </div>
@@ -500,13 +469,11 @@ const Wallet = () => {
             <h3>Confirm Wallet Address</h3>
 
             <p>
-              Please verify this address carefully.
-              Once registered, it cannot be changed.
+              Please verify this address carefully. Once registered, it cannot
+              be changed.
             </p>
 
-            <div className={styles.confirmAddress}>
-              {wallet}
-            </div>
+            <div className={styles.confirmAddress}>{wallet}</div>
 
             {isUsingConnectedWallet && (
               <p
@@ -536,9 +503,7 @@ const Wallet = () => {
                 onClick={registerWallet}
                 disabled={saving}
               >
-                {saving
-                  ? "Registering..."
-                  : "Yes, Register Permanently"}
+                {saving ? "Registering..." : "Yes, Register Permanently"}
               </button>
             </div>
           </div>
