@@ -47,6 +47,8 @@
   pointer-events: none;
 }
 
+
+
 .heroContent {
   position: relative;
   z-index: 1;
@@ -1191,4 +1193,16 @@
   color: #e9c45a;
   text-decoration: none;
   font-size: 13px;
+}
+
+
+/* Temporary mobile rendering test */
+@media (max-width: 768px) {
+  .privateSalePage * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
 }
