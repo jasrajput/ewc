@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
@@ -9,9 +9,14 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 interface IEWCCommissionPool {
     function usdtReserve() external view returns (uint256);
@@ -19,6 +24,7 @@ interface IEWCCommissionPool {
 }
 
 interface IPancakeRouterV2 {
+    function factory() external view returns (address);
     function swapExactTokensForTokens(
         uint256 amountIn,
         uint256 amountOutMin,
@@ -26,6 +32,13 @@ interface IPancakeRouterV2 {
         address to,
         uint256 deadline
     ) external returns (uint256[] memory amounts);
+}
+
+interface IPancakeFactoryV2 {
+    function getPair(
+        address tokenA,
+        address tokenB
+    ) external view returns (address);
 }
 
 interface IPancakePairV2 {
@@ -40,17 +53,33 @@ interface IPancakePairV2 {
 
 /**
  * @title EWC Investment
- * @notice USDT investment contract with PancakeSwap EWC purchasing.
+ * @notice USDT investment and EWC allocation accounting contract.
  *
  * Fund distribution:
  * - 20%: EWC market purchase
  * - 40%: Commission pool
  * - 40%: Treasury
  *
- * User EWC allocation is calculated from the full USDT deposit
- * using the EWC/USDT price before the protocol market purchase.
+ * @dev IMPORTANT TRUST MODEL:
+ *
+ * Depositors do not receive EWC tokens directly.
+ *
+ * EWC allocations are recorded for accounting purposes
+ * only and are not directly redeemable through this
+ * contract.
+ *
+ * Rewards are calculated off-chain and distributed
+ * through a separate Merkle-based payout contract.
+ *
+ * Payouts depend on the operation, funding and
+ * authorization of the external reward distribution
+ * system and commission pool.
+ *
+ * This contract does not guarantee reward payments,
+ * returns, or redemption of allocated EWC.
  */
-contract EWCInvestment is Ownable, ReentrancyGuard {
+
+contract EWCInvestment is Ownable2Step, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     // ============================================================
@@ -60,14 +89,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     uint256 public constant BPS = 10_000;
     uint256 public constant EWC_PURCHASE_BPS = 2_000;
     uint256 public constant COMMISSION_BPS = 4_000;
-    /**
-     * @notice Global 3-second deposit cooldown.
-     * @dev Limits rapid consecutive deposits and prevents splitting
-     *      the max deposit across multiple calls in one block.
-     *      Does not prevent single-deposit price manipulation.
-     *      May temporarily delay other users' deposits.
-     */
-    uint256 public constant DEPOSIT_COOLDOWN = 3 seconds;
+    uint256 private constant PRICE_CALCULATION_SCALE = 1e36;
 
     // ============================================================
     // EXTERNAL CONTRACTS
@@ -80,6 +102,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     IPancakePairV2 public immutable pancakePair;
     IEWCCommissionPool public immutable commissionPool;
 
+    address constant BSC_USDT = 0x55d398326f99059fF775485246999027B3197955;
     uint8 public immutable usdtDecimals;
 
     // ============================================================
@@ -87,6 +110,10 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // ============================================================
 
     address public treasury;
+    uint256 public constant TREASURY_CHANGE_DELAY = 48 hours;
+
+    address public pendingTreasury;
+    uint256 public treasuryChangeTime;
 
     // ============================================================
     // DEPOSIT CONFIGURATION
@@ -128,7 +155,6 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // ============================================================
 
     uint256 public totalUsers;
-    uint256 public lastGlobalDepositTime;
 
     uint256 public totalDepositedUSDT;
     uint256 public totalAllocatedEWC;
@@ -156,16 +182,22 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         uint256 timestamp
     );
 
-    event EWCPurchased(
-        address indexed beneficiary,
-        uint256 usdtSpent,
-        uint256 ewcReceived,
-        uint256 timestamp
-    );
-
     event TreasuryChanged(
         address indexed oldTreasury,
         address indexed newTreasury
+    );
+
+    event TreasuryChangeScheduled(
+        address indexed newTreasury,
+        uint256 executeAfter
+    );
+
+    event TreasuryChangeCancelled(address indexed proposedTreasury);
+
+    event TokensRescued(
+        address indexed token,
+        address indexed recipient,
+        uint256 amount
     );
 
     // ============================================================
@@ -176,26 +208,30 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     error InvalidAmount();
     error BelowMinimumDeposit();
     error AboveMaximumDeposit();
-    error DepositCooldownActive();
     error InvalidPair();
     error InvalidPrice();
-    error InsufficientSwapOutput();
     error InsufficientAllocation();
+
+    error InvalidTreasury();
+    error TreasuryChangePending();
+    error NoPendingTreasury();
+    error TreasuryTimelockActive();
+    error DeadlineExpired();
+    error InvalidCommissionPool();
+    error RescueNotAllowed();
 
     // ============================================================
     // CONSTRUCTOR
     // ============================================================
 
     /**
-     * @param _usdt USDT token address.
-     * @param _ewc EWC token address.
-     * @param _router PancakeSwap V2 router address.
-     * @param _pair EWC/USDT PancakeSwap V2 pair address.
-     * @param _commissionPool Commission pool contract address.
-     * @param _treasury Treasury wallet address.
-     * @param _minDeposit Minimum USDT deposit.
-     * @param _maxDeposit Maximum USDT deposit.
+     * @dev Supports only standard BSC-USD (BEP-20 USDT).
+     *      Assumes exact token transfers without transfer fees.
+     *      Swap output relies on the trusted PancakeSwap V2 router.
+     *      Tokens with transfer fees or incompatible restrictions
+     *      are not supported.
      */
+
     constructor(
         address _usdt,
         address _ewc,
@@ -206,6 +242,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         uint256 _minDeposit,
         uint256 _maxDeposit
     ) Ownable(msg.sender) {
+        // 1. Validate zero addresses
         if (
             _usdt == address(0) ||
             _ewc == address(0) ||
@@ -215,10 +252,31 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             _treasury == address(0)
         ) revert ZeroAddress();
 
+        // 2. Only allow BSC-USD (USDT)
+        if (_usdt != BSC_USDT) revert InvalidAmount();
+
+        // 3. Validate deposit limits
         if (_minDeposit == 0 || _maxDeposit < _minDeposit) {
             revert InvalidAmount();
         }
 
+        // 4. Validate contract addresses
+        if (
+            _router.code.length == 0 ||
+            _pair.code.length == 0 ||
+            _commissionPool.code.length == 0
+        ) revert InvalidAmount();
+
+        // 5. Validate commission pool
+        if (
+            _commissionPool == address(this) ||
+            _commissionPool == _pair ||
+            _commissionPool == _router ||
+            _commissionPool == _usdt ||
+            _commissionPool == _ewc
+        ) revert InvalidCommissionPool();
+
+        // 6. Assign contracts
         usdt = IERC20(_usdt);
         ewc = IERC20(_ewc);
 
@@ -226,12 +284,24 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         pancakePair = IPancakePairV2(_pair);
         commissionPool = IEWCCommissionPool(_commissionPool);
 
+        // 7. Validate treasury
+        _validateTreasury(_treasury);
+
         treasury = _treasury;
+
+        emit TreasuryChanged(address(0), _treasury);
+
         minDeposit = _minDeposit;
         maxDeposit = _maxDeposit;
 
-        usdtDecimals = IERC20Metadata(_usdt).decimals();
+        // 8. Validate USDT decimals
+        uint8 decimals = IERC20Metadata(_usdt).decimals();
 
+        if (decimals > 18) revert InvalidAmount();
+
+        usdtDecimals = decimals;
+
+        // 9. Verify pair contains EWC and USDT
         address token0 = pancakePair.token0();
         address token1 = pancakePair.token1();
 
@@ -239,6 +309,15 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             (token0 == _usdt && token1 == _ewc);
 
         if (!validPair) revert InvalidPair();
+
+        // 10. Verify router factory matches configured pair
+        address factory = pancakeRouter.factory();
+
+        if (factory.code.length == 0) revert InvalidPair();
+
+        address factoryPair = IPancakeFactoryV2(factory).getPair(_usdt, _ewc);
+
+        if (factoryPair != _pair) revert InvalidPair();
     }
 
     // ============================================================
@@ -246,33 +325,47 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // ============================================================
 
     /**
-     * @notice Deposit USDT for yourself.
-     * @param minEwcOut Minimum EWC output from the 20% market purchase.
-     * @param minAllocatedEWC Minimum acceptable EWC investment allocation.
+     * @notice Deposits USDT for the caller.
+     * @param usdtAmount Amount of USDT in token units.
+     * @param minEwcOut Minimum EWC received from the market purchase.
+     * @param minAllocatedEWC Minimum acceptable EWC allocation.
+     * @param deadline Transaction expiration timestamp.
      */
+
     function deposit(
         uint256 usdtAmount,
         uint256 minEwcOut,
-        uint256 minAllocatedEWC
-    ) external nonReentrant {
+        uint256 minAllocatedEWC,
+        uint256 deadline
+    ) external nonReentrant whenNotPaused {
         _deposit(
             msg.sender,
             msg.sender,
             usdtAmount,
             minEwcOut,
-            minAllocatedEWC
+            minAllocatedEWC,
+            deadline
         );
     }
 
     /**
-     * @notice Deposit USDT for another beneficiary.
+     * @notice Deposits USDT on behalf of another user.
+     * @dev Permissionless to support assisted account activation.
+     *      The actual payer is recorded separately.
+     * @param beneficiary Address receiving the allocation.
+     * @param usdtAmount Amount of USDT in token units.
+     * @param minEwcOut Minimum EWC received from the market purchase.
+     * @param minAllocatedEWC Minimum acceptable EWC allocation.
+     * @param deadline Transaction expiration timestamp.
      */
+
     function depositFor(
         address beneficiary,
         uint256 usdtAmount,
         uint256 minEwcOut,
-        uint256 minAllocatedEWC
-    ) external nonReentrant {
+        uint256 minAllocatedEWC,
+        uint256 deadline
+    ) external nonReentrant whenNotPaused {
         if (beneficiary == address(0)) revert ZeroAddress();
 
         _deposit(
@@ -280,62 +373,55 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             beneficiary,
             usdtAmount,
             minEwcOut,
-            minAllocatedEWC
+            minAllocatedEWC,
+            deadline
         );
     }
 
     /**
-     * @dev Records EWC allocation without transferring tokens to users.
-     *      Rewards are calculated off-chain and distributed through
-     *      a separate Merkle-based payout contract.
+     * @dev Processes a USDT deposit and records the
+     *      beneficiary's calculated EWC allocation.
+     *
+     * The allocation is an accounting record and does
+     * not represent EWC held in custody for the user.
+     *
+     * No tokens become directly claimable from this
+     * contract after depositing.
+     *
+     * Reward calculations and payments are handled
+     * externally through a Merkle-based payout system.
      */
-
     function _deposit(
         address payer,
         address beneficiary,
         uint256 usdtAmount,
         uint256 minEwcOut,
-        uint256 minAllocatedEWC
+        uint256 minAllocatedEWC,
+        uint256 deadline
     ) internal {
-        if (block.timestamp < lastGlobalDepositTime + DEPOSIT_COOLDOWN) {
-            revert DepositCooldownActive();
-        }
-
+        // Checks
+        if (block.timestamp > deadline) revert DeadlineExpired();
         if (usdtAmount < minDeposit) revert BelowMinimumDeposit();
         if (usdtAmount > maxDeposit) revert AboveMaximumDeposit();
-        if (minEwcOut == 0) revert InvalidAmount();
 
-        // Calculate EWC allocation before the market purchase.
+        if (minEwcOut == 0 || minAllocatedEWC == 0) {
+            revert InvalidAmount();
+        }
+
+        // Calculate allocation
+        uint256 allocatedEWC = _calculateEwcFromUSDT(usdtAmount);
         uint256 allocationPrice = getCurrentEwcPrice();
-        if (allocationPrice == 0) revert InvalidPrice();
-
-        uint256 allocatedEWC = _calculateEwcFromUSDT(
-            usdtAmount,
-            allocationPrice
-        );
 
         if (allocatedEWC < minAllocatedEWC) {
             revert InsufficientAllocation();
         }
 
-        // Calculate fund distribution.
+        // Calculate fund distribution
         uint256 marketBuyUSDT = (usdtAmount * EWC_PURCHASE_BPS) / BPS;
         uint256 commissionUSDT = (usdtAmount * COMMISSION_BPS) / BPS;
         uint256 treasuryUSDT = usdtAmount - marketBuyUSDT - commissionUSDT;
 
-        // Collect USDT and distribute funds.
-        usdt.safeTransferFrom(payer, address(this), usdtAmount);
-        usdt.safeTransfer(address(commissionPool), commissionUSDT);
-        usdt.safeTransfer(treasury, treasuryUSDT);
-
-        // Buy EWC using 20% of the deposit.
-        uint256 marketBoughtEWC = _buyEwc(
-            beneficiary,
-            marketBuyUSDT,
-            minEwcOut
-        );
-
-        // Update beneficiary data.
+        // Effects: update beneficiary accounting
         User storage u = users[beneficiary];
 
         if (u.depositCount == 0) {
@@ -345,20 +431,35 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
 
         u.totalDepositedUSDT += usdtAmount;
         u.totalAllocatedEWC += allocatedEWC;
-        u.totalMarketBoughtEWC += marketBoughtEWC;
         u.depositCount++;
         u.lastDepositTime = block.timestamp;
 
-        // Update global statistics.
+        // Effects: update global accounting
         totalDepositedUSDT += usdtAmount;
         totalAllocatedEWC += allocatedEWC;
         totalMarketBuyUSDT += marketBuyUSDT;
-        totalMarketBoughtEWC += marketBoughtEWC;
         totalCommissionUSDTAllocated += commissionUSDT;
         totalTreasuryUSDTAllocated += treasuryUSDT;
-        lastGlobalDepositTime = block.timestamp;
 
-        // Save deposit history.
+        // Interactions: collect and distribute USDT
+        usdt.safeTransferFrom(payer, address(this), usdtAmount);
+
+        usdt.safeTransfer(address(commissionPool), commissionUSDT);
+        usdt.safeTransfer(treasury, treasuryUSDT);
+
+        // Buy EWC using 20% of the deposit
+        uint256 marketBoughtEWC = _buyEwc(
+            beneficiary,
+            marketBuyUSDT,
+            minEwcOut,
+            deadline
+        );
+
+        // Update values known only after the swap
+        u.totalMarketBoughtEWC += marketBoughtEWC;
+        totalMarketBoughtEWC += marketBoughtEWC;
+
+        // Save on-chain deposit history
         _deposits[beneficiary].push(
             Deposit({
                 payer: payer,
@@ -390,19 +491,22 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // ============================================================
     // PANCAKESWAP MARKET PURCHASE
     // ============================================================
-
     /**
-     * @dev Uses 20% of deposited USDT to buy EWC.
-     *      EWC is received here first to satisfy token launch rules,
-     *      then forwarded to the commission pool.
+     * @dev Uses 20% of deposited USDT to purchase EWC
+     *      through PancakeSwap.
+     *
+     * Purchased EWC is forwarded to the commission pool.
+     *
+     * The purchased tokens are not transferred to
+     * the depositor and are not reserved for direct
+     * withdrawal through this contract.
      */
     function _buyEwc(
         address beneficiary,
         uint256 usdtAmount,
-        uint256 minEwcOut
+        uint256 minEwcOut,
+        uint256 deadline
     ) internal returns (uint256 ewcReceived) {
-        if (usdtAmount == 0) revert InvalidAmount();
-
         usdt.forceApprove(address(pancakeRouter), usdtAmount);
 
         address[] memory path = new address[](2);
@@ -414,22 +518,12 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
             minEwcOut,
             path,
             address(this),
-            block.timestamp + 300
+            deadline
         );
 
         ewcReceived = amounts[amounts.length - 1];
 
-        if (ewcReceived == 0) revert InsufficientSwapOutput();
-
         ewc.safeTransfer(address(commissionPool), ewcReceived);
-
-        emit EWCPurchased(
-            beneficiary,
-            usdtAmount,
-            ewcReceived,
-            block.timestamp
-        );
-
         return ewcReceived;
     }
 
@@ -437,21 +531,37 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     // EWC ALLOCATION CALCULATION
     // ============================================================
 
+    function _getEwcUsdtReserves()
+        internal
+        view
+        returns (uint256 ewcReserve, uint256 usdtReserve)
+    {
+        (uint112 reserve0, uint112 reserve1, ) = pancakePair.getReserves();
+
+        if (pancakePair.token0() == address(ewc)) {
+            ewcReserve = uint256(reserve0);
+            usdtReserve = uint256(reserve1);
+        } else {
+            ewcReserve = uint256(reserve1);
+            usdtReserve = uint256(reserve0);
+        }
+
+        if (ewcReserve == 0 || usdtReserve == 0) {
+            revert InvalidPrice();
+        }
+    }
+
     /**
      * @dev Calculates EWC allocation from the full USDT deposit.
      *      Allocation is accounting-only; no EWC is immediately
      *      transferred or made claimable.
      */
     function _calculateEwcFromUSDT(
-        uint256 usdtAmount,
-        uint256 ewcPrice
+        uint256 usdtAmount
     ) internal view returns (uint256) {
-        if (ewcPrice == 0) revert InvalidPrice();
+        (uint256 ewcReserve, uint256 usdtReserve) = _getEwcUsdtReserves();
 
-        uint256 normalizedUSDT = (usdtAmount * 1e18) /
-            (10 ** uint256(usdtDecimals));
-
-        return (normalizedUSDT * 1e18) / ewcPrice;
+        return Math.mulDiv(usdtAmount, ewcReserve, usdtReserve);
     }
 
     // ============================================================
@@ -464,13 +574,9 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
     function previewEwcAllocation(
         uint256 usdtAmount
     ) external view returns (uint256 ewcPrice, uint256 allocatedEWC) {
+        allocatedEWC = _calculateEwcFromUSDT(usdtAmount);
         ewcPrice = getCurrentEwcPrice();
-
-        if (ewcPrice == 0) return (0, 0);
-
-        allocatedEWC = _calculateEwcFromUSDT(usdtAmount, ewcPrice);
     }
-
     // ============================================================
     // FUND ROUTING PREVIEW
     // ============================================================
@@ -520,7 +626,7 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         }
 
         return
-            (usdtReserveAmount * 1e36) /
+            (usdtReserveAmount * PRICE_CALCULATION_SCALE) /
             (ewcReserve * (10 ** uint256(usdtDecimals)));
     }
 
@@ -650,19 +756,92 @@ contract EWCInvestment is Ownable, ReentrancyGuard {
         );
     }
 
-    // ============================================================
-    // ADMIN FUNCTIONS
-    // ============================================================
+    function _validateTreasury(address newTreasury) internal view {
+        if (
+            newTreasury == address(0) ||
+            newTreasury == address(this) ||
+            newTreasury == address(usdt) ||
+            newTreasury == address(ewc) ||
+            newTreasury == address(pancakeRouter) ||
+            newTreasury == address(pancakePair) ||
+            newTreasury == address(commissionPool)
+        ) revert InvalidTreasury();
+    }
 
-    /**
-     * @notice Updates the treasury wallet.
-     */
+    // Step 1: Schedule treasury change
     function setTreasury(address newTreasury) external onlyOwner {
-        if (newTreasury == address(0)) revert ZeroAddress();
+        _validateTreasury(newTreasury);
+
+        if (newTreasury == treasury) revert InvalidTreasury();
+        if (treasuryChangeTime != 0) revert TreasuryChangePending();
+
+        pendingTreasury = newTreasury;
+        treasuryChangeTime = block.timestamp + TREASURY_CHANGE_DELAY;
+
+        emit TreasuryChangeScheduled(newTreasury, treasuryChangeTime);
+    }
+
+    // Step 2: Execute after 48 hours
+    function executeTreasuryChange() external {
+        if (treasuryChangeTime == 0) revert NoPendingTreasury();
+
+        if (block.timestamp < treasuryChangeTime) {
+            revert TreasuryTimelockActive();
+        }
+
+        address newTreasury = pendingTreasury;
+
+        _validateTreasury(newTreasury);
 
         address oldTreasury = treasury;
+
+        delete pendingTreasury;
+        delete treasuryChangeTime;
+
         treasury = newTreasury;
 
         emit TreasuryChanged(oldTreasury, newTreasury);
+    }
+
+    // Cancel a scheduled change
+    function cancelTreasuryChange() external onlyOwner {
+        if (treasuryChangeTime == 0) revert NoPendingTreasury();
+
+        address proposedTreasury = pendingTreasury;
+
+        delete pendingTreasury;
+        delete treasuryChangeTime;
+
+        emit TreasuryChangeCancelled(proposedTreasury);
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    function rescueTokens(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external onlyOwner nonReentrant {
+        if (token == address(0) || recipient == address(0)) {
+            revert ZeroAddress();
+        }
+
+        if (
+            token == address(usdt) ||
+            token == address(ewc) ||
+            token.code.length == 0
+        ) revert RescueNotAllowed();
+
+        if (amount == 0) revert InvalidAmount();
+
+        IERC20(token).safeTransfer(recipient, amount);
+
+        emit TokensRescued(token, recipient, amount);
     }
 }

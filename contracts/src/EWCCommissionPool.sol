@@ -91,6 +91,12 @@ contract EWCCommissionPool is Ownable, ReentrancyGuard {
         emit EWCRoiPaid(to, amount);
     }
 
+    /**
+     * @dev Reserves are derived from actual token balances.
+     *      Incoming transfers require no notification.
+     *      All received tokens are available for payouts.
+     */
+
     function getBalances()
         external
         view

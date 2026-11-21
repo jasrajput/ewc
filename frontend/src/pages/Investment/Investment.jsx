@@ -52,7 +52,7 @@ const MAX_DEPOSIT = 5000;
 const USDT_DECIMALS = 18;
 const EWC_DECIMALS = 18;
 
-const TX_SLIPPAGE_BPS = 500n;
+const TX_SLIPPAGE_BPS = 100n; //1%
 const BPS = 10000n;
 
 // December 1, 2026, 00:00 UTC
@@ -440,7 +440,39 @@ const Investment = () => {
 
     const expectedOut = amounts[1];
 
-    return expectedOut - (expectedOut * TX_SLIPPAGE_BPS) / BPS;
+    if (expectedOut === 0n) {
+      throw new Error("Invalid swap output");
+    }
+
+    const minimum = expectedOut - (expectedOut * TX_SLIPPAGE_BPS) / BPS;
+
+    if (minimum === 0n) {
+      throw new Error("Minimum swap output too low");
+    }
+
+    return minimum;
+  };
+
+  const getMinAllocatedEWC = async (amountWei) => {
+    const [, expectedAllocation] = await publicClient.readContract({
+      address: STAKING_ADDRESS,
+      abi: STAKING_ABI,
+      functionName: "previewEwcAllocation",
+      args: [amountWei],
+    });
+
+    if (expectedAllocation === 0n) {
+      throw new Error("Invalid EWC allocation");
+    }
+
+    const minimum =
+      expectedAllocation - (expectedAllocation * TX_SLIPPAGE_BPS) / BPS;
+
+    if (minimum === 0n) {
+      throw new Error("Minimum EWC allocation too low");
+    }
+
+    return minimum;
   };
 
   // =========================================================
@@ -544,22 +576,23 @@ const Investment = () => {
       setTxStatus("investing");
 
       const minEwcOut = await getInternalMinEwcOut(amountWei);
+      const minAllocatedEWC = await getMinAllocatedEWC(amountWei);
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 300);
 
       let depositHash;
-
       if (investmentType === "self") {
         depositHash = await writeContract({
           address: STAKING_ADDRESS,
           abi: STAKING_ABI,
           functionName: "deposit",
-          args: [amountWei, minEwcOut],
+          args: [amountWei, minEwcOut, minAllocatedEWC, deadline],
         });
       } else {
         depositHash = await writeContract({
           address: STAKING_ADDRESS,
           abi: STAKING_ABI,
           functionName: "depositFor",
-          args: [beneficiary, amountWei, minEwcOut],
+          args: [beneficiary, amountWei, minEwcOut, minAllocatedEWC, deadline],
         });
       }
 

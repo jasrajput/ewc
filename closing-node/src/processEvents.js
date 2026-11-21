@@ -1010,6 +1010,111 @@ function getRankPercent(rank) {
     return rankConfig ? rankConfig.percent : 0;
 }
 
+
+// ============================================================
+// 20% CASCADING SAME-RANK INCOME
+// ============================================================
+
+async function processSameRankIncome(
+    connection,
+    incomeReceiver,
+    originalIncome,
+    txHash
+) {
+    const sourceRank = Number(incomeReceiver.level_achieved || 0);
+
+    if (sourceRank <= 0 || Number(originalIncome) <= 0) {
+        return;
+    }
+
+    let parentUserId = incomeReceiver.real_sponsor_id;
+    let previousIncome = Number(originalIncome);
+
+    const visited = new Set();
+
+    while (parentUserId) {
+        const key = String(parentUserId).toLowerCase();
+
+        if (visited.has(key)) {
+            throw new Error(`Sponsor loop detected at ${parentUserId}`);
+        }
+
+        visited.add(key);
+
+        const [rows] = await connection.execute(
+            `
+            SELECT
+                id,
+                user_id,
+                real_sponsor_id,
+                package_choose,
+                level_achieved
+            FROM member
+            WHERE user_id = ?
+            LIMIT 1
+            `,
+            [parentUserId]
+        );
+
+        if (!rows.length) break;
+
+        const parent = rows[0];
+
+        const eligible =
+            Number(parent.package_choose) >= 2 &&
+            Number(parent.level_achieved || 0) === sourceRank;
+
+        if (eligible) {
+            // Every qualifying same-rank upline gets 20%
+            const income = Number(
+                (previousIncome * 0.20).toFixed(5)
+            );
+
+            if (income <= 0) break;
+
+            await connection.execute(
+                `
+                INSERT INTO trasections
+                    (credit, direction, user_id, description)
+                VALUES (?, 5, ?, ?)
+                `,
+                [
+                    income,
+                    parent.id,
+                    `E-${String(sourceRank).padStart(2, "0")} ` +
+                    `Same Rank Income 20% from ${incomeReceiver.user_id}`
+                ]
+            );
+
+            const [walletResult] = await connection.execute(
+                `
+                UPDATE user_wallet
+                SET balance = COALESCE(balance, 0) + ?
+                WHERE user_id = ?
+                `,
+                [income, parent.id]
+            );
+
+            if (walletResult.affectedRows !== 1) {
+                throw new Error(
+                    `Same Rank wallet update failed for ${parent.user_id}`
+                );
+            }
+
+            console.log(
+                `Same Rank: ${income} USDT -> ${parent.user_id}`
+            );
+
+            // The next upline receives 20% of this reward
+            previousIncome = income;
+        }
+
+        // Skip ineligible sponsors but continue upward
+        parentUserId = parent.real_sponsor_id;
+    }
+}
+
+
 // ============================================================
 // DIFFERENTIAL RANK INCOME
 // ============================================================
@@ -1106,6 +1211,14 @@ async function processRankIncome(
                     `${parent.user_id} | ` +
                     `Rank E-${String(rank).padStart(2, "0")} | ` +
                     `Differential ${differencePercent}%`
+                );
+
+                // Pay cascading 20% Same-Rank Income
+                await processSameRankIncome(
+                    connection,
+                    parent,
+                    income,
+                    txHash
                 );
             }
 

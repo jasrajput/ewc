@@ -1,39 +1,58 @@
-
- // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.24;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 interface IPancakeFactory {
     function INIT_CODE_PAIR_HASH() external view returns (bytes32);
-    function getPair(address tokenA, address tokenB) external view returns (address);
 }
 
 /**
  * @title Elevate World Community (EWC)
- * @notice Fixed-supply BEP-20 token for BNB Smart Chain.
+ * @notice Fixed-supply BEP-20 token on BNB Smart Chain.
  *
  * Supply: 500,000,000 EWC
  * Decimals: 18
  *
- * Features:
- * - Fixed supply with no additional minting
- * - Public buying enabled manually after unlockTime
- * - Temporary launch protection
- * - Investment contract exemption
- * - Same-block buy/sell protection
- * - Protection propagation through wallet transfers
- * - No taxes, blacklist, or pause functionality
+ * Launch Protection:
+ * - Restrictions apply only to the official PancakeSwap V2
+ *   EWC/USDT pair stored in dexPair.
+ * - Other DEX pools may bypass launch protections.
+ * - Public buying requires activation after unlockTime.
+ * - During the shield, buy limits apply per wallet and transfer.
+ * - Same-block sell protection applies to marked wallets only.
+ * - Multi-wallet trading and MEV attacks remain possible.
+ * - Liquidity withdrawals are restricted before and during launch.
+ * - Same-block restrictions expire when the shield ends.
+ *
+ * Investment Contract:
+ * - Can be registered only once before public buying is enabled.
+ * - Registered investment contract has special trading exemptions.
+ *
+ * Ownership:
+ * - Supports two-step ownership transfers via Ownable2Step.
+ * - Public buying has an owner-controlled launch and timed fallback.
+ * - Ownership cannot be renounced before launch requirements are met.
+ *
+ * No taxes, blacklist or pause functionality.
  */
-contract EWCToken is ERC20 {
 
+contract EWCToken is ERC20, Ownable2Step {
     // ============================================================
     // STATE VARIABLES
     // ============================================================
 
     uint256 public constant INITIAL_SUPPLY = 500_000_000 ether;
+    uint256 public constant PUBLIC_LAUNCH_DELAY = 1 days;
 
-    address public owner;
+    // Constructor safety limits
+    uint256 public constant MAX_UNLOCK_DELAY = 30 days;
+    uint256 public constant MAX_SHIELD_DURATION = 3 days;
+    uint256 public constant MIN_BUY_LIMIT = INITIAL_SUPPLY / 10_000; // 0.01%
+    uint256 public constant MAX_BUY_LIMIT = INITIAL_SUPPLY / 20; // 5%
+
     address public investContract;
 
     uint256 public immutable unlockTime;
@@ -53,36 +72,42 @@ contract EWCToken is ERC20 {
 
     event BuyingEnabled(address indexed by, uint256 timestamp);
     event InvestContractSet(address indexed previous, address indexed current);
-    event OwnershipRenounced(address indexed previousOwner);
 
     // ============================================================
     // ERRORS
     // ============================================================
 
-    error NotOwner();
-    error UnlockTimeInPast();
     error InvalidDexParams();
     error InvalidPairInitCodeHash();
     error TooEarly(uint256 unlockAvailableAt);
     error AlreadyEnabled();
-    error ZeroAddress();
     error BuyingNotEnabled();
     error MaxBuyExceeded(uint256 amount, uint256 limit);
     error SameBlockBuy();
     error SameBlockSell();
+    error InvestContractAlreadySet();
+    error InvalidInvestContract();
+    error InvestContractNotSet();
+    error InvalidUnlockTime();
+    error InvalidShieldDuration();
+    error InvalidMaxBuyAmount();
+    error SellingNotEnabled();
+    error TransferToTokenContract();
 
     // ============================================================
     // CONSTRUCTOR
     // ============================================================
 
     /**
-     * @param _unlockTime Earliest timestamp for enabling public buying.
-     * @param _shieldDuration Launch protection duration in seconds.
-     * @param _maxBuyAmount Maximum EWC per buy during shield (0 = unlimited).
+     * @param _unlockTime Unix timestamp within the next 30 days.
+     * @param _shieldDuration Launch shield duration (1 second to 3 days).
+     * @param _maxBuyAmount Buy limit in wei (0 = unlimited,
+     *        otherwise 0.01% to 5% of supply).
      * @param _dexFactory PancakeSwap V2 factory address.
      * @param _quoteToken Quote token address (USDT).
      * @param _pairInitCodeHash PancakeSwap V2 pair initialization hash.
      */
+
     constructor(
         uint256 _unlockTime,
         uint256 _shieldDuration,
@@ -90,22 +115,46 @@ contract EWCToken is ERC20 {
         address _dexFactory,
         address _quoteToken,
         bytes32 _pairInitCodeHash
-    ) ERC20("Elevate World Community", "EWC") {
+    ) ERC20("Elevate World Community", "EWC") Ownable(msg.sender) {
+        // Unlock must be in the future, within 30 days.
+        if (
+            _unlockTime <= block.timestamp ||
+            _unlockTime - block.timestamp > MAX_UNLOCK_DELAY
+        ) {
+            revert InvalidUnlockTime();
+        }
 
-        if (_unlockTime <= block.timestamp) revert UnlockTimeInPast();
+        // Shield cannot be disabled or exceed 3 days.
+        if (_shieldDuration == 0 || _shieldDuration > MAX_SHIELD_DURATION) {
+            revert InvalidShieldDuration();
+        }
 
+        // Zero means unlimited buying.
+        // Otherwise enforce 0.01% - 5% of total supply.
+        if (
+            _maxBuyAmount != 0 &&
+            (_maxBuyAmount < MIN_BUY_LIMIT || _maxBuyAmount > MAX_BUY_LIMIT)
+        ) {
+            revert InvalidMaxBuyAmount();
+        }
+
+        // Validate DEX configuration.
         if (
             _dexFactory == address(0) ||
             _quoteToken == address(0) ||
             _pairInitCodeHash == bytes32(0)
-        ) revert InvalidDexParams();
+        ) {
+            revert InvalidDexParams();
+        }
 
-        // Verify the initialization hash against the factory.
-        if (IPancakeFactory(_dexFactory).INIT_CODE_PAIR_HASH() != _pairInitCodeHash) {
+        // Verify factory initialization hash.
+        if (
+            IPancakeFactory(_dexFactory).INIT_CODE_PAIR_HASH() !=
+            _pairInitCodeHash
+        ) {
             revert InvalidPairInitCodeHash();
         }
 
-        owner = msg.sender;
         unlockTime = _unlockTime;
         shieldDuration = _shieldDuration;
         maxBuyAmount = _maxBuyAmount;
@@ -121,26 +170,39 @@ contract EWCToken is ERC20 {
     }
 
     // ============================================================
-    // MODIFIERS
-    // ============================================================
-
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert NotOwner();
-        _;
-    }
-
-    // ============================================================
     // OWNER FUNCTIONS
     // ============================================================
 
     /**
      * @notice Enables public buying permanently after unlockTime.
      */
-    function enableBuying() external onlyOwner {
-        if (block.timestamp < unlockTime) revert TooEarly(unlockTime);
-        if (buyingEnabledAt != 0) revert AlreadyEnabled();
+
+    function enableBuying() external {
+        if (buyingEnabledAt != 0) {
+            revert AlreadyEnabled();
+        }
+
+        // Investment contract must be configured first.
+        if (investContract == address(0)) {
+            revert InvestContractNotSet();
+        }
+
+        // Nobody can launch before unlockTime.
+        if (block.timestamp < unlockTime) {
+            revert TooEarly(unlockTime);
+        }
+
+        // Owner can launch anytime after unlockTime.
+        // Other addresses can launch after the fallback delay.
+        if (
+            msg.sender != owner() &&
+            block.timestamp < unlockTime + PUBLIC_LAUNCH_DELAY
+        ) {
+            revert TooEarly(unlockTime + PUBLIC_LAUNCH_DELAY);
+        }
 
         buyingEnabledAt = block.timestamp;
+
         emit BuyingEnabled(msg.sender, block.timestamp);
     }
 
@@ -150,41 +212,70 @@ contract EWCToken is ERC20 {
      *      and is exempt from same-block sell restrictions.
      */
     function setInvestContract(address newInvestContract) external onlyOwner {
-        if (newInvestContract == address(0)) revert ZeroAddress();
+        // Cannot configure after public buying is enabled
+        if (buyingEnabledAt != 0) {
+            revert AlreadyEnabled();
+        }
 
-        address previous = investContract;
+        // Can only be configured once.
+        if (investContract != address(0)) {
+            revert InvestContractAlreadySet();
+        }
+
+        // Reject invalid addresses.
+        if (
+            newInvestContract == address(0) ||
+            newInvestContract == address(this) ||
+            newInvestContract == dexPair
+        ) {
+            revert InvalidInvestContract();
+        }
+
+        // Register investment contract permanently.
         investContract = newInvestContract;
 
-        emit InvestContractSet(previous, newInvestContract);
+        emit InvestContractSet(address(0), newInvestContract);
     }
 
     /**
-     * @notice Permanently removes ownership.
-     * @dev Ensure buying is enabled and the investment contract
-     *      is configured before renouncing.
+     * @notice Permanently renounces ownership.
+     * @dev Requires public buying enabled and investment contract set.
      */
-    function renounceOwnership() external onlyOwner {
-        address previousOwner = owner;
-        owner = address(0);
+    function renounceOwnership() public override onlyOwner {
+        if (buyingEnabledAt == 0) {
+            revert BuyingNotEnabled();
+        }
 
-        emit OwnershipRenounced(previousOwner);
+        if (investContract == address(0)) {
+            revert InvestContractNotSet();
+        }
+
+        super.renounceOwnership();
     }
 
     // ============================================================
     // VIEW FUNCTIONS
     // ============================================================
 
+    function getOwner() external view returns (address) {
+        return owner();
+    }
+
+    /// @notice Returns whether public buying has been enabled.
     function buyingEnabled() public view returns (bool) {
         return buyingEnabledAt != 0;
     }
 
+    /// @notice Returns the timestamp when launch protection expires.
     function shieldEndTime() public view returns (uint256) {
         if (buyingEnabledAt == 0) return 0;
         return buyingEnabledAt + shieldDuration;
     }
 
+    /// @notice Returns whether launch protection is currently active.
     function shieldActive() public view returns (bool) {
-        return buyingEnabledAt != 0 &&
+        return
+            buyingEnabledAt != 0 &&
             block.timestamp < buyingEnabledAt + shieldDuration;
     }
 
@@ -206,7 +297,10 @@ contract EWCToken is ERC20 {
     }
 
     function isSellProtected(address wallet) external view returns (bool) {
-        if (wallet == investContract) return false;
+        if (!shieldActive() || wallet == investContract) {
+            return false;
+        }
+
         return lastProtectedReceiveBlock[wallet] == block.number;
     }
 
@@ -223,7 +317,6 @@ contract EWCToken is ERC20 {
         address factory,
         bytes32 initCodeHash
     ) private pure returns (address) {
-
         (address token0, address token1) = tokenA < tokenB
             ? (tokenA, tokenB)
             : (tokenB, tokenA);
@@ -244,101 +337,121 @@ contract EWCToken is ERC20 {
     /**
      * @dev Applies launch and same-block trading restrictions.
      *
-     * Rules:
-     * 1. Public buys are blocked until enableBuying().
-     * 2. Investment contract buys are exempt.
-     * 3. During the shield, one buy per wallet per block.
-     * 4. During the shield, optional maximum amount per buy.
-     * 5. Buying and selling in the same block is blocked.
-     * 6. Investment distributions protect the recipient.
-     * 7. Protected wallets propagate restrictions via transfers.
+     * Launch protection:
+     * 1. Applies only to the official PancakeSwap V2 EWC/USDT pair.
+     * 2. Other pools can bypass pool-specific restrictions.
+     * 3. Public buys require enableBuying(); investment buys are exempt.
+     * 4. During the shield, one buy per recipient per block.
+     * 5. Maximum buy amount applies per transfer, not per user.
+     * 6. Protected wallets cannot sell in the same block.
+     * 7. Investment distributions and transfers propagate protection.
      * 8. Investment contract sells are exempt.
+     * 9. Zero-value transfers do not trigger protection bookkeeping.
+     * 10. Same-block restrictions expire with the shield.
+     *
+     * Limitations:
+     * - Multi-wallet bots, MEV and sandwich attacks remain possible.
+     * - Shared executors, zaps and flash swaps may fail during the shield.
+     * - Liquidity withdrawals count as buys and are restricted
+     *   before launch and during the shield.
      */
+
     function _update(
         address from,
         address to,
         uint256 value
     ) internal virtual override {
-
         // Initial supply mint.
         if (from == address(0)) {
             super._update(from, to, value);
             return;
         }
 
-        bool buy = from == dexPair;
-        bool sell = to == dexPair;
-        bool protectedSender = lastProtectedReceiveBlock[from] == block.number;
-
-        // --------------------------------------------------------
-        // PUBLIC BUY RESTRICTIONS
-        // --------------------------------------------------------
-
-        if (buy && to != investContract) {
-            uint256 enabledAt = buyingEnabledAt;
-
-            if (enabledAt == 0) revert BuyingNotEnabled();
-
-            if (block.timestamp < enabledAt + shieldDuration) {
-                if (_lastBuyBlock[to] == block.number) revert SameBlockBuy();
-
-                if (maxBuyAmount > 0 && value > maxBuyAmount) {
-                    revert MaxBuyExceeded(value, maxBuyAmount);
-                }
-
-                _lastBuyBlock[to] = block.number;
-            }
+        // Prevent EWC from being locked in its own contract.
+        if (to == address(this) && value > 0) {
+            revert TransferToTokenContract();
         }
 
-        // --------------------------------------------------------
+        bool buy = from == dexPair;
+        bool sell = to == dexPair;
+
+        // Block pre-launch sells; allow owner to add liquidity.
+        if (sell && buyingEnabledAt == 0 && from != owner() && value > 0) {
+            revert SellingNotEnabled();
+        }
+
+        // Block public buys before launch.
+        if (buy && to != investContract && buyingEnabledAt == 0) {
+            revert BuyingNotEnabled();
+        }
+
+        // Zero-value transfers do not trigger protection.
+        if (value == 0) {
+            super._update(from, to, value);
+            return;
+        }
+
+        // Same-block restrictions apply only during the shield.
+        if (!shieldActive()) {
+            super._update(from, to, value);
+            return;
+        }
+
+        bool protectedSender = lastProtectedReceiveBlock[from] == block.number;
+
+        // ----------------------------------------------------
+        // PUBLIC BUY RESTRICTIONS
+        // ----------------------------------------------------
+
+        if (buy && to != investContract) {
+            if (_lastBuyBlock[to] == block.number) {
+                revert SameBlockBuy();
+            }
+
+            if (maxBuyAmount > 0 && value > maxBuyAmount) {
+                revert MaxBuyExceeded(value, maxBuyAmount);
+            }
+
+            _lastBuyBlock[to] = block.number;
+        }
+
+        // ----------------------------------------------------
         // SAME-BLOCK SELL PROTECTION
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
         if (sell && from != investContract && protectedSender) {
             revert SameBlockSell();
         }
 
-        // --------------------------------------------------------
+        // ----------------------------------------------------
         // EXECUTE ERC20 TRANSFER
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
         super._update(from, to, value);
 
-        // --------------------------------------------------------
+        // ----------------------------------------------------
         // PROTECT PUBLIC BUY RECIPIENT
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
         if (buy && to != investContract) {
             lastProtectedReceiveBlock[to] = block.number;
             return;
         }
 
-        // --------------------------------------------------------
+        // ----------------------------------------------------
         // PROTECT INVESTMENT DISTRIBUTION RECIPIENT
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
-        if (
-            investContract != address(0) &&
-            from == investContract &&
-            to != address(0) &&
-            to != dexPair &&
-            to != investContract
-        ) {
+        if (from == investContract && to != dexPair && to != investContract) {
             lastProtectedReceiveBlock[to] = block.number;
             return;
         }
 
-        // --------------------------------------------------------
+        // ----------------------------------------------------
         // PROPAGATE SAME-BLOCK PROTECTION
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
-        if (
-            protectedSender &&
-            value > 0 &&
-            to != address(0) &&
-            to != dexPair &&
-            to != investContract
-        ) {
+        if (protectedSender && to != dexPair && to != investContract) {
             lastProtectedReceiveBlock[to] = block.number;
         }
     }
